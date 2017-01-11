@@ -58,34 +58,67 @@
                     <div id="TimeoutLong">Not yet</div>
                 </td>
             </tr>
+            <tr>
+                <td>External scripts:</td>
+                <td>
+                    <div id="ExternalScripts">
+                        False
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>AJAX</td>
+                <td>
+                    <div id="AJAX">
+                        No response yet
+                    </div>
+                </td>
+            </tr>
         </tbody>
     </table>
 
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
     <script>
-        (function () {
+        (function (axios) {
             var setValue = function (target, val) {
                 document.getElementById(target).innerHTML = val;
             }
             var init = function () {
                 var i = 0;
 
-                setValue('JavaScript', 'Enabled.')
+                setValue('JavaScript', 'Enabled');
 
                 setInterval(function () {
                     setValue('Interval', i);
                     i++;
-                }, 1000)
+                }, 1000);
 
                 setTimeout(function () {
                     setValue('TimeoutShort', 'OK')
-                }, 1000)
+                }, 1000);
+
                 setTimeout(function () {
                     setValue('TimeoutLong', 'OK')
-                }, 6000)
+                }, 6000);
+
+                var externalScripts = axios !== undefined;
+
+                if (externalScripts) setValue('ExternalScripts', 'True')
+                
+                var then = new Date().getTime();
+
+                axios.get('https://randomuser.me/api/')
+                    .then(function (response) {
+                        var now = new Date().getTime()
+                        setValue('AJAX', 'Yes (' + (now-then).toString() + 'ms)')
+                    }).catch(function (error) {
+                        console.error('Errro fetching data:', error)
+                    })
             }
 
             init();
-        })()
+        })(axios)
     </script>
 </body>
 
