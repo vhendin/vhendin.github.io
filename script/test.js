@@ -74,5 +74,9 @@
         }
     }
 
+    window.onerror = function (error) {
+        alert(error)
+    }
+
     init();
 })(axios, $)
