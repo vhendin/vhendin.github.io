@@ -85,7 +85,7 @@
                 document.getElementById(target).innerHTML = val;
             }
             var init = function () {
-                var i = 0;
+                var i = 1;
 
                 setValue('JavaScript', 'Enabled');
 
@@ -100,7 +100,7 @@
 
                 setTimeout(function () {
                     setValue('TimeoutLong', 'OK')
-                }, 6000);
+                }, 5000);
 
                 var externalScripts = axios !== undefined;
 
