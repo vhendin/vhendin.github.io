@@ -1,5 +1,10 @@
 (function (axios, $) {
     var ok = function (target, val = '') {
+        try {
+            $('#' + target).html('<div class="status yes">' + val + '</div>')
+        } catch (error) {
+            alert(error)
+        }
         $('#' + target).html('<div class="status yes">' + val + '</div>')
     }
     var pending = function (target, val = '') {
@@ -10,7 +15,7 @@
     }
     var init = function () {
         var i = 1;
-
+        
         ok('JavaScript');
 
         pending('Interval');
@@ -72,10 +77,6 @@
         } catch (error) {
             fail('XMLHttpRequest')
         }
-    }
-
-    window.onerror = function (error) {
-        alert(error)
     }
 
     init();
