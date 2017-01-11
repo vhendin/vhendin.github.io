@@ -19,6 +19,37 @@
         td {
             padding-right: 10px;
         }
+
+        .rotating-cube {
+            background-color: red;
+            height: 15px;
+            width: 15px;
+
+            
+
+            -webkit-animation:rotate 2s linear infinite;
+	        animation:rotate 2s linear infinit;
+
+            -webkit-animation-delay: 6000ms;
+            animation-delay: 6000ms;
+        }
+
+        @-webkit-keyframes rotate {
+            from {
+                -webkit-transform:rotate(0deg);}
+            to {
+                -webkit-transform:rotate(360deg);
+            }
+        }
+
+        @keyframes rotate {
+            from {
+                transform:rotate(0deg);
+            }
+            to {
+                transform:rotate(360deg);
+            }
+        }
     </style>
 </head>
 
@@ -74,6 +105,14 @@
                     </div>
                 </td>
             </tr>
+            <tr>
+                <td>CSS3 (should rotate in 6 sec)</td>
+                <td>
+                    <div class="rotating-cube">
+                        
+                    </div>
+                </td>
+            </tr>
         </tbody>
     </table>
 
@@ -105,13 +144,13 @@
                 var externalScripts = axios !== undefined;
 
                 if (externalScripts) setValue('ExternalScripts', 'True')
-                
+
                 var then = new Date().getTime();
 
                 axios.get('https://randomuser.me/api/')
                     .then(function (response) {
                         var now = new Date().getTime()
-                        setValue('AJAX', 'Yes (' + (now-then).toString() + 'ms)')
+                        setValue('AJAX', 'Yes (' + (now - then).toString() + 'ms)')
                     }).catch(function (error) {
                         console.error('Errro fetching data:', error)
                     })
