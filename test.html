@@ -5,6 +5,7 @@
     <title>Opera test</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Creepster" rel="stylesheet">
     <style>
         .status {
             content: '';
@@ -29,7 +30,7 @@
         }
         td {
             padding-right: 10px;
-            height: 30px;
+            min-height: 30px;
             vertical-align: middle;
         }
 
@@ -78,7 +79,10 @@
             -webkit-box-shadow: 1px 1px 10px 0px rgba(50, 50, 50, 0.75);
             box-shadow:         1px 1px 10px 0px rgba(50, 50, 50, 0.75);
         }
-
+        .font {
+            font-family: 'Creepster', cursive;
+            font-size: 25px;
+        }
     </style>
 </head>
 
@@ -155,12 +159,14 @@
                 </td>
             </tr>
             <tr>
-                <td>
-                    Box Shadow / Border Radius:
-                </td>
+                <td>Box Shadow / Border Radius:</td>
                 <td>
                     <div class="shadow"></div>
                 </td>
+            </tr>
+            <tr>
+                <td>Web fonts:</td>
+                <td class="font">Creeper</td>
             </tr>
         </tbody>
     </table>
