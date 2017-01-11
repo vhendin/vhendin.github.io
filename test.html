@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Opera test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        table {
+
+        }
+        tr {
+
+        }
+        th {
+            text-align: left;
+            font-weight: bold;
+        }
+        td {
+            padding-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <table>
+        <tbody>
+            <tr>
+                <th>Feature</th>
+                <th>Status</th>
+            </tr>
+            <tr>
+                <td>JavaScript:</td>
+                <td>
+                    <div id="JavaScript">
+
+                    </div>
+                    <noscript>
+                        Disabled
+                    </noscript>
+                </td>
+            </tr>
+            <tr>
+                <td>Interval:</td>
+                <td>
+                    <div id="Interval">0</div>
+                </td>
+            </tr>
+            <tr>
+                <td>Timeout:</td>
+                <td>
+                    <div id="Timeout">Not yet</div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        (function () {
+            var setValue = function (target, val) {
+                document.getElementById(target).innerHTML = val;
+            }
+            var init = function () {
+                var i = 0;
+
+                setValue('JavaScript', 'Enabled.')
+
+                setInterval(function () {
+                    setValue('Interval', i);
+                    i++;
+                }, 1000)
+
+                setTimeout(function () {
+                    setValue('Timeout', 'OK')
+                }, 1000)
+            }
+
+            init();
+        })()
+    </script>
+</body>
+
+</html>
