@@ -6,12 +6,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        table {
-
-        }
-        tr {
-
-        }
         th {
             text-align: left;
             font-weight: bold;
@@ -20,12 +14,17 @@
             padding-right: 10px;
         }
 
+        .crooked-cube {
+            background-color: green;
+            height: 15px;
+            width: 15px;
+            transform: rotate(45deg)
+        }
+
         .rotating-cube {
             background-color: red;
             height: 15px;
             width: 15px;
-
-            
 
             -webkit-animation:rotate 2s linear infinite;
 	        animation:rotate 2s linear infinit;
@@ -78,13 +77,13 @@
                 </td>
             </tr>
             <tr>
-                <td>Short Timeout:</td>
+                <td>Short Timeout (1 sec):</td>
                 <td>
                     <div id="TimeoutShort">Not yet</div>
                 </td>
             </tr>
             <tr>
-                <td>Long Timeout:</td>
+                <td>Long Timeout (6 sec):</td>
                 <td>
                     <div id="TimeoutLong">Not yet</div>
                 </td>
@@ -114,7 +113,15 @@
                 </td>
             </tr>
             <tr>
-                <td>CSS3 (should rotate in 6 sec)</td>
+                <td>CSS3 rotate</td>
+                <td>
+                    <div class="crooked-cube">
+                        
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td>CSS3 (rotate in 6 sec)</td>
                 <td>
                     <div class="rotating-cube">
 
