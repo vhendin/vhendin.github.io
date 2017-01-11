@@ -1,11 +1,5 @@
 (function (axios, $) {
     var ok = function (target, val = '') {
-        alert('ok: ' + target)
-        try {
-            $('#' + target).html('<div class="status yes">' + val + '</div>')
-        } catch (error) {
-            alert(error)
-        }
         $('#' + target).html('<div class="status yes">' + val + '</div>')
     }
     var pending = function (target, val = '') {
