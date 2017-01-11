@@ -7,9 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         .status {
-            height: 20px;
-            width: 20px;
+            content: '';
+            font-size: 14px;
+            height: 25px;
+            min-width: 25px;
             border-radius: 50%;
+            color: white;
+            text-align: center;
+            display: inline-block;
+            line-height: 25px;
         }
         .status.no {
             background-color: red;
@@ -23,19 +29,21 @@
         }
         td {
             padding-right: 10px;
+            height: 30px;
+            vertical-align: middle;
         }
 
         .crooked-cube {
             background-color: purple;
-            height: 15px;
-            width: 15px;
+            height: 25px;
+            width: 25px;
             transform: rotate(45deg)
         }
 
         .rotating-cube {
             background-color: blue;
-            height: 15px;
-            width: 15px;
+            height: 25px;
+            width: 25px;
 
             -webkit-animation:rotate 2s linear infinite;
 	        animation:rotate 2s linear infinit;
@@ -141,7 +149,7 @@
                 </td>
             </tr>
             <tr>
-                <td>CSS3 (rotate in 6 sec):</td>
+                <td>CSS3 (animate in 6 sec):</td>
                 <td>
                     <div class="rotating-cube"></div>
                 </td>
@@ -161,8 +169,8 @@
 
     <script>
         (function (axios) {
-            var ok = function (target) {
-                document.getElementById(target).innerHTML = '<div class="status yes"></div>';
+            var ok = function (target, val = '') {
+                document.getElementById(target).innerHTML = '<div class="status yes">'+val+'</div>';
             }
             var init = function () {
                 var i = 1;
@@ -170,7 +178,7 @@
                 ok('JavaScript');
 
                 setInterval(function () {
-                    ok('Interval');
+                    ok('Interval', i);
                     i++;
                 }, 1000);
 
