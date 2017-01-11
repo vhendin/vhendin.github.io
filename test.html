@@ -6,6 +6,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
+        .status {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+        }
+        .status.no {
+            background-color: red;
+        }
+        .status.yes {
+            background-color: green;
+        }
         th {
             text-align: left;
             font-weight: bold;
@@ -15,14 +26,14 @@
         }
 
         .crooked-cube {
-            background-color: green;
+            background-color: purple;
             height: 15px;
             width: 15px;
             transform: rotate(45deg)
         }
 
         .rotating-cube {
-            background-color: red;
+            background-color: blue;
             height: 15px;
             width: 15px;
 
@@ -59,6 +70,7 @@
             -webkit-box-shadow: 1px 1px 10px 0px rgba(50, 50, 50, 0.75);
             box-shadow:         1px 1px 10px 0px rgba(50, 50, 50, 0.75);
         }
+
     </style>
 </head>
 
@@ -76,33 +88,33 @@
 
                     </div>
                     <noscript>
-                        Disabled
+                        <div class="status no"></div>
                     </noscript>
                 </td>
             </tr>
             <tr>
                 <td>Interval:</td>
                 <td>
-                    <div id="Interval">0</div>
+                    <div id="Interval"><div class="status no"></div></div>
                 </td>
             </tr>
             <tr>
                 <td>Short Timeout (1 sec):</td>
                 <td>
-                    <div id="TimeoutShort">Not yet</div>
+                    <div id="TimeoutShort"><div class="status no"></div></div>
                 </td>
             </tr>
             <tr>
                 <td>Long Timeout (6 sec):</td>
                 <td>
-                    <div id="TimeoutLong">Not yet</div>
+                    <div id="TimeoutLong"><div class="status no"></div></div>
                 </td>
             </tr>
             <tr>
                 <td>External scripts:</td>
                 <td>
                     <div id="ExternalScripts">
-                        False
+                        <div class="status no"></div>
                     </div>
                 </td>
             </tr>
@@ -110,7 +122,7 @@
                 <td>AJAX (with axion):</td>
                 <td>
                     <div id="AJAX">
-                        No response yet
+                        <div class="status no"></div>
                     </div>
                 </td>
             </tr>
@@ -118,24 +130,20 @@
                 <td>XMLHttpRequest:</td>
                 <td>
                     <div id="XMLHttpRequest">
-
+                        <div class="status no"></div>
                     </div>
                 </td>
             </tr>
             <tr>
                 <td>CSS3 rotate:</td>
                 <td>
-                    <div class="crooked-cube">
-
-                    </div>
+                    <div class="crooked-cube"></div>
                 </td>
             </tr>
             <tr>
                 <td>CSS3 (rotate in 6 sec):</td>
                 <td>
-                    <div class="rotating-cube">
-
-                    </div>
+                    <div class="rotating-cube"></div>
                 </td>
             </tr>
             <tr>
@@ -143,9 +151,7 @@
                     Box Shadow / Border Radius:
                 </td>
                 <td>
-                    <div class="shadow">
-
-                    </div>
+                    <div class="shadow"></div>
                 </td>
             </tr>
         </tbody>
@@ -155,38 +161,38 @@
 
     <script>
         (function (axios) {
-            var setValue = function (target, val) {
-                document.getElementById(target).innerHTML = val;
+            var ok = function (target) {
+                document.getElementById(target).innerHTML = '<div class="status yes"></div>';
             }
             var init = function () {
                 var i = 1;
 
-                setValue('JavaScript', 'Enabled');
+                ok('JavaScript');
 
                 setInterval(function () {
-                    setValue('Interval', i);
+                    ok('Interval');
                     i++;
                 }, 1000);
 
                 setTimeout(function () {
-                    setValue('TimeoutShort', 'OK')
+                    ok('TimeoutShort')
                 }, 1000);
 
                 setTimeout(function () {
-                    setValue('TimeoutLong', 'OK')
+                    ok('TimeoutLong')
                 }, 6000);
 
                 var externalScripts = axios !== undefined;
 
                 if (externalScripts) {
-                    setValue('ExternalScripts', 'True')
+                    ok('ExternalScripts')
 
                     var then = new Date().getTime();
 
                     axios.get('https://randomuser.me/api/')
                         .then(function (response) {
                             var now = new Date().getTime()
-                            setValue('AJAX', 'Yes (' + (now - then).toString() + 'ms)')
+                            ok('AJAX')
                         }).catch(function (error) {
                             console.error('Error fetching data:', error)
                         })
@@ -202,7 +208,7 @@
                     var xmlNow = new Date().getTime();
                     if (xhr.readyState === 4) {
                         if (xhr.status === 200) {
-                            setValue('XMLHttpRequest', 'Yes (' + (xmlNow - xmlThen).toString() + 'ms)')
+                            ok('XMLHttpRequest')
                         } else {
                             console.error(xhr.statusText);
                         }
