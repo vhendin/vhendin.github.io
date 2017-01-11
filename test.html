@@ -47,9 +47,15 @@
                 </td>
             </tr>
             <tr>
-                <td>Timeout:</td>
+                <td>Short Timeout:</td>
                 <td>
-                    <div id="Timeout">Not yet</div>
+                    <div id="TimeoutShort">Not yet</div>
+                </td>
+            </tr>
+            <tr>
+                <td>Long Timeout:</td>
+                <td>
+                    <div id="TimeoutLong">Not yet</div>
                 </td>
             </tr>
         </tbody>
@@ -71,8 +77,11 @@
                 }, 1000)
 
                 setTimeout(function () {
-                    setValue('Timeout', 'OK')
+                    setValue('TimeoutShort', 'OK')
                 }, 1000)
+                setTimeout(function () {
+                    setValue('TimeoutLong', 'OK')
+                }, 5000)
             }
 
             init();
