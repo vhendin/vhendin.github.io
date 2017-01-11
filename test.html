@@ -98,7 +98,7 @@
                 </td>
             </tr>
             <tr>
-                <td>AJAX</td>
+                <td>AJAX (with axion):</td>
                 <td>
                     <div id="AJAX">
                         No response yet
@@ -106,10 +106,18 @@
                 </td>
             </tr>
             <tr>
+                <td>XMLHttpRequest:</td>
+                <td>
+                    <div id="XMLHttpRequest">
+
+                    </div>
+                </td>
+            </tr>
+            <tr>
                 <td>CSS3 (should rotate in 6 sec)</td>
                 <td>
                     <div class="rotating-cube">
-                        
+
                     </div>
                 </td>
             </tr>
@@ -143,17 +151,41 @@
 
                 var externalScripts = axios !== undefined;
 
-                if (externalScripts) setValue('ExternalScripts', 'True')
+                if (externalScripts) {
+                    setValue('ExternalScripts', 'True')
 
-                var then = new Date().getTime();
+                    var then = new Date().getTime();
 
-                axios.get('https://randomuser.me/api/')
-                    .then(function (response) {
-                        var now = new Date().getTime()
-                        setValue('AJAX', 'Yes (' + (now - then).toString() + 'ms)')
-                    }).catch(function (error) {
-                        console.error('Errro fetching data:', error)
-                    })
+                    axios.get('https://randomuser.me/api/')
+                        .then(function (response) {
+                            var now = new Date().getTime()
+                            setValue('AJAX', 'Yes (' + (now - then).toString() + 'ms)')
+                        }).catch(function (error) {
+                            console.error('Error fetching data:', error)
+                        })
+                }
+
+                var xhr = new XMLHttpRequest();
+
+                var xmlThen = new Date().getTime();
+
+                xhr.open('GET', 'https://randomuser.me/api/', true);
+
+                xhr.onload = function (e) {
+                    var xmlNow = new Date().getTime();
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            setValue('XMLHttpRequest', 'Yes (' + (xmlNow - xmlThen).toString() + 'ms)')
+                        } else {
+                            console.error(xhr.statusText);
+                        }
+                    }
+                };
+                xhr.onerror = function (e) {
+                    console.error(xhr.statusText);
+                };
+
+                xhr.send();
             }
 
             init();
