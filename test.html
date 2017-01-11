@@ -5,85 +5,8 @@
     <title>Opera test</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="./style/test.css">
     <link href="https://fonts.googleapis.com/css?family=Creepster" rel="stylesheet">
-    <style>
-        .status {
-            content: '';
-            font-size: 14px;
-            height: 25px;
-            min-width: 25px;
-            border-radius: 50%;
-            color: white;
-            text-align: center;
-            display: inline-block;
-            line-height: 25px;
-        }
-        .status.no {
-            background-color: red;
-        }
-        .status.yes {
-            background-color: green;
-        }
-        th {
-            text-align: left;
-            font-weight: bold;
-        }
-        td {
-            padding-right: 10px;
-            min-height: 30px;
-            vertical-align: middle;
-        }
-
-        .crooked-cube {
-            background-color: purple;
-            height: 25px;
-            width: 25px;
-            transform: rotate(45deg)
-        }
-
-        .rotating-cube {
-            background-color: blue;
-            height: 25px;
-            width: 25px;
-
-            -webkit-animation:rotate 2s linear infinite;
-	        animation:rotate 2s linear infinit;
-
-            -webkit-animation-delay: 6000ms;
-            animation-delay: 6000ms;
-        }
-
-        @-webkit-keyframes rotate {
-            from {
-                -webkit-transform:rotate(0deg);}
-            to {
-                -webkit-transform:rotate(360deg);
-            }
-        }
-
-        @keyframes rotate {
-            from {
-                transform:rotate(0deg);
-            }
-            to {
-                transform:rotate(360deg);
-            }
-        }
-
-        .shadow {
-            height: 25px;
-            width: 25px;
-            background-color: whitesmoke;
-            border: thin solid black;
-            border-radius: 5px;
-            -webkit-box-shadow: 1px 1px 10px 0px rgba(50, 50, 50, 0.75);
-            box-shadow:         1px 1px 10px 0px rgba(50, 50, 50, 0.75);
-        }
-        .font {
-            font-family: 'Creepster', cursive;
-            font-size: 25px;
-        }
-    </style>
 </head>
 
 <body>
@@ -107,19 +30,25 @@
             <tr>
                 <td>Interval:</td>
                 <td>
-                    <div id="Interval"><div class="status no"></div></div>
+                    <div id="Interval">
+                        <div class="status no"></div>
+                    </div>
                 </td>
             </tr>
             <tr>
                 <td>Short Timeout (1 sec):</td>
                 <td>
-                    <div id="TimeoutShort"><div class="status no"></div></div>
+                    <div id="TimeoutShort">
+                        <div class="status no"></div>
+                    </div>
                 </td>
             </tr>
             <tr>
                 <td>Long Timeout (6 sec):</td>
                 <td>
-                    <div id="TimeoutLong"><div class="status no"></div></div>
+                    <div id="TimeoutLong">
+                        <div class="status no"></div>
+                    </div>
                 </td>
             </tr>
             <tr>
@@ -166,78 +95,13 @@
             </tr>
             <tr>
                 <td>Web fonts:</td>
-                <td class="font">Creeper</td>
+                <td class="font">Creepster</td>
             </tr>
         </tbody>
     </table>
 
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-
-    <script>
-        (function (axios) {
-            var ok = function (target, val = '') {
-                document.getElementById(target).innerHTML = '<div class="status yes">'+val+'</div>';
-            }
-            var init = function () {
-                var i = 1;
-
-                ok('JavaScript');
-
-                setInterval(function () {
-                    ok('Interval', i);
-                    i++;
-                }, 1000);
-
-                setTimeout(function () {
-                    ok('TimeoutShort')
-                }, 1000);
-
-                setTimeout(function () {
-                    ok('TimeoutLong')
-                }, 6000);
-
-                var externalScripts = axios !== undefined;
-
-                if (externalScripts) {
-                    ok('ExternalScripts')
-
-                    var then = new Date().getTime();
-
-                    axios.get('https://randomuser.me/api/')
-                        .then(function (response) {
-                            var now = new Date().getTime()
-                            ok('AJAX')
-                        }).catch(function (error) {
-                            console.error('Error fetching data:', error)
-                        })
-                }
-
-                var xhr = new XMLHttpRequest();
-
-                var xmlThen = new Date().getTime();
-
-                xhr.open('GET', 'https://randomuser.me/api/', true);
-
-                xhr.onload = function (e) {
-                    var xmlNow = new Date().getTime();
-                    if (xhr.readyState === 4) {
-                        if (xhr.status === 200) {
-                            ok('XMLHttpRequest')
-                        } else {
-                            console.error(xhr.statusText);
-                        }
-                    }
-                };
-                xhr.onerror = function (e) {
-                    console.error(xhr.statusText);
-                };
-
-                xhr.send();
-            }
-
-            init();
-        })(axios)
-    </script>
+    <script src="./script/test.js"></script>
 </body>
 
 </html>

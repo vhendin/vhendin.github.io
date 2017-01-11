@@ -1,0 +1,76 @@
+.status {
+            content: '';
+            font-size: 14px;
+            height: 25px;
+            min-width: 25px;
+            border-radius: 50%;
+            color: white;
+            text-align: center;
+            display: inline-block;
+            line-height: 25px;
+        }
+        .status.no {
+            background-color: red;
+        }
+        .status.yes {
+            background-color: green;
+        }
+        th {
+            text-align: left;
+            font-weight: bold;
+        }
+        td {
+            padding-right: 10px;
+            min-height: 30px;
+            vertical-align: middle;
+        }
+
+        .crooked-cube {
+            background-color: purple;
+            height: 25px;
+            width: 25px;
+            transform: rotate(45deg)
+        }
+
+        .rotating-cube {
+            background-color: blue;
+            height: 25px;
+            width: 25px;
+
+            -webkit-animation:rotate 2s linear infinite;
+	        animation:rotate 2s linear infinit;
+
+            -webkit-animation-delay: 6000ms;
+            animation-delay: 6000ms;
+        }
+
+        @-webkit-keyframes rotate {
+            from {
+                -webkit-transform:rotate(0deg);}
+            to {
+                -webkit-transform:rotate(360deg);
+            }
+        }
+
+        @keyframes rotate {
+            from {
+                transform:rotate(0deg);
+            }
+            to {
+                transform:rotate(360deg);
+            }
+        }
+
+        .shadow {
+            height: 25px;
+            width: 25px;
+            background-color: whitesmoke;
+            border: thin solid black;
+            border-radius: 5px;
+            -webkit-box-shadow: 1px 1px 10px 0px rgba(50, 50, 50, 0.75);
+            box-shadow:         1px 1px 10px 0px rgba(50, 50, 50, 0.75);
+        }
+        .font {
+            font-family: 'Creepster', cursive;
+            font-size: 25px;
+        }
