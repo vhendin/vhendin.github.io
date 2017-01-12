@@ -105,8 +105,8 @@
     </div>
 
     <script>
-        window.onerror = function (a, b, c) {
-            var content = '<div>a: ' + a + '</div><div>b: ' + b + '</div><div>c: ' + c + '</div>';
+        window.onerror = function (message, source, line, col, error) {
+            var content = '<div>Message: ' + message.toString() + '</div><div>Source: ' + source.toString() + '</div><div>Line: ' + line.toString() + '</div><div>Col: ' + col.toString() + '</div><div>Error: ' + error.toString() + '</div>';
             document.getElementById('error').innerHTML = content;
         }
     </script>
