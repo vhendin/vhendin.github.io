@@ -3,10 +3,12 @@
         if (val === undefined) val = '';
         $('#' + target).html('<div class="status yes">' + val + '</div>');
     }
-    var pending = function (target, val = '') {
+    var pending = function (target) {
+        if (val === undefined) val = '';
         $('#' + target).html('<div class="status pending">' + val + '</div>');
     }
-    var fail = function (target, val = '') {
+    var fail = function (target) {
+        if (val === undefined) val = '';
         $('#' + target).html('<div class="status no">' + val + '</div>');
     }
     var init = function () {
