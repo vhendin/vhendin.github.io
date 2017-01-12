@@ -1,17 +1,17 @@
 (function (axios, $) {
     var ok = function (target, val) {
-        if(val === undefined) val = ''
-        $('#' + target).html('<div class="status yes">' + val + '</div>')
+        if (val === undefined) val = '';
+        $('#' + target).html('<div class="status yes">' + val + '</div>');
     }
     var pending = function (target, val = '') {
-        $('#' + target).html('<div class="status pending">' + val + '</div>')
+        $('#' + target).html('<div class="status pending">' + val + '</div>');
     }
     var fail = function (target, val = '') {
-        $('#' + target).html('<div class="status no">' + val + '</div>')
+        $('#' + target).html('<div class="status no">' + val + '</div>');
     }
     var init = function () {
         var i = 1;
-        
+
         ok('JavaScript');
 
         pending('Interval');
@@ -22,12 +22,12 @@
 
         pending('TimeoutShort');
         setTimeout(function () {
-            ok('TimeoutShort')
+            ok('TimeoutShort');
         }, 1000);
 
         pending('TimeoutLong');
         setTimeout(function () {
-            ok('TimeoutLong')
+            ok('TimeoutLong');
         }, 6000);
 
         var externalScripts = axios !== undefined;
@@ -36,13 +36,13 @@
             ok('ExternalScripts')
 
             var then = new Date().getTime();
-            pending('AJAX')
+            pending('AJAX');
             axios.get('https://randomuser.me/api/')
                 .then(function (response) {
-                    var now = new Date().getTime()
-                    ok('AJAX')
+                    var now = new Date().getTime();
+                    ok('AJAX');
                 }).catch(function (error) {
-                    console.error('Error fetching data:', error)
+                    console.error('Error fetching data:', error);
                 })
         }
 
@@ -71,7 +71,7 @@
 
             xhr.send();
         } catch (error) {
-            fail('XMLHttpRequest')
+            fail('XMLHttpRequest');
         }
     }
 
