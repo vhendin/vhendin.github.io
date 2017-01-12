@@ -40,17 +40,21 @@
         if (externalScripts) {
             ok('ExternalScripts')
 
-            var then = new Date().getTime();
-            pending('AJAX');
-            axios.get('https://randomuser.me/api/')
-                .then(function (response) {
-                    var now = new Date().getTime();
-                    ok('AJAX');
-                }).catch(function (error) {
-                    fail('AJAX')
-                    displayError(error)
-                    console.error('Error fetching data:', error);
-                })
+            try {
+                var then = new Date().getTime();
+                pending('AJAX');
+                axios.get('https://randomuser.me/api/')
+                    .then(function (response) {
+                        var now = new Date().getTime();
+                        ok('AJAX');
+                    }).catch(function (error) {
+                        fail('AJAX')
+                        displayError(error)
+                        console.error('Error fetching data:', error);
+                    })
+            } catch (error) {
+                displayError(error);
+            }
         }
 
         try {
@@ -75,6 +79,7 @@
             };
             xhr.onerror = function (e) {
                 console.error(xhr.statusText);
+                fail('XMLHttpRequest')
             };
 
             xhr.send();
