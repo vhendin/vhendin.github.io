@@ -1,5 +1,6 @@
 (function (axios, $) {
-    var ok = function (target, val = '') {
+    var ok = function (target, val) {
+        if(val === undefined) val = ''
         $('#' + target).html('<div class="status yes">' + val + '</div>')
     }
     var pending = function (target, val = '') {
