@@ -12,7 +12,7 @@
         $('#' + target).html('<div class="status no">' + val + '</div>');
     }
     var displayError = function (content) {
-        document.getElementById('error').innerHTML = content;
+        $('#error').html = content;
     }
     var init = function () {
         var i = 1;

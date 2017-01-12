@@ -60,7 +60,7 @@
                 </td>
             </tr>
             <tr>
-                <td>AJAX (with axion):</td>
+                <td>AJAX (with axios):</td>
                 <td>
                     <div id="AJAX">
                         <div class="status no"></div>
@@ -106,7 +106,7 @@
 
     <script>
         window.onerror = function (a, b, c) {
-            var content = '<div>' + a + '<br>' + b + '<br>' + c + '</div>';
+            var content = '<div>a: ' + a + '</div><div>b: ' + b + '</div><div>c: ' + c + '</div>';
             document.getElementById('error').innerHTML = content;
         }
     </script>
