@@ -11,6 +11,9 @@
         if (val === undefined) val = '';
         $('#' + target).html('<div class="status no">' + val + '</div>');
     }
+    var displayError = function (content) {
+        document.getElementById('error').innerHTML = content;
+    }
     var init = function () {
         var i = 1;
 
@@ -44,6 +47,8 @@
                     var now = new Date().getTime();
                     ok('AJAX');
                 }).catch(function (error) {
+                    fail('AJAX')
+                    displayError(error)
                     console.error('Error fetching data:', error);
                 })
         }
@@ -64,6 +69,7 @@
                         ok('XMLHttpRequest')
                     } else {
                         console.error(xhr.statusText);
+                        fail('XMLHttpRequest')
                     }
                 }
             };
