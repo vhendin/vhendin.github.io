@@ -1,4 +1,4 @@
-(function (axios, $) {
+(function ($) {
     var ok = function (target, val) {
         if (val === undefined) val = '';
         $('#' + target).html('<div class="status yes">' + val + '</div>');
@@ -35,26 +35,23 @@
             ok('TimeoutLong');
         }, 6000);
 
-        var externalScripts = axios !== undefined;
+        var externalScripts = $ !== undefined;
 
         if (externalScripts) {
-            ok('ExternalScripts')
+            ok('ExternalScripts');
 
-            try {
-                var then = new Date().getTime();
-                pending('AJAX');
-                axios.get('https://randomuser.me/api/')
-                    .then(function (response) {
-                        var now = new Date().getTime();
-                        ok('AJAX');
-                    }).catch(function (error) {
-                        fail('AJAX')
-                        displayError(error)
-                        console.error('Error fetching data:', error);
-                    })
-            } catch (error) {
-                displayError(error);
-            }
+            var then = new Date().getTime();
+            pending('AJAX');
+
+            $.get('https://randomuser.me/api/')
+                .done(function (response) {
+                    ok('AJAX');
+                    console.log(response);
+                })
+                .fail(function (error) {
+                    fail('AJAX');
+                    console.error(error);
+                });
         }
 
         try {
@@ -89,4 +86,4 @@
     }
 
     init();
-})(axios, $)
+})($)
