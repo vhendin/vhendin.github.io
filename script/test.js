@@ -11,9 +11,6 @@
         if (val === undefined) val = '';
         $('#' + target).html('<div class="status no">' + val + '</div>');
     }
-    var displayError = function (content) {
-        $('#error').html = content;
-    }
     var init = function () {
         var i = 1;
 
@@ -40,13 +37,11 @@
         if (externalScripts) {
             ok('ExternalScripts');
 
-            var then = new Date().getTime();
             pending('AJAX');
 
             $.get('https://randomuser.me/api/')
                 .done(function (response) {
                     ok('AJAX');
-                    console.log(response);
                 })
                 .fail(function (error) {
                     fail('AJAX');
@@ -55,11 +50,10 @@
 
             setTimeout(function () {
                 pending('AJAXDelay');
-                
+
                 $.get('https://randomuser.me/api/')
                 .done(function (response) {
                     ok('AJAXDelay');
-                    console.log(response);
                 })
                 .fail(function (error) {
                     fail('AJAXDelay');
@@ -73,12 +67,9 @@
 
             var xhr = new XMLHttpRequest();
 
-            var xmlThen = new Date().getTime();
-
             xhr.open('GET', 'https://randomuser.me/api/', true);
 
             xhr.onload = function (e) {
-                var xmlNow = new Date().getTime();
                 if (xhr.readyState === 4) {
                     if (xhr.status === 200) {
                         ok('XMLHttpRequest')
@@ -97,6 +88,10 @@
         } catch (error) {
             fail('XMLHttpRequest');
         }
+
+        $('#jQueryClick').click(function () {
+            ok('OnClickJQ');
+        });
     }
 
     init();
