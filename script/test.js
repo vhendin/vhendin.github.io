@@ -42,6 +42,7 @@
 
             var then = new Date().getTime();
             pending('AJAX');
+            pending('AJAXDelay');
 
             $.get('https://randomuser.me/api/')
                 .done(function (response) {
@@ -52,6 +53,18 @@
                     fail('AJAX');
                     console.error(error);
                 });
+
+            setTimeout(function () {
+                $.get('https://randomuser.me/api/')
+                .done(function (response) {
+                    ok('AJAXDelay');
+                    console.log(response);
+                })
+                .fail(function (error) {
+                    fail('AJAXDelay');
+                    console.error(error);
+                });
+            }, 6000)
         }
 
         try {
