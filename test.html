@@ -32,156 +32,169 @@
     </script>
 <div class="container">
     <div class="row">
-        <div>
-            <form onsubmit="return theSubmit()">
-                <table class="table">
-                    <tbody>
-                        <tr>
-                            <th>Feature</th>
-                            <th>Status</th>
-                        </tr>
-                        <tr>
-                            <td>JavaScript:</td>
-                            <td>
-                                <div id="JavaScript">
-                                    <div class="status no"></div>
-                                </div>
-                                <noscript>
-                                    <div class="status no"></div>
-                                </noscript>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Interval:</td>
-                            <td>
-                                <div id="Interval">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Short Timeout (1 sec):</td>
-                            <td>
-                                <div id="TimeoutShort">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Long Timeout (6 sec):</td>
-                            <td>
-                                <div id="TimeoutLong">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>External scripts:</td>
-                            <td>
-                                <div id="ExternalScripts">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>AJAX (with jQuery):</td>
-                            <td>
-                                <div id="AJAX">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>AJAX (with jQuery and delay, 6 sec):</td>
-                            <td>
-                                <div id="AJAXDelay">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>XMLHttpRequest:</td>
-                            <td>
-                                <div id="XMLHttpRequest">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>CSS3 rotate:</td>
-                            <td>
-                                <div class="crooked-cube"></div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>CSS3 (animate in 6 sec):</td>
-                            <td>
-                                <div class="rotating-cube"></div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Box Shadow / Border Radius:</td>
-                            <td>
-                                <div class="shadow"></div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Web fonts:</td>
-                            <td class="font">Creepster</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <button type="button" onclick="theClick()">On Click</button>
-                            </td>
-                            <td>
-                                <div id="OnClick">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <button type="button" id="jQueryClick">On Click (jQuery bind)</button>
-                            </td>
-                            <td>
-                                <div id="OnClickJQ">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <input onchange="theChange()" type="text" name="OnChangeInput" placeholder="On change" />
-                            </td>
-                            <td>
-                                <div id="OnChange">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <button>On Submit:</button>
-                            </td>
-                            <td>
-                                <div id="OnSubmit">
-                                    <div class="status no"></div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Big image:</td>
-                            <td>
-                                <a href="./images/train.jpg">Go to image</a>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </form>
+        <form onsubmit="return theSubmit()">
+            <table class="table">
+                <tbody>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Status</th>
+                    </tr>
+                    <tr>
+                        <td>JavaScript:</td>
+                        <td>
+                            <div id="JavaScript">
+                                <div class="status no"></div>
+                            </div>
+                            <noscript>
+                                <div class="status no"></div>
+                            </noscript>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Interval:</td>
+                        <td>
+                            <div id="Interval">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Short Timeout (1 sec):</td>
+                        <td>
+                            <div id="TimeoutShort">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Long Timeout (6 sec):</td>
+                        <td>
+                            <div id="TimeoutLong">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>External scripts:</td>
+                        <td>
+                            <div id="ExternalScripts">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>AJAX (with jQuery):</td>
+                        <td>
+                            <div id="AJAX">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>AJAX (with jQuery and delay, 6 sec):</td>
+                        <td>
+                            <div id="AJAXDelay">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>XMLHttpRequest:</td>
+                        <td>
+                            <div id="XMLHttpRequest">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>CSS3 rotate:</td>
+                        <td>
+                            <div class="crooked-cube"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>CSS3 (animate in 6 sec):</td>
+                        <td>
+                            <div class="rotating-cube"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Box Shadow / Border Radius:</td>
+                        <td>
+                            <div class="shadow"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Web fonts:</td>
+                        <td class="font">Creepster</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button type="button" onclick="theClick()">On Click</button>
+                        </td>
+                        <td>
+                            <div id="OnClick">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button type="button" id="jQueryClick">On Click (jQuery bind)</button>
+                        </td>
+                        <td>
+                            <div id="OnClickJQ">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input onchange="theChange()" type="text" name="OnChangeInput" placeholder="On change" />
+                        </td>
+                        <td>
+                            <div id="OnChange">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button>On Submit:</button>
+                        </td>
+                        <td>
+                            <div id="OnSubmit">
+                                <div class="status no"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Big image:</td>
+                        <td>
+                            <a href="./images/train.jpg">Go to image</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            Youtube:
+                            <div class="video-container">
+            <iframe width="560" height="315" src="https://www.youtube.com/embed/iNJdPyoqt8U" frameborder="0" allowfullscreen></iframe>
+        </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            Vimeo:
+                            <div class="video-container">
+                                <iframe src="https://player.vimeo.com/video/40555466?title=0&byline=0&portrait=0" width="640" height="360" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>    
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </form>
+        <div id="error">
 
-            <div id="error">
-
-            </div>
         </div>
     </div>
 </div>
