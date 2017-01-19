@@ -30,7 +30,7 @@
         pending('TimeoutLong');
         setTimeout(function () {
             ok('TimeoutLong');
-        }, 6000);
+        }, 7000);
 
         var externalScripts = $ !== undefined;
 
