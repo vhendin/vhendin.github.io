@@ -1,0 +1,56 @@
+==================================================================
+https://keybase.io/vhendin
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://magnusvhendin.github.io
+  * I am vhendin (https://keybase.io/vhendin) on keybase.
+  * I have a public key ASB5z2zLcSnHQaSpsB5arWqaM48S1WJX7n5YvndpYB7nogo
+
+To do so, I am signing this object:
+
+{
+  "body": {
+    "key": {
+      "eldest_kid": "012079cf6ccb7129c741a4a9b01e5aad6a9a338f12d56257ee7e58be7769601ee7a20a",
+      "host": "keybase.io",
+      "kid": "012079cf6ccb7129c741a4a9b01e5aad6a9a338f12d56257ee7e58be7769601ee7a20a",
+      "uid": "11793b258d4ad098d849427c6872ba19",
+      "username": "vhendin"
+    },
+    "merkle_root": {
+      "ctime": 1571214596,
+      "hash": "a0ee379613d7721a92f822bea82f5628e1177459404eba87da160e9455172970abaf47b4e1fa364f958a5d6b2f97abab15dd5b015d5bb0bb691cdafea59313f0",
+      "hash_meta": "0e7acd58faec7ba7612a9e950cd731e526a9e5bf386c8fbe0091a2a16238b273",
+      "seqno": 8160270
+    },
+    "service": {
+      "entropy": "mp3dwCxxbdk763Gdv/q4s1an",
+      "hostname": "magnusvhendin.github.io",
+      "protocol": "https:"
+    },
+    "type": "web_service_binding",
+    "version": 2
+  },
+  "client": {
+    "name": "keybase.io go client",
+    "version": "4.6.0"
+  },
+  "ctime": 1571215005,
+  "expire_in": 504576000,
+  "prev": "b07676de67776bd22e348f4ca3266405a7a9df8ccda9b37012450a53ad621881",
+  "seqno": 17,
+  "tag": "signature"
+}
+
+which yields the signature:
+
+hKRib2R5hqhkZXRhY2hlZMOpaGFzaF90eXBlCqNrZXnEIwEgec9sy3Epx0GkqbAeWq1qmjOPEtViV+5+WL53aWAe56IKp3BheWxvYWTESpcCEcQgsHZ23md3a9IuNI9MoyZkBaep34zNqbNwEkUKU61iGIHEICWxIUZdPg0IeQt3+5TkI5MJxQQbeRgliatsU2uNFka0AgHCo3NpZ8RABoXZ85BjTe30+yky7VLEi+jE/ybLtYxfzEeTitQxOZPs4mSKZpNwZFiTxWCfBP0lta3rCLeieb4pu86lLqRKCahzaWdfdHlwZSCkaGFzaIKkdHlwZQildmFsdWXEIMB6ZtQjnL+uwNOesPHrPYK3VSm2/M3DzjTAno8ROJnTo3RhZ80CAqd2ZXJzaW9uAQ==
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/vhendin
+
+==================================================================
