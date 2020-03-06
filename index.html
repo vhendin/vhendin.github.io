@@ -10,19 +10,19 @@
 	<style>
 		@keyframes wave-left {
 			0%   {
-				transform: rotate(-30deg) scaleX(-1);
+				transform: rotate(-10deg) scaleX(-1);
 			}
 			100% {
-				transform: rotate(30deg) scaleX(-1);
+				transform: rotate(40deg) scaleX(-1);
 			}
 		}
 
 		@keyframes wave-right {
 			0%   {
-				transform: rotate(-30deg);
+				transform: rotate(10deg);
 			}
 			100% {
-				transform: rotate(30deg);
+				transform: rotate(-40deg);
 			}
 		}
 
@@ -76,11 +76,29 @@
 
 		.right {
 			animation-name: wave-right;
-			animation-delay: -1s;
 		}
 
 		.left {
 			animation-name: wave-left;
+		}
+
+		#randomize {
+			border: 1px solid #000;
+			padding: 10px 15px;
+			border-radius: 5px;
+			cursor: pointer;
+			font-family: 'Montserrat', sans-serif;
+			font-size: 15px;
+			background-color: #F0C928;
+			-webkit-box-shadow: 0px 10px 0px 0px rgba(0,0,0,1);
+			-moz-box-shadow: 0px 10px 0px 0px rgba(0,0,0,1);
+			box-shadow: 0px 10px 0px 0px rgba(0,0,0,1);
+		}
+		#randomize:active {
+			transform: translateY(5px);
+			-webkit-box-shadow: 0px 5px 0px 0px rgba(0,0,0,1);
+			-moz-box-shadow: 0px 5px 0px 0px rgba(0,0,0,1);
+			box-shadow: 0px 5px 0px 0px rgba(0,0,0,1);
 		}
 	</style>
 </head>
@@ -92,9 +110,14 @@
 			<a id="face" alt="linkedin" href="https://www.linkedin.com/in/vhendin/">😘</a>
 			<div class="hand left" id="left">🤘</div>
 		</div>
-		<div>
-			<i>Magnus Vhendin, <span id="year"></span></i>
-		</div>
+		<p>
+			<i>Magnus Vhendin, <span id="year">2020</span></i>
+		</p>
+		<p>
+			<button id="randomize" role="button">
+				Randomize
+			</button>
+		</p>
 	</div>
 	<script>
 		(function (i, s, o, g, r, a, m) {
@@ -112,14 +135,22 @@
 			var year = new Date().getFullYear();
 			document.getElementById('year').innerHTML = year;
 
-			var smileys = ['😀','😃','😄','😁','😅','😂','😇','🙂','😌','😘','😙','😚','😝','🤪','🤨','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','😨','😥','😓','😶','😑','😬','😯','😦','😧','😮','😲','🤤','😵','🤐','🥴','🤮','🤒','🤕','🤠','👿'];
-			var hands = ['✊','🤞','🤟','🤘','👌','👆','✋','🖐','🖖','🖕','🤙'];
-			var randomSmiley = smileys[Math.floor(Math.random() * smileys.length)];
-			var randomRightHand = hands[Math.floor(Math.random() * hands.length)];
-			var randomLeftHand = hands[Math.floor(Math.random() * hands.length)];
-			document.getElementById('face').innerHTML = randomSmiley;
-			document.getElementById('right').innerHTML = randomRightHand;
-			document.getElementById('left').innerHTML = randomLeftHand;
+			function newSmilePerson() {
+				var smileys = ['😀','😃','😄','😁','😅','😂','😇','🙂','😌','😘','😙','😚','😝','🤪','🤨','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','😨','😥','😓','😶','😑','😬','😯','😦','😧','😮','😲','🤤','😵','🤐','🥴','🤮','🤒','🤕','🤠','👿'];
+				var hands = ['✊','🤞','🤟','🤘','👌','✋','🖐','🖖','🖕','🤙'];
+				var randomSmiley = smileys[Math.floor(Math.random() * smileys.length)];
+				var randomRightHand = hands[Math.floor(Math.random() * hands.length)];
+				var randomLeftHand = hands[Math.floor(Math.random() * Math.random() * hands.length)];
+				document.getElementById('face').innerHTML = randomSmiley;
+				document.getElementById('right').innerHTML = randomRightHand;
+				document.getElementById('left').innerHTML = randomLeftHand;
+			}
+
+			document.getElementById('randomize').addEventListener('click', function () {
+				newSmilePerson();
+			});
+
+			newSmilePerson();
 		})()
 	</script>
 </body>
