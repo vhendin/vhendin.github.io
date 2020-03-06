@@ -26,6 +26,15 @@
 			}
 		}
 
+		@keyframes head-turn {
+			0%   {
+				transform: rotate(-10deg);
+			}
+			100% {
+				transform: rotate(10deg);
+			}
+		}
+
 		body {
 			font-family: 'Montserrat', sans-serif;
 			background-color: #fff;
@@ -51,6 +60,7 @@
 		#face {
 			text-decoration: none;
 			font-size: 65px;
+			animation: head-turn 5s infinite alternate ease-in-out;
 		}
 
 		.hand {
@@ -99,10 +109,6 @@
 	</script>
 	<script>
 		(function () {
-			if (location.protocol !== 'https:') {
-				location.replace(`https:${location.href.substring(location.protocol.length)}`);
-			}
-
 			var year = new Date().getFullYear();
 			document.getElementById('year').innerHTML = year;
 
