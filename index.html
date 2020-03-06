@@ -8,7 +8,7 @@
 	<meta name="viewport" content="width=device-width">
 	<link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet' type='text/css'>
 	<style>
-		@keyframes wave-horns {
+		@keyframes wave-left {
 			0%   {
 				transform: rotate(-30deg) scaleX(-1);
 			}
@@ -17,7 +17,7 @@
 			}
 		}
 
-		@keyframes wave-spock {
+		@keyframes wave-right {
 			0%   {
 				transform: rotate(-30deg);
 			}
@@ -74,13 +74,13 @@
 			margin-bottom: 10px;
 		}
 
-		.spock {
-			animation-name: wave-spock;
+		.right {
+			animation-name: wave-right;
 			animation-delay: -1s;
 		}
 
-		.horns {
-			animation-name: wave-horns;
+		.left {
+			animation-name: wave-left;
 		}
 	</style>
 </head>
@@ -88,9 +88,9 @@
 <body>
 	<div class="wrapper">
 		<div class="logo-container">
-			<div class="hand spock">🖖</div>
+			<div class="hand right" id="right">🖖</div>
 			<a id="face" alt="linkedin" href="https://www.linkedin.com/in/vhendin/">😘</a>
-			<div class="hand horns">🤘</div>
+			<div class="hand left" id="left">🤘</div>
 		</div>
 		<div>
 			<i>Magnus Vhendin, <span id="year"></span></i>
@@ -112,9 +112,14 @@
 			var year = new Date().getFullYear();
 			document.getElementById('year').innerHTML = year;
 
-			var smileys = ['😘','🤣','🤓','🧐','🥳','😳','😶','😐','😬','🤢','🤠','😍','😊'];
+			var smileys = ['😀','😃','😄','😁','😅','😂','😇','🙂','😌','😘','😙','😚','😝','🤪','🤨','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','😨','😥','😓','😶','😑','😬','😯','😦','😧','😮','😲','🤤','😵','🤐','🥴','🤮','🤒','🤕','🤠','👿'];
+			var hands = ['✊','🤞','🤟','🤘','👌','👆','✋','🖐','🖖','🖕','🤙'];
 			var randomSmiley = smileys[Math.floor(Math.random() * smileys.length)];
+			var randomRightHand = hands[Math.floor(Math.random() * hands.length)];
+			var randomLeftHand = hands[Math.floor(Math.random() * hands.length)];
 			document.getElementById('face').innerHTML = randomSmiley;
+			document.getElementById('right').innerHTML = randomRightHand;
+			document.getElementById('left').innerHTML = randomLeftHand;
 		})()
 	</script>
 </body>
