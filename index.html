@@ -32,20 +32,25 @@
 			color: #373B3F;
 		}
 
+
+		.wrapper {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			text-align: center;
+		}
+
 		.logo-container {
 			display: flex;
 			flex-direction: row;
 			justify-content: space-around;
-			align-items: center;
+			align-items: flex-end;
 		}
 
-		.logo {
-			background: url(/assets/linkedin-logo.svg) center no-repeat;
-			height: 50px;
-			width: 50px;
-			background-size: 100%;
-			background-repeat: no-repeat;
-			background-position: center;
+		#face {
+			text-decoration: none;
+			font-size: 65px;
 		}
 
 		.hand {
@@ -54,6 +59,9 @@
 			animation-iteration-count: infinite;
 			animation-direction: alternate;
 			animation-timing-function: ease-in-out;
+			
+			font-size: 35px;
+			margin-bottom: 10px;
 		}
 
 		.spock {
@@ -64,25 +72,19 @@
 		.horns {
 			animation-name: wave-horns;
 		}
-
-		div {
-			position: absolute;
-			top: 50%;
-			left: 50%;
-			transform: translate(-50%, -50%);
-			text-align: center;
-		}
 	</style>
 </head>
 
 <body>
-	<div>
-		<h1 class="logo-container">
-			<span class="hand spock">🖖</span>
-			<a alt="linkedin" href="https://www.linkedin.com/in/vhendin/"></a>
-			<span class="hand horns">🤘</span>
-		</h1>
-		<i>Magnus Vhendin, <span id="year"></span></i>
+	<div class="wrapper">
+		<div class="logo-container">
+			<div class="hand spock">🖖</div>
+			<a id="face" alt="linkedin" href="https://www.linkedin.com/in/vhendin/">😘</a>
+			<div class="hand horns">🤘</div>
+		</div>
+		<div>
+			<i>Magnus Vhendin, <span id="year"></span></i>
+		</div>
 	</div>
 	<script>
 		(function (i, s, o, g, r, a, m) {
@@ -99,6 +101,10 @@
 		(function () {
 			var year = new Date().getFullYear();
 			document.getElementById('year').innerHTML = year;
+
+			var smileys = ['😘','🤣','🤓','🧐','🥳','😳','😶','😐','😬','🤢','🤠','😍','😊'];
+			var randomSmiley = smileys[Math.floor(Math.random() * smileys.length)];
+			document.getElementById('face').innerHTML = randomSmiley;
 		})()
 	</script>
 </body>
