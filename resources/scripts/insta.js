@@ -3,23 +3,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const CANVAS_WIDTH = 1080;
     const CANVAS_HEIGHT = 1080;
 
+    const DEFAULT_LOGO_STATE = {
+        pos: {
+            x: CANVAS_WIDTH - 240,
+            y: CANVAS_HEIGHT - 120
+        },
+        size: 140
+    };
+
+    const DEFAULT_TEXT_STATE = {
+        font: 'Stockholm Type',
+        size: 40,
+        color: '#FFFFFF',
+        pos: {
+            x: 100,
+            y: 350
+        }
+    };
+
     const state = {
         image: null,
         headingText: 'Heading',
         bodyText: 'This is where the body should be.',
-        font: 'Stockholm Type',
+        font: DEFAULT_TEXT_STATE.font,
         textAlign: 'left',
         textColor: '#FFFFFF',
         logoColor: '#FFFFFF',
         textPos: {
-            x: 100,
-            y: 350
+            x: DEFAULT_TEXT_STATE.pos.x,
+            y: DEFAULT_TEXT_STATE.pos.y
         },
         logoPos: {
-            x: CANVAS_WIDTH - 240,
-            y: CANVAS_HEIGHT - 120
+            x: DEFAULT_LOGO_STATE.pos.x,
+            y: DEFAULT_LOGO_STATE.pos.y
         },
-        logoSize: 140,
+        logoSize: DEFAULT_LOGO_STATE.size,
         isDraggingText: false,
         isDraggingLogo: false,
         dragStart: {
@@ -31,14 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
         logosLoaded: false
     };
 
-    const DEFAULT_LOGO_STATE = {
-        pos: {
-            x: CANVAS_WIDTH - 220,
-            y: CANVAS_HEIGHT - 140
-        },
-        size: 140
-    };
-
     // --- DOM ELEMENTS ---
     const canvas = document.getElementById('editor-canvas');
     const ctx = canvas.getContext('2d');
@@ -46,10 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const headingInput = document.getElementById('heading-text');
     const bodyInput = document.getElementById('body-text');
     const fontSelect = document.getElementById('font-select');
-    const alignLeftBtn = document.getElementById('align-left-btn');
-    const alignCenterBtn = document.getElementById('align-center-btn');
-    const alignRightBtn = document.getElementById('align-right-btn');
-    const centerTextBtn = document.getElementById('center-text-btn');
     const textWhiteBtn = document.getElementById('text-white-btn');
     const textBlackBtn = document.getElementById('text-black-btn');
     const logoWhiteBtn = document.getElementById('logo-white-btn');
@@ -60,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearImageBtn = document.getElementById('clear-image-btn');
     const logoSizeSlider = document.getElementById('logo-size-slider');
     const resetLogoBtn = document.getElementById('reset-logo-btn');
+    const resetTextBtn = document.getElementById('reset-text-btn');
 
     // --- INITIALIZATION ---
     async function init() {
@@ -101,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- ASSET LOADING ---
     function loadAssets() {
         // Raw SVG source for both logos. Using template literals to handle multi-line strings.
-        // Non-breaking spaces ( ) have been replaced with regular spaces for compatibility.
         const logoWhiteSvg = './resources/images/white_logo.svg';
 
         const logoBlackSvg = './resources/images/black_logo.svg';
@@ -197,18 +203,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const LINE_HEIGHT_MULTIPLIER = 1.4;
 
         ctx.fillStyle = state.textColor;
-        ctx.textAlign = state.textAlign;
         ctx.textBaseline = 'middle';
 
-        // Heading
+        // Prepare lines and measure max width
         ctx.font = `bold ${HEADING_SIZE}px "${state.font}"`;
         const headingLines = wrapText(state.headingText, CANVAS_WIDTH - PADDING * 2);
+        let maxWidth = 0;
+        headingLines.forEach(line => {
+            const metrics = ctx.measureText(line);
+            if (metrics.width > maxWidth) maxWidth = metrics.width;
+        });
 
-        // Body
         ctx.font = `${BODY_SIZE}px "${state.font}"`;
         const bodyLines = wrapText(state.bodyText, CANVAS_WIDTH - PADDING * 2);
+        bodyLines.forEach(line => {
+            const metrics = ctx.measureText(line);
+            if (metrics.width > maxWidth) maxWidth = metrics.width;
+        });
 
-        const totalLines = headingLines.length + bodyLines.length;
         const totalTextHeight = (headingLines.length * HEADING_SIZE * LINE_HEIGHT_MULTIPLIER) + (bodyLines.length * BODY_SIZE * LINE_HEIGHT_MULTIPLIER);
 
         let currentY = state.textPos.y - totalTextHeight / 2;
@@ -216,7 +228,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Draw heading lines
         ctx.font = `bold ${HEADING_SIZE}px "${state.font}"`;
         headingLines.forEach(line => {
-            ctx.fillText(line, state.textPos.x, currentY + HEADING_SIZE / 2);
+            ctx.textAlign = 'left';
+            let drawX = state.textPos.x;
+            if (state.textAlign === 'center') {
+                drawX = state.textPos.x + maxWidth / 2;
+            } else if (state.textAlign === 'right') {
+                drawX = state.textPos.x + maxWidth;
+            }
+            ctx.fillText(line, drawX, currentY + HEADING_SIZE / 2);
             currentY += HEADING_SIZE * LINE_HEIGHT_MULTIPLIER;
         });
 
@@ -228,7 +247,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Draw body lines
         ctx.font = `${BODY_SIZE}px "${state.font}"`;
         bodyLines.forEach(line => {
-            ctx.fillText(line, state.textPos.x, currentY + BODY_SIZE / 2);
+            ctx.textAlign = 'left';
+            let drawX = state.textPos.x;
+            if (state.textAlign === 'center') {
+                drawX = state.textPos.x + maxWidth / 2;
+            } else if (state.textAlign === 'right') {
+                drawX = state.textPos.x + maxWidth;
+            }
+            ctx.fillText(line, drawX, currentY + BODY_SIZE / 2);
             currentY += BODY_SIZE * LINE_HEIGHT_MULTIPLIER;
         });
     }
@@ -258,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         imageUpload.addEventListener('change', handleImageUpload);
         clearImageBtn.addEventListener('click', handleClearImage);
         resetLogoBtn.addEventListener('click', handleResetLogo);
+        resetTextBtn.addEventListener('click', handleResetText);
 
         headingInput.addEventListener('input', (e) => {
             state.headingText = e.target.value;
@@ -271,18 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         logoSizeSlider.addEventListener('input', (e) => {
             state.logoSize = parseInt(e.target.value, 10);
-            requestRedraw();
-        });
-
-        alignLeftBtn.addEventListener('click', () => updateAlignment('left'));
-        alignCenterBtn.addEventListener('click', () => updateAlignment('center'));
-        alignRightBtn.addEventListener('click', () => updateAlignment('right'));
-
-        centerTextBtn.addEventListener('click', () => {
-            state.textPos = {
-                x: CANVAS_WIDTH / 2,
-                y: CANVAS_HEIGHT / 2
-            };
             requestRedraw();
         });
 
@@ -345,6 +360,15 @@ document.addEventListener('DOMContentLoaded', () => {
         requestRedraw();
     }
 
+    function handleResetText() {
+        state.textPos = {
+            ...DEFAULT_TEXT_STATE.pos
+        };
+        state.textSize = DEFAULT_TEXT_STATE.size;
+        state.textColor = DEFAULT_TEXT_STATE.color;
+        requestRedraw();
+    }
+
     async function handleFontChange(e) {
         const newFont = e.target.value;
         fontLoader.style.display = 'flex';
@@ -361,22 +385,6 @@ document.addEventListener('DOMContentLoaded', () => {
             fontLoader.style.display = 'none';
             requestRedraw();
         }
-    }
-
-    function updateAlignment(alignment) {
-        state.textAlign = alignment;
-
-        alignLeftBtn.style.backgroundColor = alignment === 'left'
-            ? '#e5e7eb'
-            : 'white';
-        alignCenterBtn.style.backgroundColor = alignment === 'center'
-            ? '#e5e7eb'
-            : 'white';
-        alignRightBtn.style.backgroundColor = alignment === 'right'
-            ? '#e5e7eb'
-            : 'white';
-
-        requestRedraw();
     }
 
     function updateColor(type, color) {
@@ -500,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bodyInput.value = state.bodyText;
         fontSelect.value = state.font;
         logoSizeSlider.value = state.logoSize;
-        updateAlignment(state.textAlign);
+        // updateAlignment(state.textAlign);
         updateColor('text', state.textColor);
         updateColor('logo', state.logoColor);
     }
@@ -550,28 +558,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const metrics = ctx.measureText(line);
             if (metrics.width > maxWidth)
                 maxWidth = metrics.width;
-        }
-        );
+        });
 
         ctx.font = `${BODY_SIZE}px "${state.font}"`;
         bodyLines.forEach(line => {
             const metrics = ctx.measureText(line);
             if (metrics.width > maxWidth)
                 maxWidth = metrics.width;
-        }
-        );
+        });
 
         const totalTextHeight = (headingLines.length * HEADING_SIZE * LINE_HEIGHT_MULTIPLIER) + (bodyLines.length * BODY_SIZE * LINE_HEIGHT_MULTIPLIER);
 
-        let x;
-        if (state.textAlign === 'left') {
-            x = state.textPos.x;
-        } else if (state.textAlign === 'center') {
-            x = state.textPos.x - maxWidth / 2;
-        } else { // right
-            x = state.textPos.x - maxWidth;
-        }
-
+        const x = state.textPos.x;
         const y = state.textPos.y - totalTextHeight / 2;
 
         return { x, y, width: maxWidth, height: totalTextHeight };
