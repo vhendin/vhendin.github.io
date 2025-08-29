@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
             y: 350
         },
         logoPos: {
-            x: CANVAS_WIDTH - 220,
-            y: CANVAS_HEIGHT - 140
+            x: CANVAS_WIDTH - 240,
+            y: CANVAS_HEIGHT - 120
         },
         logoSize: 140,
         isDraggingText: false,
