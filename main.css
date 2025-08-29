@@ -1,0 +1,86 @@
+@keyframes wave-left {
+    0%   {
+        transform: rotate(-10deg) scaleX(-1);
+    }
+    100% {
+        transform: rotate(40deg) scaleX(-1);
+    }
+}
+
+@keyframes wave-right {
+    0%   {
+        transform: rotate(10deg);
+    }
+    100% {
+        transform: rotate(-40deg);
+    }
+}
+
+@keyframes head-turn {
+    0%   {
+        transform: rotate(-10deg);
+    }
+    100% {
+        transform: rotate(10deg);
+    }
+}
+
+.wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.logoContainer {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: flex-end;
+}
+
+.face {
+    text-decoration: none;
+    font-size: 65px;
+    animation: head-turn 5s infinite alternate ease-in-out;
+    transition: transform 500ms ease-in-out;
+}
+
+.face:hover {
+    transform: scale(1.2) rotate(-10deg);
+}
+
+.right, .left {
+    font-size: 45px;
+    transition: transform 500ms ease-in-out;
+}
+
+.right {
+    animation: wave-right 2s infinite alternate ease-in-out;
+}
+
+.left {
+    animation: wave-left 2s infinite alternate ease-in-out;
+}
+
+.randomize {
+    margin-top: 2rem;
+    font-size: 1.2rem;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    background: #222;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.randomize:hover {
+    background: #444;
+}
+
+footer {
+    margin-top: 2rem;
+    color: #888;
+}

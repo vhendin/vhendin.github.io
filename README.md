@@ -1,1 +1,0 @@
-# magnusvhendin.github.io
