@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="sv">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Räknesnurra för lån</title>
+        <meta
+            name="description"
+            content="En enkel räknesnurra för att beräkna amorteringsplan, ränta och betalningar för ett lån."
+        />
+        <link rel="stylesheet" href="resources/styles/raknesnurra.css" />
+        <link rel="icon" href="favicon.ico" />
+        <!-- (Removed inline theme <style>; theme variables now fully managed in CSS file) -->
+        <!-- Chart.js utan SRI (integrity) pga tidigare mismatch -> fallback script om första laddningen misslyckas -->
+        <script src="
+        https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js
+        "></script>
+        <script defer src="resources/scripts/raknesnurra.js"></script>
+    </head>
+    <body>
+        <header class="page-header">
+            <h1>Räknesnurra – Lån & Amortering (Rak amortering)</h1>
+            <p class="tagline">
+                Beräkna betalningar, ränta och skuldsaldo över tid.
+            </p>
+            <div class="theme-toggle">
+                <label for="themeSelect">Tema:</label>
+                <select id="themeSelect" aria-label="Välj tema">
+                    <option value="light">Ljust</option>
+                    <option value="dark">Mörkt</option>
+                </select>
+            </div>
+        </header>
+        <script>
+            (function () {
+                const THEME_KEY = "raknesnurra-theme";
+                const select = document.getElementById("themeSelect");
+                const root = document.documentElement;
+                function applyTheme(mode) {
+                    root.classList.remove("theme-light", "theme-dark");
+                    if (mode === "dark") {
+                        root.classList.add("theme-dark");
+                    } else {
+                        root.classList.add("theme-light");
+                    }
+                    recolorCharts();
+                }
+                function recolorCharts() {
+                    if (!window.Chart || !Chart.instances) return;
+                    const isDark = root.classList.contains("theme-dark");
+                    const textSoft =
+                        getComputedStyle(root)
+                            .getPropertyValue("--color-text-soft")
+                            .trim() || (isDark ? "#b6c2cc" : "#55626e");
+                    const gridColor = isDark
+                        ? "rgba(255,255,255,0.05)"
+                        : "rgba(0,0,0,0.08)";
+                    const balanceLine = isDark ? "#3d8bfd" : "#1d6dff";
+                    const balanceFill = isDark
+                        ? "rgba(61,139,253,0.15)"
+                        : "rgba(29,109,255,0.12)";
+                    const interestBar = isDark ? "#ffb347" : "#ff9f1c";
+                    const principalBar = isDark ? "#3fbf77" : "#2e9e62";
+                    const charts = Object.values(Chart.instances);
+                    charts.forEach((ch) => {
+                        if (ch.config.type === "line") {
+                            ch.data.datasets.forEach((ds) => {
+                                if (ds.label === "Skuld") {
+                                    ds.borderColor = balanceLine;
+                                    ds.backgroundColor = balanceFill;
+                                }
+                            });
+                        } else {
+                            ch.data.datasets.forEach((ds) => {
+                                if (ds.label === "Ränta")
+                                    ds.backgroundColor = interestBar;
+                                if (ds.label === "Amortering")
+                                    ds.backgroundColor = principalBar;
+                            });
+                        }
+                        if (ch.options && ch.options.scales) {
+                            Object.values(ch.options.scales).forEach(
+                                (scale) => {
+                                    if (scale.ticks)
+                                        scale.ticks.color = textSoft;
+                                    if (scale.grid)
+                                        scale.grid.color = gridColor;
+                                },
+                            );
+                        }
+                        if (
+                            ch.options &&
+                            ch.options.plugins &&
+                            ch.options.plugins.legend
+                        ) {
+                            if (ch.options.plugins.legend.labels) {
+                                ch.options.plugins.legend.labels.color =
+                                    textSoft;
+                            }
+                        }
+                        ch.update();
+                    });
+                }
+                function init() {
+                    const stored = localStorage.getItem(THEME_KEY) || "light";
+                    if (stored !== "light" && stored !== "dark") {
+                        localStorage.setItem(THEME_KEY, "light");
+                    }
+                    select.value = localStorage.getItem(THEME_KEY);
+                    applyTheme(select.value);
+                    select.addEventListener("change", () => {
+                        const val = select.value === "dark" ? "dark" : "light";
+                        localStorage.setItem(THEME_KEY, val);
+                        applyTheme(val);
+                    });
+                    // Försök rekolorera grafer igen efter första render (om scriptet laddas innan grafer genereras)
+                    document.addEventListener("loan-calculated", recolorCharts);
+                    // Polla försiktigt en gång efter 1s om grafer skapats senare
+                    setTimeout(recolorCharts, 1200);
+                }
+                if (document.readyState === "loading") {
+                    document.addEventListener("DOMContentLoaded", init);
+                } else {
+                    init();
+                }
+            })();
+        </script>
+        <main id="app">
+            <section class="panel inputs">
+                <h2>Indata</h2>
+                <form id="loan-form" novalidate>
+                    <div class="field">
+                        <label for="projectCost">Projektkostnad (kr)</label>
+                        <input
+                            type="number"
+                            id="projectCost"
+                            name="projectCost"
+                            min="1"
+                            step="1000"
+                            required
+                            placeholder="t.ex. 7000000"
+                        />
+                        <small class="hint">Total kostnad för projektet.</small>
+                    </div>
+                    <div class="field">
+                        <label for="downPayment">Handpenning (kr)</label>
+                        <input
+                            type="number"
+                            id="downPayment"
+                            name="downPayment"
+                            min="0"
+                            step="1000"
+                            value="0"
+                            required
+                        />
+                        <small class="hint"
+                            >Dras av från projektkostnaden för att få
+                            lånebeloppet.</small
+                        >
+                    </div>
+                    <div class="field">
+                        <label for="interestRate">Årsränta (%)</label>
+                        <input
+                            type="number"
+                            id="interestRate"
+                            name="interestRate"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            required
+                            placeholder="t.ex. 3"
+                        />
+                        <small class="hint"
+                            >Fast nominell ränta under hela perioden.</small
+                        >
+                    </div>
+                    <div class="field">
+                        <label for="termYears">Löptid (år)</label>
+                        <input
+                            type="number"
+                            id="termYears"
+                            name="termYears"
+                            min="1"
+                            max="50"
+                            step="1"
+                            required
+                        />
+                        <small class="hint">Max 50 år.</small>
+                    </div>
+                    <div class="field">
+                        <label for="frequency">Betalfrekvens</label>
+                        <select id="frequency" name="frequency">
+                            <option value="monthly">
+                                Månadsvis (12 ggr/år)
+                            </option>
+                            <option value="quarterly">
+                                Kvartalsvis (4 ggr/år)
+                            </option>
+                            <option value="semiannual">
+                                Halvår (2 ggr/år)
+                            </option>
+                            <option value="annual">Årsvis (1 gång/år)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>
+                            <input
+                                type="checkbox"
+                                id="displayModeTsek"
+                                name="displayModeTsek"
+                            />
+                            Visa belopp i tusen kronor (tsek)
+                        </label>
+                    </div>
+                    <fieldset class="field group">
+                        <legend>Betalare</legend>
+                        <div class="field inline">
+                            <label for="payerCount">Antal betalare</label>
+                            <input
+                                type="number"
+                                id="payerCount"
+                                name="payerCount"
+                                min="1"
+                                max="250"
+                                step="1"
+                                value="1"
+                            />
+                        </div>
+                        <small class="hint"
+                            >Fördelning: Alltid lika delar mellan
+                            deltagare.</small
+                        >
+                    </fieldset>
+                    <div class="actions">
+                        <button type="button" id="calculateBtn" class="primary">
+                            Beräkna
+                        </button>
+                        <button type="reset" class="secondary" id="resetBtn">
+                            Rensa
+                        </button>
+                    </div>
+                    <div
+                        id="validationMessages"
+                        class="messages"
+                        aria-live="assertive"
+                    ></div>
+                </form>
+            </section>
+            <section class="panel summary">
+                <h2>Sammanfattning</h2>
+                <div class="result-grid" id="summaryResults">
+                    <div class="result">
+                        <span class="label">Lånebelopp</span>
+                        <span class="value" id="loanAmountDisplay">–</span>
+                    </div>
+                    <div class="result">
+                        <span class="label">Antal betalperioder</span>
+                        <span class="value" id="periodCountDisplay">–</span>
+                    </div>
+                    <div class="result">
+                        <span class="label">Amortering per period</span>
+                        <span class="value" id="principalPerPeriodDisplay"
+                            >–</span
+                        >
+                    </div>
+                    <div class="result">
+                        <span class="label">Första periodens ränta</span>
+                        <span class="value" id="firstInterestDisplay">–</span>
+                    </div>
+                    <div class="result">
+                        <span class="label"
+                            >Första periodens totalbetalning</span
+                        >
+                        <span class="value" id="firstPaymentDisplay">–</span>
+                    </div>
+                    <div class="result">
+                        <span class="label">Total ränta (hela perioden)</span>
+                        <span class="value" id="totalInterestDisplay">–</span>
+                    </div>
+                    <div class="result">
+                        <span class="label">Total återbetalning</span>
+                        <span class="value" id="totalPaidDisplay">–</span>
+                    </div>
+                    <div class="result extra-results">
+                        <span class="label">Årskostnad (total)</span>
+                        <span class="value" id="yearlyTotalDisplay">–</span>
+                    </div>
+                    <div class="result extra-results">
+                        <span class="label">Årskostnad per deltagare</span>
+                        <span class="value" id="yearlyPerParticipantDisplay"
+                            >–</span
+                        >
+                    </div>
+                    <div class="result extra-results">
+                        <span class="label"
+                            >Kostnad per deltagare per period</span
+                        >
+                        <span class="value" id="periodPerParticipantDisplay"
+                            >–</span
+                        >
+                    </div>
+                </div>
+                <!-- Per-betalare detaljer borttagna: lika fördelning alltid -->
+            </section>
+            <section class="panel annual-overview">
+                <h2>Årsöversikt</h2>
+                <div class="table-controls">
+                    <p class="hint">
+                        Summerade värden per år. Klicka på en rad för att visa
+                        underliggande perioder (månad / kvartal) och kostnad per
+                        deltagare.
+                    </p>
+                </div>
+                <div class="table-wrapper" id="annualWrapper">
+                    <table id="annualTable">
+                        <thead>
+                            <tr>
+                                <th>År</th>
+                                <th>Total betalning</th>
+                                <th>Ränta</th>
+                                <th>Amortering</th>
+                                <th>Restskuld (slut)</th>
+                                <th>Per deltagare (år)</th>
+                                <th>Detalj</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Fylls dynamiskt -->
+                        </tbody>
+                    </table>
+                </div>
+                <div
+                    class="annual-details hidden"
+                    id="annualDetails"
+                    aria-live="polite"
+                >
+                    <!-- Dynamiskt expanderat innehåll: periodtabell för valt år (period, total, ränta, amortering, per deltagare) -->
+                </div>
+            </section>
+            <section class="panel charts">
+                <h2>Grafer</h2>
+                <div class="charts-wrapper">
+                    <div class="chart-block">
+                        <h3>Skuld över tid</h3>
+                        <canvas id="balanceChart" height="180"></canvas>
+                    </div>
+                    <div class="chart-block">
+                        <h3>Ränta vs Amortering per period</h3>
+                        <canvas id="paymentChart" height="180"></canvas>
+                    </div>
+                </div>
+            </section>
+            <section class="panel schedule">
+                <h2>Amorteringsplan</h2>
+                <div class="table-controls">
+                    <button
+                        type="button"
+                        id="toggleScheduleBtn"
+                        class="secondary small"
+                    >
+                        Visa/Dölj tabell
+                    </button>
+                    <button
+                        type="button"
+                        id="exportCsvBtn"
+                        class="secondary small"
+                    >
+                        Exportera CSV
+                    </button>
+                </div>
+                <div class="table-wrapper collapsed" id="scheduleWrapper">
+                    <table id="scheduleTable">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Saldo start</th>
+                                <th>Amortering</th>
+                                <th>Ränta</th>
+                                <th>Betalning</th>
+                                <th>Saldo slut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Fylls dynamiskt -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="panel notes">
+                <h2>Noteringar</h2>
+                <ul class="notes-list">
+                    <li>
+                        Modellen använder rak amortering: lika stort
+                        amorteringsbelopp varje period.
+                    </li>
+                    <li>
+                        Räntan beräknas periodvis som kvarvarande skuld *
+                        (årsränta / antal perioder per år).
+                    </li>
+                    <li>
+                        Belopp kan visas i antingen kronor eller tusen kronor
+                        (tsek) beroende på val i indata.
+                    </li>
+                    <li>
+                        Ingen hänsyn tas till skatteeffekter eller inflation.
+                    </li>
+                </ul>
+            </section>
+        </main>
+        <footer class="page-footer">
+            <small
+                >&copy; <span id="year"></span> Räknesnurra. Alla rättigheter
+                förbehållna.</small
+            >
+        </footer>
+        <template id="payerRowTemplate">
+            <div class="payer-row">
+                <label></label>
+                <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    class="payer-percentage"
+                />
+                <span class="unit">%</span>
+            </div>
+        </template>
+        <template id="payerSummaryTemplate">
+            <div class="payer-result">
+                <span class="payer-label"></span>
+                <span class="payer-value"></span>
+            </div>
+        </template>
+        <script>
+            // Minimal script to set current year if JS file hasn't yet varit implementerad
+            document.getElementById("year").textContent =
+                new Date().getFullYear();
+        </script>
+    </body>
+</html>
