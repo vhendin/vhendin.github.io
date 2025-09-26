@@ -80,26 +80,6 @@
     --light-gradient-panel: linear-gradient(145deg, #ffffff, #f2f6fa);
 }
 
-/* Auto-läge (ljus preferens) när ingen explicit klass satts */
-@media (prefers-color-scheme: light) {
-    :root:not(.theme-dark):not(.theme-light) {
-        --color-bg: var(--light-color-bg);
-        --color-bg-alt: var(--light-color-bg-alt);
-        --color-panel: var(--light-color-panel);
-        --color-panel-accent: var(--light-color-panel-accent);
-        --color-border: var(--light-color-border);
-        --color-border-soft: var(--light-color-border-soft);
-        --color-text: var(--light-color-text);
-        --color-text-soft: var(--light-color-text-soft);
-        --color-primary: #1d6dff;
-        --color-primary-accent: #3d86ff;
-        --color-primary-glow: #1d6dff33;
-        --table-header-bg: var(--light-table-header-bg);
-        --table-row-alt: var(--light-table-row-alt);
-        --gradient-panel: var(--light-gradient-panel);
-    }
-}
-
 /* Explicit Light Theme */
 html.theme-light {
     --color-bg: var(--light-color-bg);
