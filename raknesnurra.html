@@ -19,7 +19,7 @@
     </head>
     <body>
         <header class="page-header">
-            <h1>Räknesnurra – Lån & Amortering (Rak amortering)</h1>
+            <h1>Räknesnurra – Lån & Amortering</h1>
             <p class="tagline">
                 Beräkna betalningar, ränta och skuldsaldo över tid.
             </p>
@@ -97,6 +97,17 @@
                                     id="calcModeByPrincipal"
                                 />
                                 Ange amortering per period
+                            </label>
+                        </div>
+                        <div class="field inline">
+                            <label>
+                                <input
+                                    type="radio"
+                                    name="calcMode"
+                                    value="annuity"
+                                    id="calcModeAnnuity"
+                                />
+                                Annuitet (konstant betalning)
                             </label>
                         </div>
                     </fieldset>
@@ -349,8 +360,10 @@
                 <h2>Noteringar</h2>
                 <ul class="notes-list">
                     <li>
-                        Modellen använder rak amortering: lika stort
-                        amorteringsbelopp varje period.
+                        Stöder lägen: Rak amortering (lika stort
+                        amorteringsbelopp), Fast amortering per period samt
+                        Annuitet (konstant totalbetalning där räntedelen minskar
+                        och amorteringsdelen ökar över tiden).
                     </li>
                     <li>
                         Räntan beräknas periodvis som kvarvarande skuld *

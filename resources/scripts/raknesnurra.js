@@ -37,6 +37,7 @@
     // Nya element för beräkningsläge
     calcModeByTerm: document.getElementById("calcModeByTerm"),
     calcModeByPrincipal: document.getElementById("calcModeByPrincipal"),
+    calcModeAnnuity: document.getElementById("calcModeAnnuity"),
     amortPerPeriod: document.getElementById("amortPerPeriod"),
     termYearsField: document.getElementById("termYearsField"),
     amortPerPeriodField: document.getElementById("amortPerPeriodField"),
@@ -76,7 +77,7 @@
       payment: null,
     },
     displayModeTsek: false,
-    calcMode: "byTerm", // "byTerm" | "byPrincipalPerPeriod"
+    calcMode: "byTerm", // "byTerm" | "byPrincipalPerPeriod" | "annuity"
   };
 
   /* ----------------------------- Hjälpfunktioner ----------------------------- */
@@ -121,7 +122,9 @@
     const mode =
       els.calcModeByPrincipal && els.calcModeByPrincipal.checked
         ? "byPrincipalPerPeriod"
-        : "byTerm";
+        : els.calcModeAnnuity && els.calcModeAnnuity.checked
+          ? "annuity"
+          : "byTerm";
     state.calcMode = mode;
 
     const projectCost = numberFromInput(els.projectCost);
@@ -144,6 +147,12 @@
     } else if (mode === "byPrincipalPerPeriod") {
       if (amortPerPeriod <= 0)
         errors.push("Amortering per period måste vara större än 0.");
+    } else if (mode === "annuity") {
+      if (years <= 0 || years > MAX_YEARS)
+        errors.push(
+          `Löptiden (annuitet) måste vara mellan 1 och ${MAX_YEARS} år.`,
+        );
+      // Ränta kan vara 0 -> hanteras i formeln
     }
     if (payerCount < 1) errors.push("Minst en betalare krävs.");
 
@@ -250,6 +259,58 @@
       },
     };
   }
+
+  // Ny funktion: Annuitet (konstant totalbetalning per period)
+  function calculateScheduleAnnuity({
+    principal,
+    annualRate,
+    years,
+    periodsPerYear,
+  }) {
+    const totalPeriods = Math.round(years * periodsPerYear);
+    if (totalPeriods <= 0) return [];
+    const ratePerPeriod = annualRate / 100 / periodsPerYear;
+    let payment;
+    if (Math.abs(ratePerPeriod) < 1e-9) {
+      payment = principal / totalPeriods;
+    } else {
+      payment =
+        (principal * ratePerPeriod) /
+        (1 - Math.pow(1 + ratePerPeriod, -totalPeriods));
+    }
+    const schedule = [];
+    let balance = principal;
+    let residual = 0;
+    for (let p = 1; p <= totalPeriods; p++) {
+      const interest = ratePerPeriod > 0 ? balance * ratePerPeriod : 0;
+      const principalTheoretical = payment - interest;
+      const interestRounded = Math.round(interest * 100) / 100;
+      let principalRounded = Math.round(principalTheoretical * 100) / 100;
+      residual += principalTheoretical - principalRounded;
+      if (p === totalPeriods) {
+        const adjust = residual + (balance - principalRounded);
+        if (Math.abs(adjust) >= 0.005) {
+          principalRounded += adjust;
+        } else {
+          principalRounded += balance - principalRounded;
+        }
+      }
+      const totalRounded =
+        Math.round((principalRounded + interestRounded) * 100) / 100;
+      const endBalance = balance - principalRounded;
+      schedule.push({
+        period: p,
+        balanceStart: balance,
+        principal: principalRounded,
+        interest: interestRounded,
+        payment: totalRounded,
+        balanceEnd: endBalance < 0.01 ? 0 : endBalance,
+      });
+      balance = endBalance;
+    }
+    return schedule;
+  }
+
   function summarizeSchedule(schedule) {
     if (!schedule.length) {
       return {
@@ -296,6 +357,19 @@
     }
     els.firstInterestDisplay.textContent = formatMoney(summary.firstInterest);
     els.firstPaymentDisplay.textContent = formatMoney(summary.firstPayment);
+    // Justera etikett dynamiskt för annuitet
+    const firstPaymentCard = document
+      .getElementById("firstPaymentDisplay")
+      ?.closest(".result");
+    if (firstPaymentCard) {
+      const labelEl = firstPaymentCard.querySelector(".label");
+      if (labelEl) {
+        labelEl.textContent =
+          mode === "annuity"
+            ? "Totalbetalning per period (konstant)"
+            : "Första periodens totalbetalning";
+      }
+    }
     els.totalInterestDisplay.textContent = formatMoney(summary.totalInterest);
     els.totalPaidDisplay.textContent = formatMoney(summary.totalPaid);
     // Nya fält för fast amorteringsläge
@@ -648,6 +722,13 @@
         years,
         periodsPerYear: frequency.periodsPerYear,
       });
+    } else if (mode === "annuity") {
+      schedule = calculateScheduleAnnuity({
+        principal,
+        annualRate: interestRate,
+        years,
+        periodsPerYear: frequency.periodsPerYear,
+      });
     } else {
       const result = calculateScheduleFixedPrincipal({
         principal,
@@ -725,10 +806,15 @@
       const updateModeUI = () => {
         const mode = els.calcModeByPrincipal.checked
           ? "byPrincipalPerPeriod"
-          : "byTerm";
+          : els.calcModeAnnuity && els.calcModeAnnuity.checked
+            ? "annuity"
+            : "byTerm";
         state.calcMode = mode;
         if (els.termYearsField)
-          els.termYearsField.classList.toggle("hidden", mode !== "byTerm");
+          els.termYearsField.classList.toggle(
+            "hidden",
+            mode === "byPrincipalPerPeriod" ? true : false,
+          );
         if (els.amortPerPeriodField)
           els.amortPerPeriodField.classList.toggle(
             "hidden",
@@ -739,6 +825,9 @@
       };
       els.calcModeByTerm.addEventListener("change", updateModeUI);
       els.calcModeByPrincipal.addEventListener("change", updateModeUI);
+      if (els.calcModeAnnuity) {
+        els.calcModeAnnuity.addEventListener("change", updateModeUI);
+      }
     }
     if (els.amortPerPeriod) {
       els.amortPerPeriod.addEventListener("change", () => {
@@ -863,6 +952,9 @@
           if (saved.mode === "byPrincipalPerPeriod") {
             if (els.calcModeByPrincipal) els.calcModeByPrincipal.checked = true;
             state.calcMode = "byPrincipalPerPeriod";
+          } else if (saved.mode === "annuity") {
+            if (els.calcModeAnnuity) els.calcModeAnnuity.checked = true;
+            state.calcMode = "annuity";
           } else {
             if (els.calcModeByTerm) els.calcModeByTerm.checked = true;
             state.calcMode = "byTerm";
@@ -1041,6 +1133,11 @@
       if (els.termYearsField) els.termYearsField.classList.add("hidden");
       if (els.amortPerPeriodField)
         els.amortPerPeriodField.classList.remove("hidden");
+    } else if (els.calcModeAnnuity && els.calcModeAnnuity.checked) {
+      // Annuitet använder löptid -> visa termYears, dölj amortPerPeriod
+      if (els.termYearsField) els.termYearsField.classList.remove("hidden");
+      if (els.amortPerPeriodField)
+        els.amortPerPeriodField.classList.add("hidden");
     }
     // Init tom årsöversikt
     renderAnnualOverview([], getPayerCount());
