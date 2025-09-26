@@ -1,8 +1,8 @@
 /* =========================================================
-   Räknesnurra – Rak amortering
+   Räknesnurra – Rak amortering + Utökat beräkningsläge
    Funktionalitet för:
    - Validering av indata
-   - Beräkning av amorteringsplan
+   - Beräkning av amorteringsplan (antingen via löptid eller fast amortering per period)
    - Lika fördelning mellan deltagare (inga procent)
    - Diagram (skuld & betalningskomponenter)
    - Export av amorteringsplan till CSV
@@ -34,6 +34,12 @@
     frequency: document.getElementById("frequency"),
     displayModeTsek: document.getElementById("displayModeTsek"),
     payerCount: document.getElementById("payerCount"),
+    // Nya element för beräkningsläge
+    calcModeByTerm: document.getElementById("calcModeByTerm"),
+    calcModeByPrincipal: document.getElementById("calcModeByPrincipal"),
+    amortPerPeriod: document.getElementById("amortPerPeriod"),
+    termYearsField: document.getElementById("termYearsField"),
+    amortPerPeriodField: document.getElementById("amortPerPeriodField"),
     calculateBtn: document.getElementById("calculateBtn"),
     resetBtn: document.getElementById("resetBtn"),
     validationMessages: document.getElementById("validationMessages"),
@@ -70,6 +76,7 @@
       payment: null,
     },
     displayModeTsek: false,
+    calcMode: "byTerm", // "byTerm" | "byPrincipalPerPeriod"
   };
 
   /* ----------------------------- Hjälpfunktioner ----------------------------- */
@@ -111,12 +118,18 @@
 
   function validateInputs() {
     const errors = [];
+    const mode =
+      els.calcModeByPrincipal && els.calcModeByPrincipal.checked
+        ? "byPrincipalPerPeriod"
+        : "byTerm";
+    state.calcMode = mode;
 
     const projectCost = numberFromInput(els.projectCost);
     const downPayment = numberFromInput(els.downPayment);
     const rate = numberFromInput(els.interestRate);
     const years = numberFromInput(els.termYears);
     const payerCount = getPayerCount();
+    const amortPerPeriod = numberFromInput(els.amortPerPeriod);
 
     if (projectCost <= 0) errors.push("Projektkostnad måste vara större än 0.");
     if (downPayment < 0) errors.push("Handpenning kan inte vara negativ.");
@@ -125,8 +138,13 @@
         "Handpenningen kan inte vara större än eller lika med projektkostnaden.",
       );
     if (rate < 0) errors.push("Räntan kan inte vara negativ.");
-    if (years <= 0 || years > MAX_YEARS)
-      errors.push(`Löptiden måste vara mellan 1 och ${MAX_YEARS} år.`);
+    if (mode === "byTerm") {
+      if (years <= 0 || years > MAX_YEARS)
+        errors.push(`Löptiden måste vara mellan 1 och ${MAX_YEARS} år.`);
+    } else if (mode === "byPrincipalPerPeriod") {
+      if (amortPerPeriod <= 0)
+        errors.push("Amortering per period måste vara större än 0.");
+    }
     if (payerCount < 1) errors.push("Minst en betalare krävs.");
 
     return { valid: errors.length === 0, errors };
@@ -168,6 +186,70 @@
     return schedule;
   }
 
+  // Ny funktion: schema via fast amortering per period
+  function calculateScheduleFixedPrincipal({
+    principal,
+    annualRate,
+    amortPerPeriod,
+    periodsPerYear,
+  }) {
+    if (amortPerPeriod <= 0)
+      return { schedule: [], meta: { error: "INVALID_AMORT" } };
+    if (amortPerPeriod >= principal) {
+      const interest = principal * (annualRate / 100 / periodsPerYear);
+      return {
+        schedule: [
+          {
+            period: 1,
+            balanceStart: principal,
+            principal: principal,
+            interest,
+            payment: principal + interest,
+            balanceEnd: 0,
+          },
+        ],
+        meta: {
+          periods: 1,
+          derivedYears: 1 / periodsPerYear,
+          lastPrincipal: principal,
+        },
+      };
+    }
+    const ratePerPeriod = annualRate / 100 / periodsPerYear;
+    const rawPeriods = Math.ceil(principal / amortPerPeriod);
+    const derivedYears = rawPeriods / periodsPerYear;
+    if (derivedYears > MAX_YEARS) {
+      return {
+        schedule: [],
+        meta: { error: "TOO_LONG", derivedYears, rawPeriods },
+      };
+    }
+    const schedule = [];
+    let balance = principal;
+    for (let p = 1; p <= rawPeriods; p++) {
+      const interest = ratePerPeriod > 0 ? balance * ratePerPeriod : 0;
+      const principalPayment = p === rawPeriods ? balance : amortPerPeriod;
+      const payment = principalPayment + interest;
+      const end = balance - principalPayment;
+      schedule.push({
+        period: p,
+        balanceStart: balance,
+        principal: principalPayment,
+        interest,
+        payment,
+        balanceEnd: end < 1e-8 ? 0 : end,
+      });
+      balance = end;
+    }
+    return {
+      schedule,
+      meta: {
+        periods: schedule.length,
+        derivedYears,
+        lastPrincipal: schedule[schedule.length - 1].principal,
+      },
+    };
+  }
   function summarizeSchedule(schedule) {
     if (!schedule.length) {
       return {
@@ -192,16 +274,57 @@
     };
   }
 
-  function renderSummary({ principal, schedule, summary, periodsPerYear }) {
+  function renderSummary({
+    principal,
+    schedule,
+    summary,
+    periodsPerYear,
+    mode,
+    amortPerPeriod,
+    fixedMeta,
+  }) {
     els.loanAmountDisplay.textContent = formatMoney(principal);
     els.periodCountDisplay.textContent = schedule.length.toString();
-    els.principalPerPeriodDisplay.textContent = formatMoney(
-      summary.principalPerPeriod,
-    );
+    if (mode === "byTerm") {
+      els.principalPerPeriodDisplay.textContent = formatMoney(
+        summary.principalPerPeriod,
+      );
+    } else if (mode === "byPrincipalPerPeriod") {
+      els.principalPerPeriodDisplay.textContent = amortPerPeriod
+        ? formatMoney(amortPerPeriod)
+        : "–";
+    }
     els.firstInterestDisplay.textContent = formatMoney(summary.firstInterest);
     els.firstPaymentDisplay.textContent = formatMoney(summary.firstPayment);
     els.totalInterestDisplay.textContent = formatMoney(summary.totalInterest);
     els.totalPaidDisplay.textContent = formatMoney(summary.totalPaid);
+    // Nya fält för fast amorteringsläge
+    const derivedPeriodCountDisplay = document.getElementById(
+      "derivedPeriodCountDisplay",
+    );
+    const derivedYearsDisplay = document.getElementById("derivedYearsDisplay");
+    const lastPrincipalDisplay = document.getElementById(
+      "lastPrincipalDisplay",
+    );
+    if (mode === "byPrincipalPerPeriod" && fixedMeta) {
+      if (derivedPeriodCountDisplay)
+        derivedPeriodCountDisplay.textContent = fixedMeta.periods ?? "–";
+      if (derivedYearsDisplay)
+        derivedYearsDisplay.textContent =
+          fixedMeta.derivedYears != null
+            ? formatNumber(fixedMeta.derivedYears, {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 2,
+              })
+            : "–";
+      if (lastPrincipalDisplay)
+        lastPrincipalDisplay.textContent = formatMoney(fixedMeta.lastPrincipal);
+    } else {
+      if (derivedPeriodCountDisplay)
+        derivedPeriodCountDisplay.textContent = "–";
+      if (derivedYearsDisplay) derivedYearsDisplay.textContent = "–";
+      if (lastPrincipalDisplay) lastPrincipalDisplay.textContent = "–";
+    }
 
     // Lika fördelning – beräkna år 1 samt per period
     const payerCount = getPayerCount();
@@ -488,6 +611,7 @@
     }
 
     const validation = validateInputs();
+    const mode = state.calcMode;
     if (!validation.valid) {
       showErrors(validation.errors);
       state.schedule = [];
@@ -512,14 +636,49 @@
     const years = numberFromInput(els.termYears);
     const frequencyKey = els.frequency.value;
     const frequency = FREQUENCIES[frequencyKey];
+    const amortPerPeriod = numberFromInput(els.amortPerPeriod);
 
     const principal = projectCost - downPayment;
-    const schedule = calculateSchedule({
-      principal,
-      annualRate: interestRate,
-      years,
-      periodsPerYear: frequency.periodsPerYear,
-    });
+    let schedule;
+    let fixedMeta = null;
+    if (mode === "byTerm") {
+      schedule = calculateSchedule({
+        principal,
+        annualRate: interestRate,
+        years,
+        periodsPerYear: frequency.periodsPerYear,
+      });
+    } else {
+      const result = calculateScheduleFixedPrincipal({
+        principal,
+        annualRate: interestRate,
+        amortPerPeriod,
+        periodsPerYear: frequency.periodsPerYear,
+      });
+      if (result.meta && result.meta.error === "TOO_LONG") {
+        showErrors([
+          `Det angivna amorteringsbeloppet ger en löptid på ca ${formatNumber(
+            result.meta.derivedYears,
+            { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+          )} år vilket överskrider max ${MAX_YEARS}. Öka beloppet eller byt läge.`,
+        ]);
+        state.schedule = [];
+        destroyCharts();
+        renderSummary({
+          principal: 0,
+          schedule: [],
+          summary: summarizeSchedule([]),
+          periodsPerYear: 0,
+          mode,
+          amortPerPeriod,
+          fixedMeta: null,
+        });
+        renderScheduleTable([]);
+        return;
+      }
+      schedule = result.schedule;
+      fixedMeta = result.meta;
+    }
 
     state.schedule = schedule;
     const summary = summarizeSchedule(schedule);
@@ -529,6 +688,9 @@
       schedule,
       summary,
       periodsPerYear: frequency.periodsPerYear,
+      mode,
+      amortPerPeriod,
+      fixedMeta,
     });
     renderScheduleTable(schedule);
     buildCharts(schedule);
@@ -540,6 +702,8 @@
       totalPaid: summary.totalPaid,
       periods: schedule.length,
       model: "rak",
+      mode,
+      amortPerPeriod: mode === "byPrincipalPerPeriod" ? amortPerPeriod : null,
     });
 
     document.dispatchEvent(
@@ -557,6 +721,31 @@
     els.payerCount.addEventListener("input", () => {
       if (state.schedule.length) recalcAndRender();
     });
+    if (els.calcModeByTerm && els.calcModeByPrincipal) {
+      const updateModeUI = () => {
+        const mode = els.calcModeByPrincipal.checked
+          ? "byPrincipalPerPeriod"
+          : "byTerm";
+        state.calcMode = mode;
+        if (els.termYearsField)
+          els.termYearsField.classList.toggle("hidden", mode !== "byTerm");
+        if (els.amortPerPeriodField)
+          els.amortPerPeriodField.classList.toggle(
+            "hidden",
+            mode !== "byPrincipalPerPeriod",
+          );
+        // Rensa derived fält om byte
+        if (state.schedule.length) recalcAndRender();
+      };
+      els.calcModeByTerm.addEventListener("change", updateModeUI);
+      els.calcModeByPrincipal.addEventListener("change", updateModeUI);
+    }
+    if (els.amortPerPeriod) {
+      els.amortPerPeriod.addEventListener("change", () => {
+        if (state.schedule.length || state.calcMode === "byPrincipalPerPeriod")
+          recalcAndRender();
+      });
+    }
 
     els.displayModeTsek.addEventListener("change", () => {
       if (state.schedule.length) recalcAndRender();
@@ -636,6 +825,9 @@
       "yearlyTotalDisplay",
       "yearlyPerParticipantDisplay",
       "periodPerParticipantDisplay",
+      "derivedPeriodCountDisplay",
+      "derivedYearsDisplay",
+      "lastPrincipalDisplay",
     ].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.textContent = "–";
@@ -667,6 +859,20 @@
             saved.payerCount <= 250
           ) {
             els.payerCount.value = saved.payerCount;
+          }
+          if (saved.mode === "byPrincipalPerPeriod") {
+            if (els.calcModeByPrincipal) els.calcModeByPrincipal.checked = true;
+            state.calcMode = "byPrincipalPerPeriod";
+          } else {
+            if (els.calcModeByTerm) els.calcModeByTerm.checked = true;
+            state.calcMode = "byTerm";
+          }
+          if (
+            Number.isFinite(saved.amortPerPeriod) &&
+            saved.amortPerPeriod > 0 &&
+            els.amortPerPeriod
+          ) {
+            els.amortPerPeriod.value = saved.amortPerPeriod;
           }
           restored = true;
         }
@@ -830,6 +1036,12 @@
   function init() {
     initDefaults();
     attachEvents();
+    // Initiera UI för valt läge
+    if (els.calcModeByPrincipal && els.calcModeByPrincipal.checked) {
+      if (els.termYearsField) els.termYearsField.classList.add("hidden");
+      if (els.amortPerPeriodField)
+        els.amortPerPeriodField.classList.remove("hidden");
+    }
     // Init tom årsöversikt
     renderAnnualOverview([], getPayerCount());
   }

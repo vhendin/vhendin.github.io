@@ -23,108 +23,8 @@
             <p class="tagline">
                 Beräkna betalningar, ränta och skuldsaldo över tid.
             </p>
-            <div class="theme-toggle">
-                <label for="themeSelect">Tema:</label>
-                <select id="themeSelect" aria-label="Välj tema">
-                    <option value="light">Ljust</option>
-                    <option value="dark">Mörkt</option>
-                </select>
-            </div>
         </header>
-        <script>
-            (function () {
-                const THEME_KEY = "raknesnurra-theme";
-                const select = document.getElementById("themeSelect");
-                const root = document.documentElement;
-                function applyTheme(mode) {
-                    root.classList.remove("theme-light", "theme-dark");
-                    if (mode === "dark") {
-                        root.classList.add("theme-dark");
-                    } else {
-                        root.classList.add("theme-light");
-                    }
-                    recolorCharts();
-                }
-                function recolorCharts() {
-                    if (!window.Chart || !Chart.instances) return;
-                    const isDark = root.classList.contains("theme-dark");
-                    const textSoft =
-                        getComputedStyle(root)
-                            .getPropertyValue("--color-text-soft")
-                            .trim() || (isDark ? "#b6c2cc" : "#55626e");
-                    const gridColor = isDark
-                        ? "rgba(255,255,255,0.05)"
-                        : "rgba(0,0,0,0.08)";
-                    const balanceLine = isDark ? "#3d8bfd" : "#1d6dff";
-                    const balanceFill = isDark
-                        ? "rgba(61,139,253,0.15)"
-                        : "rgba(29,109,255,0.12)";
-                    const interestBar = isDark ? "#ffb347" : "#ff9f1c";
-                    const principalBar = isDark ? "#3fbf77" : "#2e9e62";
-                    const charts = Object.values(Chart.instances);
-                    charts.forEach((ch) => {
-                        if (ch.config.type === "line") {
-                            ch.data.datasets.forEach((ds) => {
-                                if (ds.label === "Skuld") {
-                                    ds.borderColor = balanceLine;
-                                    ds.backgroundColor = balanceFill;
-                                }
-                            });
-                        } else {
-                            ch.data.datasets.forEach((ds) => {
-                                if (ds.label === "Ränta")
-                                    ds.backgroundColor = interestBar;
-                                if (ds.label === "Amortering")
-                                    ds.backgroundColor = principalBar;
-                            });
-                        }
-                        if (ch.options && ch.options.scales) {
-                            Object.values(ch.options.scales).forEach(
-                                (scale) => {
-                                    if (scale.ticks)
-                                        scale.ticks.color = textSoft;
-                                    if (scale.grid)
-                                        scale.grid.color = gridColor;
-                                },
-                            );
-                        }
-                        if (
-                            ch.options &&
-                            ch.options.plugins &&
-                            ch.options.plugins.legend
-                        ) {
-                            if (ch.options.plugins.legend.labels) {
-                                ch.options.plugins.legend.labels.color =
-                                    textSoft;
-                            }
-                        }
-                        ch.update();
-                    });
-                }
-                function init() {
-                    const stored = localStorage.getItem(THEME_KEY) || "light";
-                    if (stored !== "light" && stored !== "dark") {
-                        localStorage.setItem(THEME_KEY, "light");
-                    }
-                    select.value = localStorage.getItem(THEME_KEY);
-                    applyTheme(select.value);
-                    select.addEventListener("change", () => {
-                        const val = select.value === "dark" ? "dark" : "light";
-                        localStorage.setItem(THEME_KEY, val);
-                        applyTheme(val);
-                    });
-                    // Försök rekolorera grafer igen efter första render (om scriptet laddas innan grafer genereras)
-                    document.addEventListener("loan-calculated", recolorCharts);
-                    // Polla försiktigt en gång efter 1s om grafer skapats senare
-                    setTimeout(recolorCharts, 1200);
-                }
-                if (document.readyState === "loading") {
-                    document.addEventListener("DOMContentLoaded", init);
-                } else {
-                    init();
-                }
-            })();
-        </script>
+
         <main id="app">
             <section class="panel inputs">
                 <h2>Indata</h2>
@@ -174,7 +74,33 @@
                             >Fast nominell ränta under hela perioden.</small
                         >
                     </div>
-                    <div class="field">
+                    <fieldset class="field group" id="calcModeGroup">
+                        <legend>Beräkningsläge</legend>
+                        <div class="field inline">
+                            <label>
+                                <input
+                                    type="radio"
+                                    name="calcMode"
+                                    value="byTerm"
+                                    id="calcModeByTerm"
+                                    checked
+                                />
+                                Ange löptid (år)
+                            </label>
+                        </div>
+                        <div class="field inline">
+                            <label>
+                                <input
+                                    type="radio"
+                                    name="calcMode"
+                                    value="byPrincipalPerPeriod"
+                                    id="calcModeByPrincipal"
+                                />
+                                Ange amortering per period
+                            </label>
+                        </div>
+                    </fieldset>
+                    <div class="field mode-byTerm" id="termYearsField">
                         <label for="termYears">Löptid (år)</label>
                         <input
                             type="number"
@@ -186,6 +112,25 @@
                             required
                         />
                         <small class="hint">Max 50 år.</small>
+                    </div>
+                    <div
+                        class="field mode-byPrincipalPerPeriod hidden"
+                        id="amortPerPeriodField"
+                    >
+                        <label for="amortPerPeriod"
+                            >Amortering per period</label
+                        >
+                        <input
+                            type="number"
+                            id="amortPerPeriod"
+                            name="amortPerPeriod"
+                            min="1"
+                            step="1"
+                        />
+                        <small class="hint"
+                            >Belopp i kronor per vald period (t.ex. 50000).
+                            Sista perioden justeras automatiskt.</small
+                        >
                     </div>
                     <div class="field">
                         <label for="frequency">Betalfrekvens</label>
@@ -280,6 +225,20 @@
                     <div class="result">
                         <span class="label">Total återbetalning</span>
                         <span class="value" id="totalPaidDisplay">–</span>
+                    </div>
+                    <div class="result calcmode-derived">
+                        <span class="label">Beräknade perioder</span>
+                        <span class="value" id="derivedPeriodCountDisplay"
+                            >–</span
+                        >
+                    </div>
+                    <div class="result calcmode-derived">
+                        <span class="label">Beräknad löptid (år)</span>
+                        <span class="value" id="derivedYearsDisplay">–</span>
+                    </div>
+                    <div class="result calcmode-derived">
+                        <span class="label">Sista periodens amortering</span>
+                        <span class="value" id="lastPrincipalDisplay">–</span>
                     </div>
                     <div class="result extra-results">
                         <span class="label">Årskostnad (total)</span>
