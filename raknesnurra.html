@@ -187,6 +187,23 @@
                             deltagare.</small
                         >
                     </fieldset>
+                    <fieldset class="field group" id="extraPaymentsGroup">
+                        <legend>Extra amorteringar (valfritt)</legend>
+                        <div class="hint" style="font-size: 0.7rem">
+                            Lägg till engångs- eller återkommande extra
+                            amorteringar. De förkortar löptiden.
+                        </div>
+                        <div id="extraPaymentsList" class="extra-list">
+                            <!-- Rader för extra amorteringar renderas dynamiskt -->
+                        </div>
+                        <button
+                            type="button"
+                            class="secondary small"
+                            id="addExtraPaymentBtn"
+                        >
+                            Lägg till extra amortering
+                        </button>
+                    </fieldset>
                     <div class="actions">
                         <button type="button" id="calculateBtn" class="primary">
                             Beräkna
@@ -269,6 +286,10 @@
                             >–</span
                         >
                     </div>
+                    <div class="result extra-results" id="interestSavedCard">
+                        <span class="label">Ränta sparad</span>
+                        <span class="value" id="interestSavedDisplay">–</span>
+                    </div>
                 </div>
                 <!-- Per-betalare detaljer borttagna: lika fördelning alltid -->
             </section>
@@ -345,6 +366,7 @@
                                 <th>Period</th>
                                 <th>Saldo start</th>
                                 <th>Amortering</th>
+                                <th>Extra amortering</th>
                                 <th>Ränta</th>
                                 <th>Betalning</th>
                                 <th>Saldo slut</th>
