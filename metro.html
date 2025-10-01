@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Metro Electric Price Graph</title>
+        <link rel="stylesheet" href="resources/styles/metro.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+        <div id="main-wrapper">
+            <div id="graph-wrapper">
+                <canvas id="myChart"></canvas>
+            </div>
+            <div id="input-wrapper">
+
+                <label for="expensive-input">Expensive hours</label>
+                <div class="range-values">
+                    <span>0</span>
+                    <output id="expensiveValue">9</output>
+                    <span>18</span>
+                </div>
+                <input id="expensive-input" value="18" type="range" min="0" max="18" step="1" oninput="expensiveValue.textContent = this.value"/>
+
+                <label for="cheap-input">Cheap hours</label>
+                <div class="range-values">
+                    <span>0</span>
+                    <output id="cheapValue">6</output>
+                    <span>12</span>
+                </div>
+                <input id="cheap-input" value="3" type="range" min="0" max="12" step="1" oninput="cheapValue.textContent = this.value"/>
+            </div>
+        </div>
+        <script src="resources/scripts/metro.js"></script>
+    </body>
+</html>

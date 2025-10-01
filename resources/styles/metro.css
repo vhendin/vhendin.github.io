@@ -1,0 +1,30 @@
+#main-wrapper {
+  max-width: 750px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+#graph-wrapper {
+}
+
+#myChart {
+  width: 100%;
+  height: 450px;
+}
+
+#input-wrapper {
+  margin: 20px 20% 0 20%;
+
+  input {
+    width: 100%;
+  }
+
+  .range-values {
+    display: flex;
+    justify-content: space-between;
+  }
+}
