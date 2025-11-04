@@ -1,0 +1,40 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    background-color: #1a1a1a;
+    font-family: Arial, sans-serif;
+}
+
+#map-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#world-map {
+    display: block;
+}
+
+.country {
+    cursor: pointer;
+    transition: fill 0.2s ease;
+}
+
+#tooltip {
+    position: absolute;
+    padding: 8px 12px;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    font-size: 14px;
+    white-space: nowrap;
+    z-index: 1000;
+    transition: opacity 0.2s ease;
+}
