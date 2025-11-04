@@ -17,7 +17,7 @@ const state = {
     selectedTerritories: [],
     fictionalCountries: [],
     nextCountryId: 1,
-    selectedColor: '#ff6b6b',
+    selectedColor: '#e74c3c',
     editingCountryId: null,
     editingChanges: {
         removedTerritories: [],
@@ -484,14 +484,22 @@ map.on('load', async function() {
 • Click again to undo changes</div>
                         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: #ccc;">Change Color:</label>
                         <div class="edit-color-palette">
-                            <div class="color-option" data-color="#ff6b6b" style="background-color: #ff6b6b;"></div>
-                            <div class="color-option" data-color="#4ecdc4" style="background-color: #4ecdc4;"></div>
-                            <div class="color-option" data-color="#45b7d1" style="background-color: #45b7d1;"></div>
-                            <div class="color-option" data-color="#f9ca24" style="background-color: #f9ca24;"></div>
-                            <div class="color-option" data-color="#6c5ce7" style="background-color: #6c5ce7;"></div>
-                            <div class="color-option" data-color="#fd79a8" style="background-color: #fd79a8;"></div>
-                            <div class="color-option" data-color="#00b894" style="background-color: #00b894;"></div>
-                            <div class="color-option" data-color="#fab1a0" style="background-color: #fab1a0;"></div>
+                            <div class="color-option" data-color="#e74c3c" style="background-color: #e74c3c;"></div>
+                            <div class="color-option" data-color="#3498db" style="background-color: #3498db;"></div>
+                            <div class="color-option" data-color="#9b59b6" style="background-color: #9b59b6;"></div>
+                            <div class="color-option" data-color="#e67e22" style="background-color: #e67e22;"></div>
+                            <div class="color-option" data-color="#1abc9c" style="background-color: #1abc9c;"></div>
+                            <div class="color-option" data-color="#f39c12" style="background-color: #f39c12;"></div>
+                            <div class="color-option" data-color="#c0392b" style="background-color: #c0392b;"></div>
+                            <div class="color-option" data-color="#2980b9" style="background-color: #2980b9;"></div>
+                            <div class="color-option" data-color="#8e44ad" style="background-color: #8e44ad;"></div>
+                            <div class="color-option" data-color="#d35400" style="background-color: #d35400;"></div>
+                            <div class="color-option" data-color="#16a085" style="background-color: #16a085;"></div>
+                            <div class="color-option" data-color="#f1c40f" style="background-color: #f1c40f;"></div>
+                            <div class="color-option" data-color="#e91e63" style="background-color: #e91e63;"></div>
+                            <div class="color-option" data-color="#00bcd4" style="background-color: #00bcd4;"></div>
+                            <div class="color-option" data-color="#673ab7" style="background-color: #673ab7;"></div>
+                            <div class="color-option" data-color="#ff5722" style="background-color: #ff5722;"></div>
                         </div>
                     </div>
                 `;
