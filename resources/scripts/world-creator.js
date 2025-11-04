@@ -1,6 +1,10 @@
 const map = new maplibregl.Map({
     container: 'map',
-    style: 'https://demotiles.maplibre.org/style.json',
+    style: {
+        version: 8,
+        sources: {},
+        layers: []
+    },
     center: [0, 20],
     zoom: 1.5,
     maxZoom: 8,
@@ -10,41 +14,56 @@ const map = new maplibregl.Map({
 const tooltip = document.getElementById('tooltip');
 
 map.on('load', async function() {
-    const usStatesResponse = await fetch('resources/us-states.geojson');
+    const [countriesResponse, usStatesResponse] = await Promise.all([
+        fetch('resources/countries.geojson'),
+        fetch('resources/us-states.geojson')
+    ]);
+    
+    const countriesData = await countriesResponse.json();
     const usStatesData = await usStatesResponse.json();
+    
+    const countriesWithoutUS = {
+        type: 'FeatureCollection',
+        features: countriesData.features.filter(f => 
+            f.properties.ADMIN !== 'United States of America' &&
+            f.properties.ISO_A3 !== 'USA'
+        )
+    };
+    
+    map.addSource('countries', {
+        type: 'geojson',
+        data: countriesWithoutUS,
+        generateId: true
+    });
     
     map.addSource('us-states', {
         type: 'geojson',
-        data: usStatesData
+        data: usStatesData,
+        generateId: true
     });
     
-    const countryLayers = map.getStyle().layers;
-    
-    const graticuleLayers = countryLayers.filter(layer => 
-        layer.id.includes('graticule') || 
-        layer.id.includes('grid') ||
-        layer.id.includes('latitude') ||
-        layer.id.includes('longitude')
-    );
-    
-    graticuleLayers.forEach(layer => {
-        map.removeLayer(layer.id);
-    });
-    const countryLayerIds = countryLayers
-        .filter(layer => layer.id.includes('country') || layer.id.includes('boundary'))
-        .map(layer => layer.id);
-    
-    countryLayerIds.forEach(layerId => {
-        const layer = map.getLayer(layerId);
-        if (layer && layer.type === 'fill') {
-            map.setFilter(layerId, ['!=', ['get', 'iso_a2'], 'US']);
-            map.setPaintProperty(layerId, 'fill-color', '#69b3a2');
-            map.setPaintProperty(layerId, 'fill-opacity', 1);
+    map.addLayer({
+        id: 'countries-fill',
+        type: 'fill',
+        source: 'countries',
+        paint: {
+            'fill-color': [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#cccccc',
+                '#69b3a2'
+            ],
+            'fill-opacity': 1
         }
-        if (layer && layer.type === 'line') {
-            map.setFilter(layerId, ['!=', ['get', 'iso_a2'], 'US']);
-            map.setPaintProperty(layerId, 'line-color', '#fff');
-            map.setPaintProperty(layerId, 'line-width', 1);
+    });
+    
+    map.addLayer({
+        id: 'countries-line',
+        type: 'line',
+        source: 'countries',
+        paint: {
+            'line-color': '#fff',
+            'line-width': 1
         }
     });
     
@@ -53,7 +72,12 @@ map.on('load', async function() {
         type: 'fill',
         source: 'us-states',
         paint: {
-            'fill-color': '#69b3a2',
+            'fill-color': [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#cccccc',
+                '#69b3a2'
+            ],
             'fill-opacity': 1
         }
     });
@@ -68,47 +92,71 @@ map.on('load', async function() {
         }
     });
     
-    countryLayerIds.forEach(layerId => {
-        const layer = map.getLayer(layerId);
-        if (layer && layer.type === 'fill') {
-            map.on('mousemove', layerId, function(e) {
-                if (e.features.length > 0) {
-                    map.getCanvas().style.cursor = 'pointer';
-                    map.setPaintProperty(layerId, 'fill-color', [
-                        'case',
-                        ['==', ['id'], e.features[0].id],
-                        '#2d7a5e',
-                        '#69b3a2'
-                    ]);
-                    
-                    const countryName = e.features[0].properties.name || e.features[0].properties.NAME;
-                    tooltip.style.opacity = '1';
-                    tooltip.innerHTML = countryName;
-                    tooltip.style.left = (e.point.x + 10) + 'px';
-                    tooltip.style.top = (e.point.y - 10) + 'px';
-                }
-            });
+    let hoveredCountryId = null;
+    
+    map.on('mousemove', 'countries-fill', function(e) {
+        if (e.features.length > 0) {
+            map.getCanvas().style.cursor = 'pointer';
             
-            map.on('mouseleave', layerId, function() {
-                map.getCanvas().style.cursor = '';
-                map.setPaintProperty(layerId, 'fill-color', '#69b3a2');
-                tooltip.style.opacity = '0';
-            });
+            if (hoveredCountryId !== null) {
+                map.setFeatureState(
+                    { source: 'countries', id: hoveredCountryId },
+                    { hover: false }
+                );
+            }
+            
+            hoveredCountryId = e.features[0].id;
+            
+            map.setFeatureState(
+                { source: 'countries', id: hoveredCountryId },
+                { hover: true }
+            );
+            
+            const countryName = e.features[0].properties.ADMIN || e.features[0].properties.name;
+            tooltip.style.opacity = '1';
+            tooltip.innerHTML = countryName;
+            tooltip.style.left = (e.point.x + 10) + 'px';
+            tooltip.style.top = (e.point.y - 10) + 'px';
         }
     });
+    
+    map.on('mouseleave', 'countries-fill', function() {
+        map.getCanvas().style.cursor = '';
+        
+        if (hoveredCountryId !== null) {
+            map.setFeatureState(
+                { source: 'countries', id: hoveredCountryId },
+                { hover: false }
+            );
+        }
+        
+        hoveredCountryId = null;
+        tooltip.style.opacity = '0';
+    });
+    
+    let hoveredStateId = null;
     
     map.on('mousemove', 'us-states-fill', function(e) {
         if (e.features.length > 0) {
             map.getCanvas().style.cursor = 'pointer';
-            map.setPaintProperty('us-states-fill', 'fill-color', [
-                'case',
-                ['==', ['get', 'NAME'], e.features[0].properties.NAME],
-                '#2d7a5e',
-                '#69b3a2'
-            ]);
             
+            if (hoveredStateId !== null) {
+                map.setFeatureState(
+                    { source: 'us-states', id: hoveredStateId },
+                    { hover: false }
+                );
+            }
+            
+            hoveredStateId = e.features[0].id;
+            
+            map.setFeatureState(
+                { source: 'us-states', id: hoveredStateId },
+                { hover: true }
+            );
+            
+            const stateName = e.features[0].properties.name || e.features[0].properties.NAME;
             tooltip.style.opacity = '1';
-            tooltip.innerHTML = e.features[0].properties.NAME;
+            tooltip.innerHTML = stateName;
             tooltip.style.left = (e.point.x + 10) + 'px';
             tooltip.style.top = (e.point.y - 10) + 'px';
         }
@@ -116,7 +164,15 @@ map.on('load', async function() {
     
     map.on('mouseleave', 'us-states-fill', function() {
         map.getCanvas().style.cursor = '';
-        map.setPaintProperty('us-states-fill', 'fill-color', '#69b3a2');
+        
+        if (hoveredStateId !== null) {
+            map.setFeatureState(
+                { source: 'us-states', id: hoveredStateId },
+                { hover: false }
+            );
+        }
+        
+        hoveredStateId = null;
         tooltip.style.opacity = '0';
     });
 });
