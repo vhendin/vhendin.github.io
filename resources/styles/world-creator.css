@@ -202,12 +202,26 @@ button:disabled {
 
 #export-section {
     display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#export-section > div:first-child {
+    display: flex;
     gap: 8px;
 }
 
 #export-section button {
     width: 50%;
     margin-bottom: 0;
+}
+
+#save-status {
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+    margin-top: 4px;
+    font-style: italic;
 }
 
 .modal {

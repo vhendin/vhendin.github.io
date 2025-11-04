@@ -501,6 +501,7 @@ map.on('load', async function() {
         
         updateSelectionUI();
         updateTerritoriesList();
+        saveToLocalStorage();
         
         document.getElementById('territory-modal').classList.remove('active');
     });
@@ -674,6 +675,63 @@ map.on('load', async function() {
         
         state.territories = state.territories.filter(t => t.id !== territoryId);
         updateTerritoriesList();
+        saveToLocalStorage();
+    }
+    
+    function saveToLocalStorage() {
+        try {
+            const data = {
+                version: 1,
+                territories: state.territories,
+                lastSaved: Date.now()
+            };
+            localStorage.setItem('world-creator-territories', JSON.stringify(data));
+            
+            const saveStatus = document.getElementById('save-status');
+            if (saveStatus) {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                saveStatus.textContent = `Last saved: ${timeString}`;
+            }
+        } catch (error) {
+            console.error('Failed to save to localStorage:', error);
+        }
+    }
+    
+    function loadFromLocalStorage() {
+        try {
+            const saved = localStorage.getItem('world-creator-territories');
+            if (!saved) return false;
+            
+            const data = JSON.parse(saved);
+            if (!data.territories || !Array.isArray(data.territories)) return false;
+            
+            state.territories = data.territories;
+            state.nextTerritoryId = Math.max(...data.territories.map(t => t.id), 0) + 1;
+            
+            state.territories.forEach(territory => {
+                territory.countries.forEach(country => {
+                    map.setFeatureState(
+                        { source: country.source, id: country.id },
+                        { territoryColor: territory.color }
+                    );
+                });
+            });
+            
+            updateTerritoriesList();
+            
+            const saveStatus = document.getElementById('save-status');
+            if (saveStatus && data.lastSaved) {
+                const savedTime = new Date(data.lastSaved);
+                const timeString = savedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                saveStatus.textContent = `Last saved: ${timeString}`;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to load from localStorage:', error);
+            return false;
+        }
     }
     
     function enterEditMode(territoryId) {
@@ -813,6 +871,10 @@ map.on('load', async function() {
         };
         
         updateTerritoriesList();
+        
+        if (save) {
+            saveToLocalStorage();
+        }
     }
     
     function getCountryOwner(source, id) {
@@ -1069,6 +1131,7 @@ map.on('load', async function() {
                 });
                 
                 updateTerritoriesList();
+                saveToLocalStorage();
                 alert('Territories imported successfully!');
             } catch (error) {
                 alert('Error reading file: ' + error.message);
@@ -1078,5 +1141,7 @@ map.on('load', async function() {
         e.target.value = '';
     });
     
-    updateTerritoriesList();
+    if (!loadFromLocalStorage()) {
+        updateTerritoriesList();
+    }
 });
