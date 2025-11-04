@@ -176,6 +176,7 @@ map.on('load', async function() {
                 if (currentHoveredTerritoryId !== null) {
                     highlightAllTerritoriesInGroup(currentHoveredTerritoryId);
                 }
+                highlightTerritoryInToolbox(currentHoveredTerritoryId);
             }
             
             if (!ownerTerritory) {
@@ -200,6 +201,7 @@ map.on('load', async function() {
         if (currentHoveredTerritoryId !== null) {
             unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
             currentHoveredTerritoryId = null;
+            highlightTerritoryInToolbox(null);
         }
         
         if (hoveredCountryId !== null) {
@@ -242,6 +244,7 @@ map.on('load', async function() {
                 if (currentHoveredTerritoryId !== null) {
                     highlightAllTerritoriesInGroup(currentHoveredTerritoryId);
                 }
+                highlightTerritoryInToolbox(currentHoveredTerritoryId);
             }
             
             if (!ownerTerritory) {
@@ -266,6 +269,7 @@ map.on('load', async function() {
         if (currentHoveredTerritoryId !== null) {
             unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
             currentHoveredTerritoryId = null;
+            highlightTerritoryInToolbox(null);
         }
         
         if (hoveredStateId !== null) {
@@ -306,6 +310,38 @@ map.on('load', async function() {
         });
     }
     
+    function highlightTerritoryInToolbox(territoryId) {
+        if (territoryId === null) {
+            const highlighted = document.querySelector('.territory-item.map-hovered');
+            if (highlighted) {
+                highlighted.classList.remove('map-hovered');
+            }
+            return;
+        }
+        
+        const items = document.querySelectorAll('.territory-item');
+        items.forEach(item => {
+            item.classList.remove('map-hovered');
+        });
+        
+        const territories = state.territories;
+        const territoryIndex = territories.findIndex(t => t.id === territoryId);
+        if (territoryIndex !== -1) {
+            const targetItem = items[territoryIndex];
+            if (targetItem) {
+                targetItem.classList.add('map-hovered');
+                
+                const list = document.getElementById('territories-list');
+                const listRect = list.getBoundingClientRect();
+                const itemRect = targetItem.getBoundingClientRect();
+                
+                if (itemRect.top < listRect.top || itemRect.bottom > listRect.bottom) {
+                    targetItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        }
+    }
+    
     map.on('mousemove', 'uk-countries-fill', function(e) {
         if (e.features.length > 0) {
             map.getCanvas().style.cursor = 'pointer';
@@ -333,6 +369,7 @@ map.on('load', async function() {
                 if (currentHoveredTerritoryId !== null) {
                     highlightAllTerritoriesInGroup(currentHoveredTerritoryId);
                 }
+                highlightTerritoryInToolbox(currentHoveredTerritoryId);
             }
             
             if (!ownerTerritory) {
@@ -357,6 +394,7 @@ map.on('load', async function() {
         if (currentHoveredTerritoryId !== null) {
             unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
             currentHoveredTerritoryId = null;
+            highlightTerritoryInToolbox(null);
         }
         
         if (hoveredUKId !== null) {
