@@ -5,9 +5,9 @@ const svg = d3.select("#world-map")
     .attr("width", width)
     .attr("height", height);
 
-const projection = d3.geoNaturalEarth1()
-    .scale(width / 2 / Math.PI)
-    .translate([width / 2, height / 2])
+const projection = d3.geoMercator()
+    .scale(width / 6.5)
+    .translate([width / 2, height / 1.4])
     .center([0, 0]);
 
 const path = d3.geoPath().projection(projection);
