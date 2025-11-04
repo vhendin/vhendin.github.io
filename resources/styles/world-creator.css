@@ -190,6 +190,7 @@ button:disabled {
     color: #ffd93d;
     margin-bottom: 12px;
     font-style: italic;
+    white-space: pre-line;
 }
 
 .edit-color-palette {

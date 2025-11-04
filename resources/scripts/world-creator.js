@@ -21,6 +21,8 @@ const state = {
     editingCountryId: null,
     editingChanges: {
         removedTerritories: [],
+        addedTerritories: [],
+        transferredTerritories: [],
         newColor: null
     }
 };
@@ -313,7 +315,7 @@ map.on('load', async function() {
             const countryName = feature.properties.ADMIN || feature.properties.name;
             
             if (state.editingCountryId !== null) {
-                removeTerritoryFromEditingCountry('countries', feature.id);
+                toggleTerritoryInEditMode('countries', feature.id, countryName);
             } else {
                 toggleTerritorySelection('countries', feature.id, countryName);
             }
@@ -326,7 +328,7 @@ map.on('load', async function() {
             const stateName = feature.properties.name || feature.properties.NAME;
             
             if (state.editingCountryId !== null) {
-                removeTerritoryFromEditingCountry('us-states', feature.id);
+                toggleTerritoryInEditMode('us-states', feature.id, stateName);
             } else {
                 toggleTerritorySelection('us-states', feature.id, stateName);
             }
@@ -339,7 +341,7 @@ map.on('load', async function() {
             const ukCountryName = feature.properties.areanm;
             
             if (state.editingCountryId !== null) {
-                removeTerritoryFromEditingCountry('uk-countries', feature.id);
+                toggleTerritoryInEditMode('uk-countries', feature.id, ukCountryName);
             } else {
                 toggleTerritorySelection('uk-countries', feature.id, ukCountryName);
             }
@@ -435,6 +437,11 @@ map.on('load', async function() {
                     rt.source === t.source && rt.id === t.id
                 )
             );
+            const totalTerritories = activeTerritories.length + 
+                (isEditing ? state.editingChanges.addedTerritories.length + state.editingChanges.transferredTerritories.length : 0);
+            const removedCount = isEditing ? state.editingChanges.removedTerritories.length : 0;
+            const addedCount = isEditing ? state.editingChanges.addedTerritories.length + state.editingChanges.transferredTerritories.length : 0;
+            
             const displayColor = isEditing && state.editingChanges.newColor 
                 ? state.editingChanges.newColor 
                 : country.color;
@@ -462,13 +469,19 @@ map.on('load', async function() {
             html += `
                     </div>
                 </div>
-                <div class="country-info">${activeTerritories.length} territories</div>
             `;
+            
+            if (isEditing && (removedCount > 0 || addedCount > 0)) {
+                html += `<div class="country-info">${totalTerritories} territories (${removedCount > 0 ? '-' + removedCount : ''} ${addedCount > 0 ? '+' + addedCount : ''})</div>`;
+            } else {
+                html += `<div class="country-info">${totalTerritories} territories</div>`;
+            }
             
             if (isEditing) {
                 html += `
                     <div class="edit-controls">
-                        <div class="edit-instructions">Click territories on map to remove them</div>
+                        <div class="edit-instructions">• Click territories to add/remove
+• Click again to undo changes</div>
                         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: #ccc;">Change Color:</label>
                         <div class="edit-color-palette">
                             <div class="color-option" data-color="#ff6b6b" style="background-color: #ff6b6b;"></div>
@@ -575,6 +588,8 @@ map.on('load', async function() {
         state.editingCountryId = countryId;
         state.editingChanges = {
             removedTerritories: [],
+            addedTerritories: [],
+            transferredTerritories: [],
             newColor: null
         };
         
@@ -604,7 +619,11 @@ map.on('load', async function() {
                 )
             );
             
-            if (remainingTerritories.length === 0) {
+            const finalTerritoryCount = remainingTerritories.length + 
+                state.editingChanges.addedTerritories.length + 
+                state.editingChanges.transferredTerritories.length;
+            
+            if (finalTerritoryCount === 0) {
                 alert('Country must have at least 1 territory');
                 return;
             }
@@ -618,16 +637,49 @@ map.on('load', async function() {
             
             country.territories = remainingTerritories;
             
+            state.editingChanges.transferredTerritories.forEach(transfer => {
+                const sourceCountry = state.fictionalCountries.find(c => c.id === transfer.fromCountryId);
+                if (sourceCountry) {
+                    sourceCountry.territories = sourceCountry.territories.filter(t => 
+                        !(t.source === transfer.territory.source && t.id === transfer.territory.id)
+                    );
+                }
+                country.territories.push(transfer.territory);
+            });
+            
+            state.editingChanges.addedTerritories.forEach(territory => {
+                country.territories.push(territory);
+            });
+            
+            const finalColor = state.editingChanges.newColor || country.color;
             if (state.editingChanges.newColor) {
                 country.color = state.editingChanges.newColor;
-                country.territories.forEach(territory => {
-                    map.setFeatureState(
-                        { source: territory.source, id: territory.id },
-                        { countryColor: state.editingChanges.newColor }
-                    );
-                });
             }
+            
+            country.territories.forEach(territory => {
+                map.setFeatureState(
+                    { source: territory.source, id: territory.id },
+                    { countryColor: finalColor, hover: false }
+                );
+            });
         } else {
+            state.editingChanges.addedTerritories.forEach(territory => {
+                map.setFeatureState(
+                    { source: territory.source, id: territory.id },
+                    { countryColor: null, hover: false }
+                );
+            });
+            
+            state.editingChanges.transferredTerritories.forEach(transfer => {
+                const sourceCountry = state.fictionalCountries.find(c => c.id === transfer.fromCountryId);
+                if (sourceCountry) {
+                    map.setFeatureState(
+                        { source: transfer.territory.source, id: transfer.territory.id },
+                        { countryColor: sourceCountry.color, hover: false }
+                    );
+                }
+            });
+            
             if (state.editingChanges.newColor) {
                 country.territories.forEach(territory => {
                     map.setFeatureState(
@@ -636,20 +688,137 @@ map.on('load', async function() {
                     );
                 });
             }
+            
+            country.territories.forEach(territory => {
+                const isRemoved = state.editingChanges.removedTerritories.some(t => 
+                    t.source === territory.source && t.id === territory.id
+                );
+                
+                if (isRemoved) {
+                    map.setFeatureState(
+                        { source: territory.source, id: territory.id },
+                        { countryColor: country.color, hover: false }
+                    );
+                } else {
+                    map.setFeatureState(
+                        { source: territory.source, id: territory.id },
+                        { hover: false }
+                    );
+                }
+            });
         }
-        
-        country.territories.forEach(territory => {
-            map.setFeatureState(
-                { source: territory.source, id: territory.id },
-                { hover: false }
-            );
-        });
         
         state.editingCountryId = null;
         state.editingChanges = {
             removedTerritories: [],
+            addedTerritories: [],
+            transferredTerritories: [],
             newColor: null
         };
+        
+        updateCountriesList();
+    }
+    
+    function getTerritoryOwner(source, id) {
+        for (const country of state.fictionalCountries) {
+            const hasTerritory = country.territories.some(t => 
+                t.source === source && t.id === id
+            );
+            if (hasTerritory) {
+                return country.id;
+            }
+        }
+        return null;
+    }
+    
+    function toggleTerritoryInEditMode(source, id, name) {
+        if (state.editingCountryId === null) return;
+        
+        const country = state.fictionalCountries.find(c => c.id === state.editingCountryId);
+        if (!country) return;
+        
+        const ownerCountryId = getTerritoryOwner(source, id);
+        const belongsToEditingCountry = country.territories.some(t => 
+            t.source === source && t.id === id
+        );
+        
+        const alreadyRemoved = state.editingChanges.removedTerritories.some(t => 
+            t.source === source && t.id === id
+        );
+        const alreadyAdded = state.editingChanges.addedTerritories.some(t => 
+            t.source === source && t.id === id
+        );
+        const alreadyTransferred = state.editingChanges.transferredTerritories.some(t => 
+            t.territory.source === source && t.territory.id === id
+        );
+        
+        if (belongsToEditingCountry && !alreadyRemoved) {
+            const remainingCount = country.territories.length - 
+                state.editingChanges.removedTerritories.length - 1 +
+                state.editingChanges.addedTerritories.length +
+                state.editingChanges.transferredTerritories.length;
+            
+            if (remainingCount === 0) {
+                alert('Country must have at least 1 territory');
+                return;
+            }
+            
+            state.editingChanges.removedTerritories.push({ source, id, name });
+            map.setFeatureState(
+                { source: source, id: id },
+                { countryColor: '#666666' }
+            );
+        }
+        else if (alreadyRemoved) {
+            state.editingChanges.removedTerritories = state.editingChanges.removedTerritories.filter(t => 
+                !(t.source === source && t.id === id)
+            );
+            const displayColor = state.editingChanges.newColor || country.color;
+            map.setFeatureState(
+                { source: source, id: id },
+                { countryColor: displayColor }
+            );
+        }
+        else if (!ownerCountryId && !alreadyAdded) {
+            state.editingChanges.addedTerritories.push({ source, id, name });
+            const displayColor = state.editingChanges.newColor || country.color;
+            map.setFeatureState(
+                { source: source, id: id },
+                { countryColor: displayColor }
+            );
+        }
+        else if (alreadyAdded) {
+            state.editingChanges.addedTerritories = state.editingChanges.addedTerritories.filter(t => 
+                !(t.source === source && t.id === id)
+            );
+            map.setFeatureState(
+                { source: source, id: id },
+                { countryColor: null }
+            );
+        }
+        else if (ownerCountryId && ownerCountryId !== state.editingCountryId && !alreadyTransferred) {
+            state.editingChanges.transferredTerritories.push({
+                fromCountryId: ownerCountryId,
+                territory: { source, id, name }
+            });
+            const displayColor = state.editingChanges.newColor || country.color;
+            map.setFeatureState(
+                { source: source, id: id },
+                { countryColor: displayColor }
+            );
+        }
+        else if (alreadyTransferred) {
+            const sourceCountry = state.fictionalCountries.find(c => c.id === ownerCountryId);
+            state.editingChanges.transferredTerritories = state.editingChanges.transferredTerritories.filter(t => 
+                !(t.territory.source === source && t.territory.id === id)
+            );
+            if (sourceCountry) {
+                map.setFeatureState(
+                    { source: source, id: id },
+                    { countryColor: sourceCountry.color }
+                );
+            }
+        }
         
         updateCountriesList();
     }
@@ -707,6 +876,20 @@ map.on('load', async function() {
                     { countryColor: newColor }
                 );
             }
+        });
+        
+        state.editingChanges.addedTerritories.forEach(territory => {
+            map.setFeatureState(
+                { source: territory.source, id: territory.id },
+                { countryColor: newColor }
+            );
+        });
+        
+        state.editingChanges.transferredTerritories.forEach(transfer => {
+            map.setFeatureState(
+                { source: transfer.territory.source, id: transfer.territory.id },
+                { countryColor: newColor }
+            );
         });
         
         updateCountriesList();
