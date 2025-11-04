@@ -14,7 +14,7 @@ const path = d3.geoPath().projection(projection);
 
 const tooltip = d3.select("#tooltip");
 
-d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson").then(function(data) {
+d3.json("resources/world.geojson").then(function(data) {
     svg.append("g")
         .selectAll("path")
         .data(data.features)
