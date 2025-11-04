@@ -447,6 +447,30 @@ map.on('load', async function() {
         updateSelectionUI();
     });
     
+    // Deselect all countries when clicking on ocean/empty space
+    map.on('click', function(e) {
+        // Check if click was on any country layer
+        const features = map.queryRenderedFeatures(e.point, {
+            layers: ['countries-fill', 'us-states-fill', 'uk-countries-fill']
+        });
+        
+        // If no features clicked AND not in edit mode AND has selections
+        if (features.length === 0 && 
+            state.editingTerritoryId === null && 
+            state.selectedTerritories.length > 0) {
+            
+            // Clear all selections
+            state.selectedTerritories.forEach(territory => {
+                map.setFeatureState(
+                    { source: territory.source, id: territory.id },
+                    { selected: false }
+                );
+            });
+            state.selectedTerritories = [];
+            updateSelectionUI();
+        }
+    });
+    
     document.getElementById('create-territory-btn').addEventListener('click', function() {
         const modal = document.getElementById('territory-modal');
         modal.classList.add('active');
