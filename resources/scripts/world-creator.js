@@ -17,7 +17,7 @@ const state = {
     selectedTerritories: [],
     territories: [],
     nextTerritoryId: 1,
-    selectedColor: '#e74c3c',
+    selectedColor: '#E63946',
     editingTerritoryId: null,
     editingChanges: {
         removedCountries: [],
@@ -74,7 +74,7 @@ map.on('load', async function() {
             'fill-color': [
                 'case',
                 ['boolean', ['feature-state', 'selected'], false],
-                '#ffd93d',
+                '#8B7500',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
                 ['coalesce', ['feature-state', 'territoryColor'], '#2d5f3f']
@@ -101,7 +101,7 @@ map.on('load', async function() {
             'fill-color': [
                 'case',
                 ['boolean', ['feature-state', 'selected'], false],
-                '#ffd93d',
+                '#8B7500',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
                 ['coalesce', ['feature-state', 'territoryColor'], '#2d5f3f']
@@ -128,7 +128,7 @@ map.on('load', async function() {
             'fill-color': [
                 'case',
                 ['boolean', ['feature-state', 'selected'], false],
-                '#ffd93d',
+                '#8B7500',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
                 ['coalesce', ['feature-state', 'territoryColor'], '#2d5f3f']
