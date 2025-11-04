@@ -15,14 +15,14 @@
     <div id="ui-panel">
         <div id="selection-section">
             <h3>Selection</h3>
-            <p id="selection-count">0 territories selected</p>
+            <p id="selection-count">0 countries selected</p>
             <button id="clear-selection" disabled>Clear Selection</button>
-            <button id="create-country-btn" disabled>Create Country</button>
+            <button id="create-territory-btn" disabled>Create Territory</button>
         </div>
         
-        <div id="countries-section">
-            <h3>Fictional Countries</h3>
-            <div id="countries-list"></div>
+        <div id="territories-section">
+            <h3>Territories</h3>
+            <div id="territories-list"></div>
         </div>
         
         <div id="export-section">
@@ -32,13 +32,13 @@
         </div>
     </div>
     
-    <div id="country-modal" class="modal">
+    <div id="territory-modal" class="modal">
         <div class="modal-content">
-            <h2>Create Fictional Country</h2>
-            <label for="country-name">Country Name:</label>
-            <input type="text" id="country-name" placeholder="Enter country name">
+            <h2>Create Territory</h2>
+            <label for="territory-name">Territory Name:</label>
+            <input type="text" id="territory-name" placeholder="Enter territory name">
             
-            <label>Country Color:</label>
+            <label>Territory Color:</label>
             <div id="color-palette">
                 <div class="color-option" data-color="#e74c3c" style="background-color: #e74c3c;"></div>
                 <div class="color-option" data-color="#3498db" style="background-color: #3498db;"></div>

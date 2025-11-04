@@ -86,15 +86,15 @@ button:disabled {
     opacity: 0.5;
 }
 
-#countries-section {
+#territories-section {
     margin-bottom: 30px;
 }
 
-#countries-list {
+#territories-list {
     margin-top: 12px;
 }
 
-.country-item {
+.territory-item {
     background-color: rgba(255, 255, 255, 0.05);
     padding: 12px;
     margin-bottom: 8px;
@@ -104,37 +104,37 @@ button:disabled {
     transition: background-color 0.2s ease;
 }
 
-.country-item:hover {
+.territory-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-.country-item.editing {
+.territory-item.editing {
     border: 2px solid #ffd93d;
     background-color: rgba(255, 217, 61, 0.1);
     cursor: default;
 }
 
-.country-item-header {
+.territory-item-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 6px;
 }
 
-.country-name {
+.territory-name {
     font-weight: bold;
     font-size: 14px;
 }
 
-.country-item-buttons {
+.territory-item-buttons {
     display: flex;
     gap: 4px;
 }
 
-.country-delete,
-.country-edit,
-.country-save,
-.country-cancel {
+.territory-delete,
+.territory-edit,
+.territory-save,
+.territory-cancel {
     background-color: #ff6b6b;
     color: white;
     border: none;
@@ -146,35 +146,35 @@ button:disabled {
     margin: 0;
 }
 
-.country-edit {
+.territory-edit {
     background-color: #4ecdc4;
 }
 
-.country-save {
+.territory-save {
     background-color: #00b894;
 }
 
-.country-cancel {
+.territory-cancel {
     background-color: #666;
 }
 
-.country-delete:hover {
+.territory-delete:hover {
     background-color: #ff5252;
 }
 
-.country-edit:hover {
+.territory-edit:hover {
     background-color: #3db8ae;
 }
 
-.country-save:hover {
+.territory-save:hover {
     background-color: #00a077;
 }
 
-.country-cancel:hover {
+.territory-cancel:hover {
     background-color: #555;
 }
 
-.country-info {
+.territory-info {
     font-size: 12px;
     color: #999;
 }

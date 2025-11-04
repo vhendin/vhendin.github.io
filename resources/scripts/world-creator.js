@@ -15,14 +15,14 @@ const tooltip = document.getElementById('tooltip');
 
 const state = {
     selectedTerritories: [],
-    fictionalCountries: [],
-    nextCountryId: 1,
+    territories: [],
+    nextTerritoryId: 1,
     selectedColor: '#e74c3c',
-    editingCountryId: null,
+    editingTerritoryId: null,
     editingChanges: {
-        removedTerritories: [],
-        addedTerritories: [],
-        transferredTerritories: [],
+        removedCountries: [],
+        addedCountries: [],
+        transferredCountries: [],
         newColor: null
     }
 };
@@ -77,7 +77,7 @@ map.on('load', async function() {
                 '#ffd93d',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
-                ['coalesce', ['feature-state', 'countryColor'], '#69b3a2']
+                ['coalesce', ['feature-state', 'territoryColor'], '#69b3a2']
             ],
             'fill-opacity': 1
         }
@@ -104,7 +104,7 @@ map.on('load', async function() {
                 '#ffd93d',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
-                ['coalesce', ['feature-state', 'countryColor'], '#69b3a2']
+                ['coalesce', ['feature-state', 'territoryColor'], '#69b3a2']
             ],
             'fill-opacity': 1
         }
@@ -131,7 +131,7 @@ map.on('load', async function() {
                 '#ffd93d',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
-                ['coalesce', ['feature-state', 'countryColor'], '#69b3a2']
+                ['coalesce', ['feature-state', 'territoryColor'], '#69b3a2']
             ],
             'fill-opacity': 1
         }
@@ -162,10 +162,25 @@ map.on('load', async function() {
             
             hoveredCountryId = e.features[0].id;
             
-            map.setFeatureState(
-                { source: 'countries', id: hoveredCountryId },
-                { hover: true }
-            );
+            const ownerTerritory = getCountryOwner('countries', hoveredCountryId);
+            const newHoveredTerritoryId = ownerTerritory ? ownerTerritory.id : null;
+            
+            if (currentHoveredTerritoryId !== newHoveredTerritoryId) {
+                if (currentHoveredTerritoryId !== null) {
+                    unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+                }
+                currentHoveredTerritoryId = newHoveredTerritoryId;
+                if (currentHoveredTerritoryId !== null) {
+                    highlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+                }
+            }
+            
+            if (!ownerTerritory) {
+                map.setFeatureState(
+                    { source: 'countries', id: hoveredCountryId },
+                    { hover: true }
+                );
+            }
             
             const originalName = e.features[0].properties.ADMIN || e.features[0].properties.name;
             const displayName = getDisplayNameForTerritory('countries', hoveredCountryId, originalName);
@@ -178,6 +193,11 @@ map.on('load', async function() {
     
     map.on('mouseleave', 'countries-fill', function() {
         map.getCanvas().style.cursor = '';
+        
+        if (currentHoveredTerritoryId !== null) {
+            unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+            currentHoveredTerritoryId = null;
+        }
         
         if (hoveredCountryId !== null) {
             map.setFeatureState(
@@ -205,10 +225,25 @@ map.on('load', async function() {
             
             hoveredStateId = e.features[0].id;
             
-            map.setFeatureState(
-                { source: 'us-states', id: hoveredStateId },
-                { hover: true }
-            );
+            const ownerTerritory = getCountryOwner('us-states', hoveredStateId);
+            const newHoveredTerritoryId = ownerTerritory ? ownerTerritory.id : null;
+            
+            if (currentHoveredTerritoryId !== newHoveredTerritoryId) {
+                if (currentHoveredTerritoryId !== null) {
+                    unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+                }
+                currentHoveredTerritoryId = newHoveredTerritoryId;
+                if (currentHoveredTerritoryId !== null) {
+                    highlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+                }
+            }
+            
+            if (!ownerTerritory) {
+                map.setFeatureState(
+                    { source: 'us-states', id: hoveredStateId },
+                    { hover: true }
+                );
+            }
             
             const originalName = e.features[0].properties.name || e.features[0].properties.NAME;
             const displayName = getDisplayNameForTerritory('us-states', hoveredStateId, originalName);
@@ -222,6 +257,11 @@ map.on('load', async function() {
     map.on('mouseleave', 'us-states-fill', function() {
         map.getCanvas().style.cursor = '';
         
+        if (currentHoveredTerritoryId !== null) {
+            unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+            currentHoveredTerritoryId = null;
+        }
+        
         if (hoveredStateId !== null) {
             map.setFeatureState(
                 { source: 'us-states', id: hoveredStateId },
@@ -234,6 +274,31 @@ map.on('load', async function() {
     });
     
     let hoveredUKId = null;
+    let currentHoveredTerritoryId = null;
+    
+    function highlightAllTerritoriesInGroup(ownerTerritoryId) {
+        const territory = state.territories.find(t => t.id === ownerTerritoryId);
+        if (!territory) return;
+        
+        territory.countries.forEach(country => {
+            map.setFeatureState(
+                { source: country.source, id: country.id },
+                { hover: true }
+            );
+        });
+    }
+    
+    function unhighlightAllTerritoriesInGroup(ownerTerritoryId) {
+        const territory = state.territories.find(t => t.id === ownerTerritoryId);
+        if (!territory) return;
+        
+        territory.countries.forEach(country => {
+            map.setFeatureState(
+                { source: country.source, id: country.id },
+                { hover: false }
+            );
+        });
+    }
     
     map.on('mousemove', 'uk-countries-fill', function(e) {
         if (e.features.length > 0) {
@@ -248,10 +313,25 @@ map.on('load', async function() {
             
             hoveredUKId = e.features[0].id;
             
-            map.setFeatureState(
-                { source: 'uk-countries', id: hoveredUKId },
-                { hover: true }
-            );
+            const ownerTerritory = getCountryOwner('uk-countries', hoveredUKId);
+            const newHoveredTerritoryId = ownerTerritory ? ownerTerritory.id : null;
+            
+            if (currentHoveredTerritoryId !== newHoveredTerritoryId) {
+                if (currentHoveredTerritoryId !== null) {
+                    unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+                }
+                currentHoveredTerritoryId = newHoveredTerritoryId;
+                if (currentHoveredTerritoryId !== null) {
+                    highlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+                }
+            }
+            
+            if (!ownerTerritory) {
+                map.setFeatureState(
+                    { source: 'uk-countries', id: hoveredUKId },
+                    { hover: true }
+                );
+            }
             
             const originalName = e.features[0].properties.areanm;
             const displayName = getDisplayNameForTerritory('uk-countries', hoveredUKId, originalName);
@@ -264,6 +344,11 @@ map.on('load', async function() {
     
     map.on('mouseleave', 'uk-countries-fill', function() {
         map.getCanvas().style.cursor = '';
+        
+        if (currentHoveredTerritoryId !== null) {
+            unhighlightAllTerritoriesInGroup(currentHoveredTerritoryId);
+            currentHoveredTerritoryId = null;
+        }
         
         if (hoveredUKId !== null) {
             map.setFeatureState(
@@ -305,9 +390,9 @@ map.on('load', async function() {
     function updateSelectionUI() {
         const counter = document.getElementById('selection-count');
         const clearBtn = document.getElementById('clear-selection');
-        const createBtn = document.getElementById('create-country-btn');
+        const createBtn = document.getElementById('create-territory-btn');
         
-        counter.textContent = `${state.selectedTerritories.length} territories selected`;
+        counter.textContent = `${state.selectedTerritories.length} countries selected`;
         clearBtn.disabled = state.selectedTerritories.length === 0;
         createBtn.disabled = state.selectedTerritories.length === 0;
     }
@@ -317,7 +402,7 @@ map.on('load', async function() {
             const feature = e.features[0];
             const countryName = feature.properties.ADMIN || feature.properties.name;
             
-            if (state.editingCountryId !== null) {
+            if (state.editingTerritoryId !== null) {
                 toggleTerritoryInEditMode('countries', feature.id, countryName);
             } else {
                 toggleTerritorySelection('countries', feature.id, countryName);
@@ -330,7 +415,7 @@ map.on('load', async function() {
             const feature = e.features[0];
             const stateName = feature.properties.name || feature.properties.NAME;
             
-            if (state.editingCountryId !== null) {
+            if (state.editingTerritoryId !== null) {
                 toggleTerritoryInEditMode('us-states', feature.id, stateName);
             } else {
                 toggleTerritorySelection('us-states', feature.id, stateName);
@@ -343,7 +428,7 @@ map.on('load', async function() {
             const feature = e.features[0];
             const ukCountryName = feature.properties.areanm;
             
-            if (state.editingCountryId !== null) {
+            if (state.editingTerritoryId !== null) {
                 toggleTerritoryInEditMode('uk-countries', feature.id, ukCountryName);
             } else {
                 toggleTerritorySelection('uk-countries', feature.id, ukCountryName);
@@ -362,15 +447,15 @@ map.on('load', async function() {
         updateSelectionUI();
     });
     
-    document.getElementById('create-country-btn').addEventListener('click', function() {
-        const modal = document.getElementById('country-modal');
+    document.getElementById('create-territory-btn').addEventListener('click', function() {
+        const modal = document.getElementById('territory-modal');
         modal.classList.add('active');
-        document.getElementById('country-name').value = '';
-        document.getElementById('country-name').focus();
+        document.getElementById('territory-name').value = '';
+        document.getElementById('territory-name').focus();
     });
     
     document.getElementById('modal-cancel').addEventListener('click', function() {
-        document.getElementById('country-modal').classList.remove('active');
+        document.getElementById('territory-modal').classList.remove('active');
     });
     
     document.querySelectorAll('.color-option').forEach(option => {
@@ -384,88 +469,88 @@ map.on('load', async function() {
     document.querySelector('.color-option').classList.add('selected');
     
     document.getElementById('modal-create').addEventListener('click', function() {
-        const countryName = document.getElementById('country-name').value.trim();
+        const territoryName = document.getElementById('territory-name').value.trim();
         
-        if (!countryName) {
-            alert('Please enter a country name');
+        if (!territoryName) {
+            alert('Please enter a territory name');
             return;
         }
         
         if (state.selectedTerritories.length === 0) {
-            alert('No territories selected');
+            alert('No countries selected');
             return;
         }
         
-        const country = {
-            id: state.nextCountryId++,
-            name: countryName,
+        const territory = {
+            id: state.nextTerritoryId++,
+            name: territoryName,
             color: state.selectedColor,
-            territories: [...state.selectedTerritories]
+            countries: [...state.selectedTerritories]
         };
         
-        state.fictionalCountries.push(country);
+        state.territories.push(territory);
         
-        state.selectedTerritories.forEach(territory => {
+        state.selectedTerritories.forEach(country => {
             map.setFeatureState(
-                { source: territory.source, id: territory.id },
-                { selected: false, countryColor: state.selectedColor }
+                { source: country.source, id: country.id },
+                { selected: false, territoryColor: state.selectedColor }
             );
         });
         
         state.selectedTerritories = [];
         
         updateSelectionUI();
-        updateCountriesList();
+        updateTerritoriesList();
         
-        document.getElementById('country-modal').classList.remove('active');
+        document.getElementById('territory-modal').classList.remove('active');
     });
     
-    function updateCountriesList() {
-        const list = document.getElementById('countries-list');
+    function updateTerritoriesList() {
+        const list = document.getElementById('territories-list');
         list.innerHTML = '';
         
-        if (state.fictionalCountries.length === 0) {
-            list.innerHTML = '<p style="color: #666; font-size: 12px;">No countries created yet</p>';
+        if (state.territories.length === 0) {
+            list.innerHTML = '<p style="color: #666; font-size: 12px;">No territories created yet</p>';
             return;
         }
         
-        state.fictionalCountries.forEach(country => {
-            const isEditing = state.editingCountryId === country.id;
+        state.territories.forEach(territory => {
+            const isEditing = state.editingTerritoryId === territory.id;
             const item = document.createElement('div');
-            item.className = 'country-item' + (isEditing ? ' editing' : '');
-            item.style.borderLeftColor = country.color;
+            item.className = 'territory-item' + (isEditing ? ' editing' : '');
+            item.style.borderLeftColor = territory.color;
             
-            const activeTerritories = country.territories.filter(t => 
-                !state.editingChanges.removedTerritories.some(rt => 
-                    rt.source === t.source && rt.id === t.id
+            const activeCountries = territory.countries.filter(c => 
+                !state.editingChanges.removedCountries.some(rc => 
+                    rc.source === c.source && rc.id === c.id
                 )
             );
-            const totalTerritories = activeTerritories.length + 
-                (isEditing ? state.editingChanges.addedTerritories.length + state.editingChanges.transferredTerritories.length : 0);
-            const removedCount = isEditing ? state.editingChanges.removedTerritories.length : 0;
-            const addedCount = isEditing ? state.editingChanges.addedTerritories.length + state.editingChanges.transferredTerritories.length : 0;
+            const totalCountries = activeCountries.length + 
+                (isEditing ? state.editingChanges.addedCountries.length + state.editingChanges.transferredCountries.length : 0);
+            const removedCount = isEditing ? state.editingChanges.removedCountries.length : 0;
+            const addedCount = isEditing ? state.editingChanges.addedCountries.length + state.editingChanges.transferredCountries.length : 0;
             
             const displayColor = isEditing && state.editingChanges.newColor 
                 ? state.editingChanges.newColor 
-                : country.color;
+                : territory.color;
             
             item.style.borderLeftColor = displayColor;
             
             let html = `
-                <div class="country-item-header">
-                    <span class="country-name">${isEditing ? 'EDITING: ' : ''}${country.name}</span>
-                    <div class="country-item-buttons">
+                <div class="territory-item-header">
+                    <span class="territory-name">${isEditing ? 'EDITING: ' : ''}${territory.name}</span>
+                    <div class="territory-item-buttons">
             `;
             
             if (isEditing) {
                 html += `
-                    <button class="country-save" data-id="${country.id}">Save</button>
-                    <button class="country-cancel" data-id="${country.id}">Cancel</button>
+                    <button class="territory-save" data-id="${territory.id}">Save</button>
+                    <button class="territory-cancel" data-id="${territory.id}">Cancel</button>
                 `;
             } else {
                 html += `
-                    <button class="country-edit" data-id="${country.id}">Edit</button>
-                    <button class="country-delete" data-id="${country.id}">Delete</button>
+                    <button class="territory-edit" data-id="${territory.id}">Edit</button>
+                    <button class="territory-delete" data-id="${territory.id}">Delete</button>
                 `;
             }
             
@@ -475,15 +560,15 @@ map.on('load', async function() {
             `;
             
             if (isEditing && (removedCount > 0 || addedCount > 0)) {
-                html += `<div class="country-info">${totalTerritories} territories (${removedCount > 0 ? '-' + removedCount : ''} ${addedCount > 0 ? '+' + addedCount : ''})</div>`;
+                html += `<div class="territory-info">${totalCountries} countries (${removedCount > 0 ? '-' + removedCount : ''} ${addedCount > 0 ? '+' + addedCount : ''})</div>`;
             } else {
-                html += `<div class="country-info">${totalTerritories} territories</div>`;
+                html += `<div class="territory-info">${totalCountries} countries</div>`;
             }
             
             if (isEditing) {
                 html += `
                     <div class="edit-controls">
-                        <div class="edit-instructions">• Click territories to add/remove
+                        <div class="edit-instructions">• Click countries to add/remove
 • Click again to undo changes</div>
                         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: #ccc;">Change Color:</label>
                         <div class="edit-color-palette">
@@ -510,15 +595,15 @@ map.on('load', async function() {
             
             item.innerHTML = html;
             
-            const editBtn = item.querySelector('.country-edit');
+            const editBtn = item.querySelector('.territory-edit');
             if (editBtn) {
                 editBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    enterEditMode(country.id);
+                    enterEditMode(territory.id);
                 });
             }
             
-            const saveBtn = item.querySelector('.country-save');
+            const saveBtn = item.querySelector('.territory-save');
             if (saveBtn) {
                 saveBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -526,7 +611,7 @@ map.on('load', async function() {
                 });
             }
             
-            const cancelBtn = item.querySelector('.country-cancel');
+            const cancelBtn = item.querySelector('.territory-cancel');
             if (cancelBtn) {
                 cancelBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -534,11 +619,11 @@ map.on('load', async function() {
                 });
             }
             
-            const deleteBtn = item.querySelector('.country-delete');
+            const deleteBtn = item.querySelector('.territory-delete');
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    deleteCountry(country.id);
+                    deleteTerritory(territory.id);
                 });
             }
             
@@ -549,22 +634,22 @@ map.on('load', async function() {
                     }
                     option.addEventListener('click', function(e) {
                         e.stopPropagation();
-                        changeEditingCountryColor(this.dataset.color);
+                        changeEditingTerritoryColor(this.dataset.color);
                     });
                 });
             } else {
                 item.addEventListener('click', function() {
-                    country.territories.forEach(territory => {
+                    territory.countries.forEach(country => {
                         map.setFeatureState(
-                            { source: territory.source, id: territory.id },
+                            { source: country.source, id: country.id },
                             { hover: true }
                         );
                     });
                     
                     setTimeout(() => {
-                        country.territories.forEach(territory => {
+                        territory.countries.forEach(country => {
                             map.setFeatureState(
-                                { source: territory.source, id: territory.id },
+                                { source: country.source, id: country.id },
                                 { hover: false }
                             );
                         });
@@ -576,351 +661,347 @@ map.on('load', async function() {
         });
     }
     
-    function deleteCountry(countryId) {
-        const country = state.fictionalCountries.find(c => c.id === countryId);
-        if (!country) return;
+    function deleteTerritory(territoryId) {
+        const territory = state.territories.find(t => t.id === territoryId);
+        if (!territory) return;
         
-        country.territories.forEach(territory => {
+        territory.countries.forEach(country => {
             map.setFeatureState(
-                { source: territory.source, id: territory.id },
-                { countryColor: null }
+                { source: country.source, id: country.id },
+                { territoryColor: null }
             );
         });
         
-        state.fictionalCountries = state.fictionalCountries.filter(c => c.id !== countryId);
-        updateCountriesList();
+        state.territories = state.territories.filter(t => t.id !== territoryId);
+        updateTerritoriesList();
     }
     
-    function enterEditMode(countryId) {
-        if (state.editingCountryId !== null) {
+    function enterEditMode(territoryId) {
+        if (state.editingTerritoryId !== null) {
             exitEditMode(false);
         }
         
-        state.editingCountryId = countryId;
+        state.editingTerritoryId = territoryId;
         state.editingChanges = {
-            removedTerritories: [],
-            addedTerritories: [],
-            transferredTerritories: [],
+            removedCountries: [],
+            addedCountries: [],
+            transferredCountries: [],
             newColor: null
         };
         
-        const country = state.fictionalCountries.find(c => c.id === countryId);
-        if (!country) return;
+        const territory = state.territories.find(t => t.id === territoryId);
+        if (!territory) return;
         
-        country.territories.forEach(territory => {
+        territory.countries.forEach(country => {
             map.setFeatureState(
-                { source: territory.source, id: territory.id },
+                { source: country.source, id: country.id },
                 { hover: true }
             );
         });
         
-        updateCountriesList();
+        updateTerritoriesList();
     }
     
     function exitEditMode(save) {
-        if (state.editingCountryId === null) return;
+        if (state.editingTerritoryId === null) return;
         
-        const country = state.fictionalCountries.find(c => c.id === state.editingCountryId);
-        if (!country) return;
+        const territory = state.territories.find(t => t.id === state.editingTerritoryId);
+        if (!territory) return;
         
         if (save) {
-            const remainingTerritories = country.territories.filter(t => 
-                !state.editingChanges.removedTerritories.some(rt => 
-                    rt.source === t.source && rt.id === t.id
+            const remainingCountries = territory.countries.filter(c => 
+                !state.editingChanges.removedCountries.some(rc => 
+                    rc.source === c.source && rc.id === c.id
                 )
             );
             
-            const finalTerritoryCount = remainingTerritories.length + 
-                state.editingChanges.addedTerritories.length + 
-                state.editingChanges.transferredTerritories.length;
+            const finalCountryCount = remainingCountries.length + 
+                state.editingChanges.addedCountries.length + 
+                state.editingChanges.transferredCountries.length;
             
-            if (finalTerritoryCount === 0) {
-                alert('Country must have at least 1 territory');
+            if (finalCountryCount === 0) {
+                alert('Territory must have at least 1 country');
                 return;
             }
             
-            state.editingChanges.removedTerritories.forEach(territory => {
+            state.editingChanges.removedCountries.forEach(country => {
                 map.setFeatureState(
-                    { source: territory.source, id: territory.id },
-                    { countryColor: null, hover: false }
+                    { source: country.source, id: country.id },
+                    { territoryColor: null, hover: false }
                 );
             });
             
-            country.territories = remainingTerritories;
+            territory.countries = remainingCountries;
             
-            state.editingChanges.transferredTerritories.forEach(transfer => {
-                const sourceCountry = state.fictionalCountries.find(c => c.id === transfer.fromCountryId);
-                if (sourceCountry) {
-                    sourceCountry.territories = sourceCountry.territories.filter(t => 
-                        !(t.source === transfer.territory.source && t.id === transfer.territory.id)
+            state.editingChanges.transferredCountries.forEach(transfer => {
+                const sourceTerritory = state.territories.find(t => t.id === transfer.fromTerritoryId);
+                if (sourceTerritory) {
+                    sourceTerritory.countries = sourceTerritory.countries.filter(c => 
+                        !(c.source === transfer.country.source && c.id === transfer.country.id)
                     );
                 }
-                country.territories.push(transfer.territory);
+                territory.countries.push(transfer.country);
             });
             
-            state.editingChanges.addedTerritories.forEach(territory => {
-                country.territories.push(territory);
+            state.editingChanges.addedCountries.forEach(country => {
+                territory.countries.push(country);
             });
             
-            const finalColor = state.editingChanges.newColor || country.color;
+            const finalColor = state.editingChanges.newColor || territory.color;
             if (state.editingChanges.newColor) {
-                country.color = state.editingChanges.newColor;
+                territory.color = state.editingChanges.newColor;
             }
             
-            country.territories.forEach(territory => {
+            territory.countries.forEach(country => {
                 map.setFeatureState(
-                    { source: territory.source, id: territory.id },
-                    { countryColor: finalColor, hover: false }
+                    { source: country.source, id: country.id },
+                    { territoryColor: finalColor, hover: false }
                 );
             });
         } else {
-            state.editingChanges.addedTerritories.forEach(territory => {
+            state.editingChanges.addedCountries.forEach(country => {
                 map.setFeatureState(
-                    { source: territory.source, id: territory.id },
-                    { countryColor: null, hover: false }
+                    { source: country.source, id: country.id },
+                    { territoryColor: null, hover: false }
                 );
             });
             
-            state.editingChanges.transferredTerritories.forEach(transfer => {
-                const sourceCountry = state.fictionalCountries.find(c => c.id === transfer.fromCountryId);
-                if (sourceCountry) {
+            state.editingChanges.transferredCountries.forEach(transfer => {
+                const sourceTerritory = state.territories.find(t => t.id === transfer.fromTerritoryId);
+                if (sourceTerritory) {
                     map.setFeatureState(
-                        { source: transfer.territory.source, id: transfer.territory.id },
-                        { countryColor: sourceCountry.color, hover: false }
+                        { source: transfer.country.source, id: transfer.country.id },
+                        { territoryColor: sourceTerritory.color, hover: false }
                     );
                 }
             });
             
             if (state.editingChanges.newColor) {
-                country.territories.forEach(territory => {
+                territory.countries.forEach(country => {
                     map.setFeatureState(
-                        { source: territory.source, id: territory.id },
-                        { countryColor: country.color }
+                        { source: country.source, id: country.id },
+                        { territoryColor: territory.color }
                     );
                 });
             }
             
-            country.territories.forEach(territory => {
-                const isRemoved = state.editingChanges.removedTerritories.some(t => 
-                    t.source === territory.source && t.id === territory.id
+            territory.countries.forEach(country => {
+                const isRemoved = state.editingChanges.removedCountries.some(c => 
+                    c.source === country.source && c.id === country.id
                 );
                 
                 if (isRemoved) {
                     map.setFeatureState(
-                        { source: territory.source, id: territory.id },
-                        { countryColor: country.color, hover: false }
+                        { source: country.source, id: country.id },
+                        { territoryColor: territory.color, hover: false }
                     );
                 } else {
                     map.setFeatureState(
-                        { source: territory.source, id: territory.id },
+                        { source: country.source, id: country.id },
                         { hover: false }
                     );
                 }
             });
         }
         
-        state.editingCountryId = null;
+        state.editingTerritoryId = null;
         state.editingChanges = {
-            removedTerritories: [],
-            addedTerritories: [],
-            transferredTerritories: [],
+            removedCountries: [],
+            addedCountries: [],
+            transferredCountries: [],
             newColor: null
         };
         
-        updateCountriesList();
+        updateTerritoriesList();
     }
     
-    function getTerritoryOwner(source, id) {
-        for (const country of state.fictionalCountries) {
-            const hasTerritory = country.territories.some(t => 
-                t.source === source && t.id === id
+    function getCountryOwner(source, id) {
+        for (const territory of state.territories) {
+            const hasCountry = territory.countries.some(c => 
+                c.source === source && c.id === id
             );
-            if (hasTerritory) {
-                return country.id;
+            if (hasCountry) {
+                return territory;
             }
         }
         return null;
     }
     
     function getDisplayNameForTerritory(source, id, originalName) {
-        const ownerCountryId = getTerritoryOwner(source, id);
-        if (ownerCountryId !== null) {
-            const country = state.fictionalCountries.find(c => c.id === ownerCountryId);
-            if (country) {
-                return country.name;
-            }
+        const ownerTerritory = getCountryOwner(source, id);
+        if (ownerTerritory !== null) {
+            return ownerTerritory.name;
         }
         return originalName;
     }
     
     function toggleTerritoryInEditMode(source, id, name) {
-        if (state.editingCountryId === null) return;
+        if (state.editingTerritoryId === null) return;
         
-        const country = state.fictionalCountries.find(c => c.id === state.editingCountryId);
-        if (!country) return;
+        const territory = state.territories.find(t => t.id === state.editingTerritoryId);
+        if (!territory) return;
         
-        const ownerCountryId = getTerritoryOwner(source, id);
-        const belongsToEditingCountry = country.territories.some(t => 
-            t.source === source && t.id === id
+        const ownerTerritory = getCountryOwner(source, id);
+        const belongsToEditingTerritory = territory.countries.some(c => 
+            c.source === source && c.id === id
         );
         
-        const alreadyRemoved = state.editingChanges.removedTerritories.some(t => 
-            t.source === source && t.id === id
+        const alreadyRemoved = state.editingChanges.removedCountries.some(c => 
+            c.source === source && c.id === id
         );
-        const alreadyAdded = state.editingChanges.addedTerritories.some(t => 
-            t.source === source && t.id === id
+        const alreadyAdded = state.editingChanges.addedCountries.some(c => 
+            c.source === source && c.id === id
         );
-        const alreadyTransferred = state.editingChanges.transferredTerritories.some(t => 
-            t.territory.source === source && t.territory.id === id
+        const alreadyTransferred = state.editingChanges.transferredCountries.some(t => 
+            t.country.source === source && t.country.id === id
         );
         
-        if (belongsToEditingCountry && !alreadyRemoved) {
-            const remainingCount = country.territories.length - 
-                state.editingChanges.removedTerritories.length - 1 +
-                state.editingChanges.addedTerritories.length +
-                state.editingChanges.transferredTerritories.length;
+        if (belongsToEditingTerritory && !alreadyRemoved) {
+            const remainingCount = territory.countries.length - 
+                state.editingChanges.removedCountries.length - 1 +
+                state.editingChanges.addedCountries.length +
+                state.editingChanges.transferredCountries.length;
             
             if (remainingCount === 0) {
-                alert('Country must have at least 1 territory');
+                alert('Territory must have at least 1 country');
                 return;
             }
             
-            state.editingChanges.removedTerritories.push({ source, id, name });
+            state.editingChanges.removedCountries.push({ source, id, name });
             map.setFeatureState(
                 { source: source, id: id },
-                { countryColor: '#666666' }
+                { territoryColor: '#666666' }
             );
         }
         else if (alreadyRemoved) {
-            state.editingChanges.removedTerritories = state.editingChanges.removedTerritories.filter(t => 
-                !(t.source === source && t.id === id)
+            state.editingChanges.removedCountries = state.editingChanges.removedCountries.filter(c => 
+                !(c.source === source && c.id === id)
             );
-            const displayColor = state.editingChanges.newColor || country.color;
+            const displayColor = state.editingChanges.newColor || territory.color;
             map.setFeatureState(
                 { source: source, id: id },
-                { countryColor: displayColor }
+                { territoryColor: displayColor }
             );
         }
-        else if (!ownerCountryId && !alreadyAdded) {
-            state.editingChanges.addedTerritories.push({ source, id, name });
-            const displayColor = state.editingChanges.newColor || country.color;
+        else if (!ownerTerritory && !alreadyAdded) {
+            state.editingChanges.addedCountries.push({ source, id, name });
+            const displayColor = state.editingChanges.newColor || territory.color;
             map.setFeatureState(
                 { source: source, id: id },
-                { countryColor: displayColor }
+                { territoryColor: displayColor }
             );
         }
         else if (alreadyAdded) {
-            state.editingChanges.addedTerritories = state.editingChanges.addedTerritories.filter(t => 
-                !(t.source === source && t.id === id)
+            state.editingChanges.addedCountries = state.editingChanges.addedCountries.filter(c => 
+                !(c.source === source && c.id === id)
             );
             map.setFeatureState(
                 { source: source, id: id },
-                { countryColor: null }
+                { territoryColor: null }
             );
         }
-        else if (ownerCountryId && ownerCountryId !== state.editingCountryId && !alreadyTransferred) {
-            state.editingChanges.transferredTerritories.push({
-                fromCountryId: ownerCountryId,
-                territory: { source, id, name }
+        else if (ownerTerritory && ownerTerritory.id !== state.editingTerritoryId && !alreadyTransferred) {
+            state.editingChanges.transferredCountries.push({
+                fromTerritoryId: ownerTerritory.id,
+                country: { source, id, name }
             });
-            const displayColor = state.editingChanges.newColor || country.color;
+            const displayColor = state.editingChanges.newColor || territory.color;
             map.setFeatureState(
                 { source: source, id: id },
-                { countryColor: displayColor }
+                { territoryColor: displayColor }
             );
         }
         else if (alreadyTransferred) {
-            const sourceCountry = state.fictionalCountries.find(c => c.id === ownerCountryId);
-            state.editingChanges.transferredTerritories = state.editingChanges.transferredTerritories.filter(t => 
-                !(t.territory.source === source && t.territory.id === id)
+            state.editingChanges.transferredCountries = state.editingChanges.transferredCountries.filter(t => 
+                !(t.country.source === source && t.country.id === id)
             );
-            if (sourceCountry) {
+            if (ownerTerritory) {
                 map.setFeatureState(
                     { source: source, id: id },
-                    { countryColor: sourceCountry.color }
+                    { territoryColor: ownerTerritory.color }
                 );
             }
         }
         
-        updateCountriesList();
+        updateTerritoriesList();
     }
     
     function removeTerritoryFromEditingCountry(source, id) {
-        if (state.editingCountryId === null) return;
+        if (state.editingTerritoryId === null) return;
         
-        const country = state.fictionalCountries.find(c => c.id === state.editingCountryId);
-        if (!country) return;
+        const territory = state.territories.find(t => t.id === state.editingTerritoryId);
+        if (!territory) return;
         
-        const territoryInCountry = country.territories.find(t => 
-            t.source === source && t.id === id
+        const countryInTerritory = territory.countries.find(c => 
+            c.source === source && c.id === id
         );
         
-        if (!territoryInCountry) return;
+        if (!countryInTerritory) return;
         
-        const alreadyRemoved = state.editingChanges.removedTerritories.some(t => 
-            t.source === source && t.id === id
+        const alreadyRemoved = state.editingChanges.removedCountries.some(c => 
+            c.source === source && c.id === id
         );
         
         if (alreadyRemoved) return;
         
-        const remainingCount = country.territories.length - state.editingChanges.removedTerritories.length - 1;
+        const remainingCount = territory.countries.length - state.editingChanges.removedCountries.length - 1;
         if (remainingCount === 0) {
-            alert('Country must have at least 1 territory');
+            alert('Territory must have at least 1 country');
             return;
         }
         
-        state.editingChanges.removedTerritories.push(territoryInCountry);
+        state.editingChanges.removedCountries.push(countryInTerritory);
         
         map.setFeatureState(
             { source: source, id: id },
-            { countryColor: '#666666' }
+            { territoryColor: '#666666' }
         );
         
-        updateCountriesList();
+        updateTerritoriesList();
     }
     
-    function changeEditingCountryColor(newColor) {
-        if (state.editingCountryId === null) return;
+    function changeEditingTerritoryColor(newColor) {
+        if (state.editingTerritoryId === null) return;
         
-        const country = state.fictionalCountries.find(c => c.id === state.editingCountryId);
-        if (!country) return;
+        const territory = state.territories.find(t => t.id === state.editingTerritoryId);
+        if (!territory) return;
         
         state.editingChanges.newColor = newColor;
         
-        country.territories.forEach(territory => {
-            const isRemoved = state.editingChanges.removedTerritories.some(t => 
-                t.source === territory.source && t.id === territory.id
+        territory.countries.forEach(country => {
+            const isRemoved = state.editingChanges.removedCountries.some(c => 
+                c.source === country.source && c.id === country.id
             );
             
             if (!isRemoved) {
                 map.setFeatureState(
-                    { source: territory.source, id: territory.id },
-                    { countryColor: newColor }
+                    { source: country.source, id: country.id },
+                    { territoryColor: newColor }
                 );
             }
         });
         
-        state.editingChanges.addedTerritories.forEach(territory => {
+        state.editingChanges.addedCountries.forEach(country => {
             map.setFeatureState(
-                { source: territory.source, id: territory.id },
-                { countryColor: newColor }
+                { source: country.source, id: country.id },
+                { territoryColor: newColor }
             );
         });
         
-        state.editingChanges.transferredTerritories.forEach(transfer => {
+        state.editingChanges.transferredCountries.forEach(transfer => {
             map.setFeatureState(
-                { source: transfer.territory.source, id: transfer.territory.id },
-                { countryColor: newColor }
+                { source: transfer.country.source, id: transfer.country.id },
+                { territoryColor: newColor }
             );
         });
         
-        updateCountriesList();
+        updateTerritoriesList();
     }
     
     document.getElementById('export-btn').addEventListener('click', function() {
         const data = {
             version: 1,
-            countries: state.fictionalCountries
+            territories: state.territories
         };
         
         const json = JSON.stringify(data, null, 2);
@@ -928,7 +1009,7 @@ map.on('load', async function() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'fictional-countries.json';
+        a.download = 'territories.json';
         a.click();
         URL.revokeObjectURL(url);
     });
@@ -946,34 +1027,49 @@ map.on('load', async function() {
             try {
                 const data = JSON.parse(event.target.result);
                 
-                if (!data.countries || !Array.isArray(data.countries)) {
+                // Support both old format (countries) and new format (territories)
+                let importedTerritories;
+                if (data.territories && Array.isArray(data.territories)) {
+                    importedTerritories = data.territories;
+                } else if (data.countries && Array.isArray(data.countries)) {
+                    // Backward compatibility: convert old format to new
+                    importedTerritories = data.countries.map(oldCountry => ({
+                        id: oldCountry.id,
+                        name: oldCountry.name,
+                        color: oldCountry.color,
+                        countries: oldCountry.territories || []
+                    }));
+                } else {
                     alert('Invalid file format');
                     return;
                 }
                 
-                state.fictionalCountries.forEach(country => {
-                    country.territories.forEach(territory => {
+                // Clear existing territory colors
+                state.territories.forEach(territory => {
+                    territory.countries.forEach(country => {
                         map.setFeatureState(
-                            { source: territory.source, id: territory.id },
-                            { countryColor: null }
+                            { source: country.source, id: country.id },
+                            { territoryColor: null }
                         );
                     });
                 });
                 
-                state.fictionalCountries = data.countries;
-                state.nextCountryId = Math.max(...data.countries.map(c => c.id), 0) + 1;
+                // Import new territories
+                state.territories = importedTerritories;
+                state.nextTerritoryId = Math.max(...importedTerritories.map(t => t.id), 0) + 1;
                 
-                state.fictionalCountries.forEach(country => {
-                    country.territories.forEach(territory => {
+                // Apply new territory colors
+                state.territories.forEach(territory => {
+                    territory.countries.forEach(country => {
                         map.setFeatureState(
-                            { source: territory.source, id: territory.id },
-                            { countryColor: country.color }
+                            { source: country.source, id: country.id },
+                            { territoryColor: territory.color }
                         );
                     });
                 });
                 
-                updateCountriesList();
-                alert('Countries imported successfully!');
+                updateTerritoriesList();
+                alert('Territories imported successfully!');
             } catch (error) {
                 alert('Error reading file: ' + error.message);
             }
@@ -982,5 +1078,5 @@ map.on('load', async function() {
         e.target.value = '';
     });
     
-    updateCountriesList();
+    updateTerritoriesList();
 });
