@@ -5,18 +5,28 @@ const svg = d3.select("#world-map")
     .attr("width", width)
     .attr("height", height);
 
+const g = svg.append("g");
+
 const projection = d3.geoMercator()
-    .scale(width / 6.5)
-    .translate([width / 2, height / 1.4])
-    .center([0, 0]);
+    .fitSize([width * 0.95, height * 0.95], {type: "Sphere"})
+    .translate([width / 2, height / 2]);
 
 const path = d3.geoPath().projection(projection);
 
 const tooltip = d3.select("#tooltip");
 
+const zoom = d3.zoom()
+    .scaleExtent([1, 8])
+    .translateExtent([[0, 0], [width, height]])
+    .extent([[0, 0], [width, height]])
+    .on("zoom", function(event) {
+        g.attr("transform", event.transform);
+    });
+
+svg.call(zoom);
+
 d3.json("resources/world.geojson").then(function(data) {
-    svg.append("g")
-        .selectAll("path")
+    g.selectAll("path")
         .data(data.features)
         .join("path")
             .attr("class", "country")
