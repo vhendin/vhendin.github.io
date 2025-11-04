@@ -154,10 +154,13 @@ map.on('load', async function() {
             map.getCanvas().style.cursor = 'pointer';
             
             if (hoveredCountryId !== null) {
-                map.setFeatureState(
-                    { source: 'countries', id: hoveredCountryId },
-                    { hover: false }
-                );
+                const prevOwner = getCountryOwner('countries', hoveredCountryId);
+                if (!prevOwner) {
+                    map.setFeatureState(
+                        { source: 'countries', id: hoveredCountryId },
+                        { hover: false }
+                    );
+                }
             }
             
             hoveredCountryId = e.features[0].id;
@@ -217,10 +220,13 @@ map.on('load', async function() {
             map.getCanvas().style.cursor = 'pointer';
             
             if (hoveredStateId !== null) {
-                map.setFeatureState(
-                    { source: 'us-states', id: hoveredStateId },
-                    { hover: false }
-                );
+                const prevOwner = getCountryOwner('us-states', hoveredStateId);
+                if (!prevOwner) {
+                    map.setFeatureState(
+                        { source: 'us-states', id: hoveredStateId },
+                        { hover: false }
+                    );
+                }
             }
             
             hoveredStateId = e.features[0].id;
@@ -305,10 +311,13 @@ map.on('load', async function() {
             map.getCanvas().style.cursor = 'pointer';
             
             if (hoveredUKId !== null) {
-                map.setFeatureState(
-                    { source: 'uk-countries', id: hoveredUKId },
-                    { hover: false }
-                );
+                const prevOwner = getCountryOwner('uk-countries', hoveredUKId);
+                if (!prevOwner) {
+                    map.setFeatureState(
+                        { source: 'uk-countries', id: hoveredUKId },
+                        { hover: false }
+                    );
+                }
             }
             
             hoveredUKId = e.features[0].id;
