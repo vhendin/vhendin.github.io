@@ -17,7 +17,12 @@ const state = {
     selectedTerritories: [],
     fictionalCountries: [],
     nextCountryId: 1,
-    selectedColor: '#ff6b6b'
+    selectedColor: '#ff6b6b',
+    editingCountryId: null,
+    editingChanges: {
+        removedTerritories: [],
+        newColor: null
+    }
 };
 
 map.on('load', async function() {
@@ -306,7 +311,12 @@ map.on('load', async function() {
         if (e.features.length > 0) {
             const feature = e.features[0];
             const countryName = feature.properties.ADMIN || feature.properties.name;
-            toggleTerritorySelection('countries', feature.id, countryName);
+            
+            if (state.editingCountryId !== null) {
+                removeTerritoryFromEditingCountry('countries', feature.id);
+            } else {
+                toggleTerritorySelection('countries', feature.id, countryName);
+            }
         }
     });
     
@@ -314,7 +324,12 @@ map.on('load', async function() {
         if (e.features.length > 0) {
             const feature = e.features[0];
             const stateName = feature.properties.name || feature.properties.NAME;
-            toggleTerritorySelection('us-states', feature.id, stateName);
+            
+            if (state.editingCountryId !== null) {
+                removeTerritoryFromEditingCountry('us-states', feature.id);
+            } else {
+                toggleTerritorySelection('us-states', feature.id, stateName);
+            }
         }
     });
     
@@ -322,7 +337,12 @@ map.on('load', async function() {
         if (e.features.length > 0) {
             const feature = e.features[0];
             const ukCountryName = feature.properties.areanm;
-            toggleTerritorySelection('uk-countries', feature.id, ukCountryName);
+            
+            if (state.editingCountryId !== null) {
+                removeTerritoryFromEditingCountry('uk-countries', feature.id);
+            } else {
+                toggleTerritorySelection('uk-countries', feature.id, ukCountryName);
+            }
         }
     });
     
@@ -405,40 +425,128 @@ map.on('load', async function() {
         }
         
         state.fictionalCountries.forEach(country => {
+            const isEditing = state.editingCountryId === country.id;
             const item = document.createElement('div');
-            item.className = 'country-item';
+            item.className = 'country-item' + (isEditing ? ' editing' : '');
             item.style.borderLeftColor = country.color;
             
-            item.innerHTML = `
+            const activeTerritories = country.territories.filter(t => 
+                !state.editingChanges.removedTerritories.some(rt => 
+                    rt.source === t.source && rt.id === t.id
+                )
+            );
+            const displayColor = isEditing && state.editingChanges.newColor 
+                ? state.editingChanges.newColor 
+                : country.color;
+            
+            item.style.borderLeftColor = displayColor;
+            
+            let html = `
                 <div class="country-item-header">
-                    <span class="country-name">${country.name}</span>
-                    <button class="country-delete" data-id="${country.id}">Delete</button>
-                </div>
-                <div class="country-info">${country.territories.length} territories</div>
+                    <span class="country-name">${isEditing ? 'EDITING: ' : ''}${country.name}</span>
+                    <div class="country-item-buttons">
             `;
             
-            item.querySelector('.country-delete').addEventListener('click', function(e) {
-                e.stopPropagation();
-                deleteCountry(country.id);
-            });
+            if (isEditing) {
+                html += `
+                    <button class="country-save" data-id="${country.id}">Save</button>
+                    <button class="country-cancel" data-id="${country.id}">Cancel</button>
+                `;
+            } else {
+                html += `
+                    <button class="country-edit" data-id="${country.id}">Edit</button>
+                    <button class="country-delete" data-id="${country.id}">Delete</button>
+                `;
+            }
             
-            item.addEventListener('click', function() {
-                country.territories.forEach(territory => {
-                    map.setFeatureState(
-                        { source: territory.source, id: territory.id },
-                        { hover: true }
-                    );
+            html += `
+                    </div>
+                </div>
+                <div class="country-info">${activeTerritories.length} territories</div>
+            `;
+            
+            if (isEditing) {
+                html += `
+                    <div class="edit-controls">
+                        <div class="edit-instructions">Click territories on map to remove them</div>
+                        <label style="display: block; margin-bottom: 8px; font-size: 12px; color: #ccc;">Change Color:</label>
+                        <div class="edit-color-palette">
+                            <div class="color-option" data-color="#ff6b6b" style="background-color: #ff6b6b;"></div>
+                            <div class="color-option" data-color="#4ecdc4" style="background-color: #4ecdc4;"></div>
+                            <div class="color-option" data-color="#45b7d1" style="background-color: #45b7d1;"></div>
+                            <div class="color-option" data-color="#f9ca24" style="background-color: #f9ca24;"></div>
+                            <div class="color-option" data-color="#6c5ce7" style="background-color: #6c5ce7;"></div>
+                            <div class="color-option" data-color="#fd79a8" style="background-color: #fd79a8;"></div>
+                            <div class="color-option" data-color="#00b894" style="background-color: #00b894;"></div>
+                            <div class="color-option" data-color="#fab1a0" style="background-color: #fab1a0;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            item.innerHTML = html;
+            
+            const editBtn = item.querySelector('.country-edit');
+            if (editBtn) {
+                editBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    enterEditMode(country.id);
                 });
-                
-                setTimeout(() => {
+            }
+            
+            const saveBtn = item.querySelector('.country-save');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    exitEditMode(true);
+                });
+            }
+            
+            const cancelBtn = item.querySelector('.country-cancel');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    exitEditMode(false);
+                });
+            }
+            
+            const deleteBtn = item.querySelector('.country-delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    deleteCountry(country.id);
+                });
+            }
+            
+            if (isEditing) {
+                item.querySelectorAll('.edit-color-palette .color-option').forEach(option => {
+                    if (option.dataset.color === displayColor) {
+                        option.classList.add('selected');
+                    }
+                    option.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        changeEditingCountryColor(this.dataset.color);
+                    });
+                });
+            } else {
+                item.addEventListener('click', function() {
                     country.territories.forEach(territory => {
                         map.setFeatureState(
                             { source: territory.source, id: territory.id },
-                            { hover: false }
+                            { hover: true }
                         );
                     });
-                }, 1000);
-            });
+                    
+                    setTimeout(() => {
+                        country.territories.forEach(territory => {
+                            map.setFeatureState(
+                                { source: territory.source, id: territory.id },
+                                { hover: false }
+                            );
+                        });
+                    }, 1000);
+                });
+            }
             
             list.appendChild(item);
         });
@@ -456,6 +564,151 @@ map.on('load', async function() {
         });
         
         state.fictionalCountries = state.fictionalCountries.filter(c => c.id !== countryId);
+        updateCountriesList();
+    }
+    
+    function enterEditMode(countryId) {
+        if (state.editingCountryId !== null) {
+            exitEditMode(false);
+        }
+        
+        state.editingCountryId = countryId;
+        state.editingChanges = {
+            removedTerritories: [],
+            newColor: null
+        };
+        
+        const country = state.fictionalCountries.find(c => c.id === countryId);
+        if (!country) return;
+        
+        country.territories.forEach(territory => {
+            map.setFeatureState(
+                { source: territory.source, id: territory.id },
+                { hover: true }
+            );
+        });
+        
+        updateCountriesList();
+    }
+    
+    function exitEditMode(save) {
+        if (state.editingCountryId === null) return;
+        
+        const country = state.fictionalCountries.find(c => c.id === state.editingCountryId);
+        if (!country) return;
+        
+        if (save) {
+            const remainingTerritories = country.territories.filter(t => 
+                !state.editingChanges.removedTerritories.some(rt => 
+                    rt.source === t.source && rt.id === t.id
+                )
+            );
+            
+            if (remainingTerritories.length === 0) {
+                alert('Country must have at least 1 territory');
+                return;
+            }
+            
+            state.editingChanges.removedTerritories.forEach(territory => {
+                map.setFeatureState(
+                    { source: territory.source, id: territory.id },
+                    { countryColor: null, hover: false }
+                );
+            });
+            
+            country.territories = remainingTerritories;
+            
+            if (state.editingChanges.newColor) {
+                country.color = state.editingChanges.newColor;
+                country.territories.forEach(territory => {
+                    map.setFeatureState(
+                        { source: territory.source, id: territory.id },
+                        { countryColor: state.editingChanges.newColor }
+                    );
+                });
+            }
+        } else {
+            if (state.editingChanges.newColor) {
+                country.territories.forEach(territory => {
+                    map.setFeatureState(
+                        { source: territory.source, id: territory.id },
+                        { countryColor: country.color }
+                    );
+                });
+            }
+        }
+        
+        country.territories.forEach(territory => {
+            map.setFeatureState(
+                { source: territory.source, id: territory.id },
+                { hover: false }
+            );
+        });
+        
+        state.editingCountryId = null;
+        state.editingChanges = {
+            removedTerritories: [],
+            newColor: null
+        };
+        
+        updateCountriesList();
+    }
+    
+    function removeTerritoryFromEditingCountry(source, id) {
+        if (state.editingCountryId === null) return;
+        
+        const country = state.fictionalCountries.find(c => c.id === state.editingCountryId);
+        if (!country) return;
+        
+        const territoryInCountry = country.territories.find(t => 
+            t.source === source && t.id === id
+        );
+        
+        if (!territoryInCountry) return;
+        
+        const alreadyRemoved = state.editingChanges.removedTerritories.some(t => 
+            t.source === source && t.id === id
+        );
+        
+        if (alreadyRemoved) return;
+        
+        const remainingCount = country.territories.length - state.editingChanges.removedTerritories.length - 1;
+        if (remainingCount === 0) {
+            alert('Country must have at least 1 territory');
+            return;
+        }
+        
+        state.editingChanges.removedTerritories.push(territoryInCountry);
+        
+        map.setFeatureState(
+            { source: source, id: id },
+            { countryColor: '#666666' }
+        );
+        
+        updateCountriesList();
+    }
+    
+    function changeEditingCountryColor(newColor) {
+        if (state.editingCountryId === null) return;
+        
+        const country = state.fictionalCountries.find(c => c.id === state.editingCountryId);
+        if (!country) return;
+        
+        state.editingChanges.newColor = newColor;
+        
+        country.territories.forEach(territory => {
+            const isRemoved = state.editingChanges.removedTerritories.some(t => 
+                t.source === territory.source && t.id === territory.id
+            );
+            
+            if (!isRemoved) {
+                map.setFeatureState(
+                    { source: territory.source, id: territory.id },
+                    { countryColor: newColor }
+                );
+            }
+        });
+        
         updateCountriesList();
     }
     

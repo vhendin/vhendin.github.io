@@ -108,6 +108,12 @@ button:disabled {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
+.country-item.editing {
+    border: 2px solid #ffd93d;
+    background-color: rgba(255, 217, 61, 0.1);
+    cursor: default;
+}
+
 .country-item-header {
     display: flex;
     justify-content: space-between;
@@ -120,7 +126,15 @@ button:disabled {
     font-size: 14px;
 }
 
-.country-delete {
+.country-item-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.country-delete,
+.country-edit,
+.country-save,
+.country-cancel {
     background-color: #ff6b6b;
     color: white;
     border: none;
@@ -132,13 +146,57 @@ button:disabled {
     margin: 0;
 }
 
+.country-edit {
+    background-color: #4ecdc4;
+}
+
+.country-save {
+    background-color: #00b894;
+}
+
+.country-cancel {
+    background-color: #666;
+}
+
 .country-delete:hover {
     background-color: #ff5252;
+}
+
+.country-edit:hover {
+    background-color: #3db8ae;
+}
+
+.country-save:hover {
+    background-color: #00a077;
+}
+
+.country-cancel:hover {
+    background-color: #555;
 }
 
 .country-info {
     font-size: 12px;
     color: #999;
+}
+
+.edit-controls {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.edit-instructions {
+    font-size: 12px;
+    color: #ffd93d;
+    margin-bottom: 12px;
+    font-style: italic;
+}
+
+.edit-color-palette {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
 #export-section {
