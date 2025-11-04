@@ -77,7 +77,7 @@ map.on('load', async function() {
                 '#ffd93d',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
-                ['coalesce', ['feature-state', 'territoryColor'], '#69b3a2']
+                ['coalesce', ['feature-state', 'territoryColor'], '#2d5f3f']
             ],
             'fill-opacity': 1
         }
@@ -104,7 +104,7 @@ map.on('load', async function() {
                 '#ffd93d',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
-                ['coalesce', ['feature-state', 'territoryColor'], '#69b3a2']
+                ['coalesce', ['feature-state', 'territoryColor'], '#2d5f3f']
             ],
             'fill-opacity': 1
         }
@@ -131,7 +131,7 @@ map.on('load', async function() {
                 '#ffd93d',
                 ['boolean', ['feature-state', 'hover'], false],
                 '#cccccc',
-                ['coalesce', ['feature-state', 'territoryColor'], '#69b3a2']
+                ['coalesce', ['feature-state', 'territoryColor'], '#2d5f3f']
             ],
             'fill-opacity': 1
         }
