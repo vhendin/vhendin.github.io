@@ -167,9 +167,10 @@ map.on('load', async function() {
                 { hover: true }
             );
             
-            const countryName = e.features[0].properties.ADMIN || e.features[0].properties.name;
+            const originalName = e.features[0].properties.ADMIN || e.features[0].properties.name;
+            const displayName = getDisplayNameForTerritory('countries', hoveredCountryId, originalName);
             tooltip.style.opacity = '1';
-            tooltip.innerHTML = countryName;
+            tooltip.innerHTML = displayName;
             tooltip.style.left = (e.point.x + 10) + 'px';
             tooltip.style.top = (e.point.y - 10) + 'px';
         }
@@ -209,9 +210,10 @@ map.on('load', async function() {
                 { hover: true }
             );
             
-            const stateName = e.features[0].properties.name || e.features[0].properties.NAME;
+            const originalName = e.features[0].properties.name || e.features[0].properties.NAME;
+            const displayName = getDisplayNameForTerritory('us-states', hoveredStateId, originalName);
             tooltip.style.opacity = '1';
-            tooltip.innerHTML = stateName;
+            tooltip.innerHTML = displayName;
             tooltip.style.left = (e.point.x + 10) + 'px';
             tooltip.style.top = (e.point.y - 10) + 'px';
         }
@@ -251,9 +253,10 @@ map.on('load', async function() {
                 { hover: true }
             );
             
-            const ukCountryName = e.features[0].properties.areanm;
+            const originalName = e.features[0].properties.areanm;
+            const displayName = getDisplayNameForTerritory('uk-countries', hoveredUKId, originalName);
             tooltip.style.opacity = '1';
-            tooltip.innerHTML = ukCountryName;
+            tooltip.innerHTML = displayName;
             tooltip.style.left = (e.point.x + 10) + 'px';
             tooltip.style.top = (e.point.y - 10) + 'px';
         }
@@ -737,6 +740,17 @@ map.on('load', async function() {
             }
         }
         return null;
+    }
+    
+    function getDisplayNameForTerritory(source, id, originalName) {
+        const ownerCountryId = getTerritoryOwner(source, id);
+        if (ownerCountryId !== null) {
+            const country = state.fictionalCountries.find(c => c.id === ownerCountryId);
+            if (country) {
+                return country.name;
+            }
+        }
+        return originalName;
     }
     
     function toggleTerritoryInEditMode(source, id, name) {
