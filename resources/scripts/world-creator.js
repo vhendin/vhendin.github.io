@@ -734,6 +734,36 @@ map.on('load', async function() {
         }
     }
     
+    function togglePanel() {
+        const panel = document.getElementById('ui-panel');
+        const btn = document.getElementById('toggle-panel-btn');
+        const isHidden = panel.classList.toggle('hidden');
+        
+        btn.textContent = isHidden ? '☰' : '✕';
+        btn.title = isHidden ? 'Show panel' : 'Hide panel';
+        
+        try {
+            localStorage.setItem('world-creator-panel-visible', !isHidden);
+        } catch (error) {
+            console.error('Failed to save panel state:', error);
+        }
+    }
+    
+    function restorePanelVisibility() {
+        try {
+            const panelVisible = localStorage.getItem('world-creator-panel-visible');
+            if (panelVisible === 'false') {
+                const panel = document.getElementById('ui-panel');
+                const btn = document.getElementById('toggle-panel-btn');
+                panel.classList.add('hidden');
+                btn.textContent = '☰';
+                btn.title = 'Show panel';
+            }
+        } catch (error) {
+            console.error('Failed to restore panel state:', error);
+        }
+    }
+    
     function enterEditMode(territoryId) {
         if (state.editingTerritoryId !== null) {
             exitEditMode(false);
@@ -1140,6 +1170,16 @@ map.on('load', async function() {
         reader.readAsText(file);
         e.target.value = '';
     });
+    
+    document.getElementById('toggle-panel-btn').addEventListener('click', togglePanel);
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            togglePanel();
+        }
+    });
+    
+    restorePanelVisibility();
     
     if (!loadFromLocalStorage()) {
         updateTerritoriesList();
