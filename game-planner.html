@@ -33,12 +33,6 @@
         <!-- Game View -->
         <div id="gameView" class="view hidden">
             <div class="game-controls">
-                <div class="period-control">
-                    <span class="label">Current Period:</span>
-                    <button id="prevPeriod" class="btn-small">←</button>
-                    <span id="currentPeriod" class="period-display">Game 1 - Period 1</span>
-                    <button id="nextPeriod" class="btn-small">→</button>
-                </div>
                 <div class="control-buttons">
                     <button id="toggleView" class="btn-secondary">Show Both Games</button>
                     <button id="backToSetup" class="btn-secondary">New Game</button>
@@ -56,7 +50,11 @@
             <div class="games-container">
                 <!-- Game 1 -->
                 <div class="game-grid">
-                    <h3>Game 1</h3>
+                    <div class="game-header">
+                        <button class="game-nav-arrow game-nav-prev" data-direction="-1">◀</button>
+                        <h3>Game 1</h3>
+                        <button class="game-nav-arrow game-nav-next" data-direction="1">▶</button>
+                    </div>
                     <div class="grid-wrapper">
                         <table id="game1Table" class="rotation-table"></table>
                     </div>
@@ -64,7 +62,11 @@
 
                 <!-- Game 2 -->
                 <div class="game-grid">
-                    <h3>Game 2</h3>
+                    <div class="game-header">
+                        <button class="game-nav-arrow game-nav-prev" data-direction="-1">◀</button>
+                        <h3>Game 2</h3>
+                        <button class="game-nav-arrow game-nav-next" data-direction="1">▶</button>
+                    </div>
                     <div class="grid-wrapper">
                         <table id="game2Table" class="rotation-table"></table>
                     </div>

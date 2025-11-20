@@ -24,12 +24,7 @@
         backToSetup: document.getElementById('backToSetup'),
         clearData: document.getElementById('clearData'),
         toggleView: document.getElementById('toggleView'),
-        prevPeriod: document.getElementById('prevPeriod'),
-        nextPeriod: document.getElementById('nextPeriod'),
-        currentPeriodDisplay: document.getElementById('currentPeriod'),
         playerStatus: document.getElementById('playerStatus'),
-        game1Grid: document.querySelector('.game-grid:nth-child(1)'),
-        game2Grid: document.querySelector('.game-grid:nth-child(2)'),
         game1Table: document.getElementById('game1Table'),
         game2Table: document.getElementById('game2Table')
     };
@@ -51,8 +46,14 @@
         dom.backToSetup.addEventListener('click', backToSetup);
         dom.clearData.addEventListener('click', clearAllData);
         dom.toggleView.addEventListener('click', toggleViewMode);
-        dom.prevPeriod.addEventListener('click', () => navigatePeriod(-1));
-        dom.nextPeriod.addEventListener('click', () => navigatePeriod(1));
+        
+        // Game navigation arrows
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('game-nav-arrow')) {
+                const direction = parseInt(e.target.dataset.direction);
+                navigateGame(direction);
+            }
+        });
     }
 
     // Render player input fields with drag-and-drop
@@ -484,6 +485,17 @@
         renderGame();
     }
 
+    // Navigate between games using arrows
+    function navigateGame(direction) {
+        let newGame = state.currentGame + direction;
+        if (newGame < 1 || newGame > 2) return; // Stay within game 1-2
+        
+        state.currentGame = newGame;
+        // Keep current period when switching games
+        saveToLocalStorage();
+        renderGame();
+    }
+
     // Toggle view mode between single game and both games
     function toggleViewMode() {
         state.showBothGames = !state.showBothGames;
@@ -494,7 +506,6 @@
 
     // Render game view
     function renderGame() {
-        updatePeriodDisplay();
         updateGameVisibility();
         renderPlayerStatus();
         renderRotationTable('game1', dom.game1Table);
@@ -524,9 +535,7 @@
         dom.toggleView.textContent = state.showBothGames ? 'Show Single Game' : 'Show Both Games';
     }
 
-    function updatePeriodDisplay() {
-        dom.currentPeriodDisplay.textContent = `Game ${state.currentGame} - Period ${state.currentPeriod}`;
-    }
+
 
     function renderPlayerStatus() {
         dom.playerStatus.innerHTML = '';
@@ -578,10 +587,14 @@
     function renderRotationTable(gameName, tableEl) {
         const periods = 8;
         const rotation = state.rotation[gameName];
+        const gameNum = gameName === 'game1' ? 1 : 2;
         
         let html = '<thead><tr><th></th>';
         for (let p = 1; p <= periods; p++) {
-            html += `<th>${p}</th>`;
+            const isSelected = (gameNum === state.currentGame && p === state.currentPeriod);
+            html += `<th class="period-header ${isSelected ? 'selected-period' : ''}" 
+                         data-period="${p}" 
+                         data-game="${gameNum}">${p}</th>`;
         }
         html += '<th>Total</th></tr></thead><tbody>';
 
@@ -623,6 +636,18 @@
 
         html += '</tbody>';
         tableEl.innerHTML = html;
+        
+        // Add click handlers to period headers
+        tableEl.querySelectorAll('.period-header').forEach(th => {
+            th.addEventListener('click', (e) => {
+                const period = parseInt(e.target.dataset.period);
+                const game = parseInt(e.target.dataset.game);
+                state.currentGame = game;
+                state.currentPeriod = period;
+                saveToLocalStorage();
+                renderGame();
+            });
+        });
     }
 
     // LocalStorage
