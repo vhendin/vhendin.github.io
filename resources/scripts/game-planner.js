@@ -130,20 +130,20 @@
         if (e.stopPropagation) {
             e.stopPropagation();
         }
-
+        
         e.currentTarget.classList.remove('drag-over');
-
+        
         const dropIndex = parseInt(e.currentTarget.dataset.index);
-
+        
         if (state.draggedIndex !== dropIndex) {
-            // Get all name inputs before reordering
-            const nameInputs = document.querySelectorAll('.player-name');
+            // Get all name inputs before reordering (scoped to player inputs container)
+            const nameInputs = dom.playerInputs.querySelectorAll('.player-name');
             const names = Array.from(nameInputs).map(input => input.value);
-
+            
             // Reorder the names array
             const [draggedName] = names.splice(state.draggedIndex, 1);
             names.splice(dropIndex, 0, draggedName);
-
+            
             // Re-render with new order
             dom.playerInputs.innerHTML = '';
             for (let i = 0; i < names.length; i++) {
@@ -155,18 +155,18 @@
                     <input type="text" class="player-name" placeholder="Name" value="${names[i]}">
                     <span class="drag-handle">⋮⋮</span>
                 `;
-
+                
                 row.addEventListener('dragstart', handleDragStart);
                 row.addEventListener('dragover', handleDragOver);
                 row.addEventListener('drop', handleDrop);
                 row.addEventListener('dragend', handleDragEnd);
                 row.addEventListener('dragenter', handleDragEnter);
                 row.addEventListener('dragleave', handleDragLeave);
-
+                
                 dom.playerInputs.appendChild(row);
             }
         }
-
+        
         return false;
     }
 
