@@ -11,7 +11,9 @@
         currentPeriod: 1,
         rotation: { game1: [], game2: [] },
         draggedIndex: null,
-        showBothGames: false
+        showBothGames: false,
+        touchDragElement: null,
+        touchStartY: 0
     };
 
     // DOM elements
@@ -89,13 +91,8 @@
                 <span class="drag-handle">⋮⋮</span>
             `;
             
-            // Drag and drop event listeners
-            row.addEventListener('dragstart', handleDragStart);
-            row.addEventListener('dragover', handleDragOver);
-            row.addEventListener('drop', handleDrop);
-            row.addEventListener('dragend', handleDragEnd);
-            row.addEventListener('dragenter', handleDragEnter);
-            row.addEventListener('dragleave', handleDragLeave);
+            // Add both drag and touch event listeners
+            attachDragListeners(row);
             
             dom.playerInputs.appendChild(row);
         }
@@ -156,12 +153,8 @@
                     <span class="drag-handle">⋮⋮</span>
                 `;
                 
-                row.addEventListener('dragstart', handleDragStart);
-                row.addEventListener('dragover', handleDragOver);
-                row.addEventListener('drop', handleDrop);
-                row.addEventListener('dragend', handleDragEnd);
-                row.addEventListener('dragenter', handleDragEnter);
-                row.addEventListener('dragleave', handleDragLeave);
+                // Add both drag and touch event listeners
+                attachDragListeners(row);
                 
                 dom.playerInputs.appendChild(row);
             }
@@ -172,11 +165,120 @@
 
     function handleDragEnd(e) {
         e.currentTarget.classList.remove('dragging');
-
+        
         // Remove drag-over class from all rows
         document.querySelectorAll('.player-input-row').forEach(row => {
             row.classList.remove('drag-over');
         });
+    }
+
+    // Touch event handlers for mobile drag-and-drop
+    function handleTouchStart(e) {
+        state.touchDragElement = e.currentTarget;
+        state.draggedIndex = parseInt(e.currentTarget.dataset.index);
+        state.touchStartY = e.touches[0].clientY;
+        
+        e.currentTarget.classList.add('dragging');
+    }
+
+    function handleTouchMove(e) {
+        if (!state.touchDragElement) return;
+        
+        e.preventDefault(); // Prevent scrolling while dragging
+        
+        const touch = e.touches[0];
+        const currentY = touch.clientY;
+        
+        // Find which row we're over
+        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-input-row'));
+        let targetRow = null;
+        
+        for (let row of rows) {
+            const rect = row.getBoundingClientRect();
+            if (currentY >= rect.top && currentY <= rect.bottom) {
+                targetRow = row;
+                break;
+            }
+        }
+        
+        // Remove all drag-over classes
+        rows.forEach(row => row.classList.remove('drag-over'));
+        
+        // Add drag-over to target row
+        if (targetRow && targetRow !== state.touchDragElement) {
+            targetRow.classList.add('drag-over');
+        }
+    }
+
+    function handleTouchEnd(e) {
+        if (!state.touchDragElement) return;
+        
+        const touch = e.changedTouches[0];
+        const currentY = touch.clientY;
+        
+        // Find drop target
+        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-input-row'));
+        let dropTarget = null;
+        
+        for (let row of rows) {
+            const rect = row.getBoundingClientRect();
+            if (currentY >= rect.top && currentY <= rect.bottom) {
+                dropTarget = row;
+                break;
+            }
+        }
+        
+        if (dropTarget && dropTarget !== state.touchDragElement) {
+            const dropIndex = parseInt(dropTarget.dataset.index);
+            
+            // Get all name inputs before reordering
+            const nameInputs = dom.playerInputs.querySelectorAll('.player-name');
+            const names = Array.from(nameInputs).map(input => input.value);
+            
+            // Reorder the names array
+            const [draggedName] = names.splice(state.draggedIndex, 1);
+            names.splice(dropIndex, 0, draggedName);
+            
+            // Re-render with new order
+            dom.playerInputs.innerHTML = '';
+            for (let i = 0; i < names.length; i++) {
+                const row = document.createElement('div');
+                row.className = 'player-input-row';
+                row.draggable = true;
+                row.dataset.index = i;
+                row.innerHTML = `
+                    <input type="text" class="player-name" placeholder="Name" value="${names[i]}">
+                    <span class="drag-handle">⋮⋮</span>
+                `;
+                
+                // Add both drag and touch event listeners
+                attachDragListeners(row);
+                
+                dom.playerInputs.appendChild(row);
+            }
+        }
+        
+        // Cleanup
+        state.touchDragElement.classList.remove('dragging');
+        rows.forEach(row => row.classList.remove('drag-over'));
+        state.touchDragElement = null;
+        state.draggedIndex = null;
+    }
+
+    // Helper function to attach all drag/touch listeners
+    function attachDragListeners(row) {
+        // Desktop drag and drop
+        row.addEventListener('dragstart', handleDragStart);
+        row.addEventListener('dragover', handleDragOver);
+        row.addEventListener('drop', handleDrop);
+        row.addEventListener('dragend', handleDragEnd);
+        row.addEventListener('dragenter', handleDragEnter);
+        row.addEventListener('dragleave', handleDragLeave);
+        
+        // Mobile touch events
+        row.addEventListener('touchstart', handleTouchStart, { passive: false });
+        row.addEventListener('touchmove', handleTouchMove, { passive: false });
+        row.addEventListener('touchend', handleTouchEnd);
     }
 
     // Start game
