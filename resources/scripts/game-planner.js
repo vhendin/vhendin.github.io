@@ -4,218 +4,14 @@
 (function() {
     'use strict';
 
-    // Default rotation patterns from paper notes
-    const DEFAULT_PATTERNS = {
-        6: {
-            game1: [
-                [1,0,1,0,1,0,1,0],
-                [1,0,0,1,0,1,0,1],
-                [0,1,0,1,0,1,0,1],
-                [0,1,0,1,0,1,0,1],
-                [0,1,0,1,0,1,0,1],
-                [1,0,1,0,1,0,1,0]
-            ],
-            game2: [
-                [1,0,0,1,0,1,0,1],
-                [1,0,0,1,0,1,0,1],
-                [0,1,0,0,1,0,1,0],
-                [0,1,0,0,1,0,1,0],
-                [0,1,0,1,0,1,0,1],
-                [1,0,1,0,1,0,1,0]
-            ]
-        },
-        7: {
-            game1: [
-                [1,0,0,1,0,1,0,1],
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,1],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [1,0,1,0,1,0,0,1],
-                [0,0,1,0,1,0,1,0]
-            ],
-            game2: [
-                [0,1,0,0,1,0,1,0],
-                [0,1,0,0,1,0,0,1],
-                [1,0,1,0,1,0,1,0],
-                [1,0,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,1],
-                [1,0,1,0,1,0,0,1]
-            ]
-        },
-        8: {
-            game1: [
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,1,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [1,0,1,0,1,0,0,1]
-            ],
-            game2: [
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,1,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [1,0,1,0,1,0,0,1]
-            ]
-        },
-        9: {
-            game1: [
-                [1,0,0,1,0,1,0,0],
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,0,1,0,0,1],
-                [0,1,0,1,0,1,0,0],
-                [0,0,1,0,1,0,1,0]
-            ],
-            game2: [
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,1,0,0,1],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,1,0,0,1]
-            ]
-        },
-        10: {
-            game1: [
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,1,0,0,1],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,0,1,0,1,0,0,1],
-                [0,0,1,0,0,1,0,1]
-            ],
-            game2: [
-                [0,1,0,0,1,0,0,1],
-                [0,1,0,0,1,0,0,1],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [1,0,1,0,1,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,0,1,0,1],
-                [1,0,1,0,0,1,0,1]
-            ]
-        },
-        11: {
-            game1: [
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,1,0,0],
-                [1,0,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [0,0,1,0,1,0,0,1],
-                [0,0,1,0,1,0,0,1],
-                [0,0,1,0,0,1,0,1]
-            ],
-            game2: [
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,0,1,0,0,1],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,0,1,0,1]
-            ]
-        },
-        12: {
-            game1: [
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,1,0,0],
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [0,0,1,0,1,0,1,0],
-                [0,0,1,0,1,0,0,1],
-                [0,0,1,0,0,1,0,1],
-                [0,0,1,0,0,1,0,1]
-            ],
-            game2: [
-                [0,1,0,0,1,0,0,1],
-                [1,0,1,0,0,1,0,1],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,1,0,0,1],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,0,1,0,1],
-                [1,0,1,0,0,1,0,1]
-            ]
-        },
-        13: {
-            game1: [
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,0,1,0],
-                [1,0,0,1,0,1,0,0],
-                [1,0,0,1,0,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,0,1,0,0,1],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [0,0,1,0,1,0,1,0],
-                [0,0,1,0,1,0,0,1],
-                [0,0,1,0,1,0,0,1],
-                [0,0,1,0,1,0,0,1],
-                [0,0,1,0,1,0,0,1]
-            ],
-            game2: [
-                [0,1,0,0,1,0,0,1],
-                [0,1,0,0,1,0,0,1],
-                [1,0,1,0,0,1,0,1],
-                [0,1,0,1,0,1,0,0],
-                [1,0,1,0,0,1,0,1],
-                [0,1,0,0,1,0,0,1],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,1,0,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,0,0,1],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,0,1,0],
-                [0,1,0,1,0,0,1,0]
-            ]
-        }
-    };
-
     // Application state
     const state = {
         players: [],
         currentGame: 1,
         currentPeriod: 1,
         rotation: { game1: [], game2: [] },
-        useDefault: true,
-        draggedIndex: null
+        draggedIndex: null,
+        showBothGames: false
     };
 
     // DOM elements
@@ -224,14 +20,16 @@
         gameView: document.getElementById('gameView'),
         playerCount: document.getElementById('playerCount'),
         playerInputs: document.getElementById('playerInputs'),
-        useDefault: document.getElementById('useDefault'),
         startGame: document.getElementById('startGame'),
         backToSetup: document.getElementById('backToSetup'),
         clearData: document.getElementById('clearData'),
+        toggleView: document.getElementById('toggleView'),
         prevPeriod: document.getElementById('prevPeriod'),
         nextPeriod: document.getElementById('nextPeriod'),
         currentPeriodDisplay: document.getElementById('currentPeriod'),
         playerStatus: document.getElementById('playerStatus'),
+        game1Grid: document.querySelector('.game-grid:nth-child(1)'),
+        game2Grid: document.querySelector('.game-grid:nth-child(2)'),
         game1Table: document.getElementById('game1Table'),
         game2Table: document.getElementById('game2Table')
     };
@@ -252,6 +50,7 @@
         dom.startGame.addEventListener('click', startGame);
         dom.backToSetup.addEventListener('click', backToSetup);
         dom.clearData.addEventListener('click', clearAllData);
+        dom.toggleView.addEventListener('click', toggleViewMode);
         dom.prevPeriod.addEventListener('click', () => navigatePeriod(-1));
         dom.nextPeriod.addEventListener('click', () => navigatePeriod(1));
     }
@@ -276,8 +75,9 @@
             const playerName = existingNames[i] || `Player ${i + 1}`;
             
             row.innerHTML = `
-                <span class="drag-handle">⋮⋮</span>
+                
                 <input type="text" class="player-name" placeholder="Name" value="${playerName}">
+                <span class="drag-handle">⋮⋮</span>
             `;
             
             // Drag and drop event listeners
@@ -382,7 +182,6 @@
         });
 
         // No sorting - players are already in order from top to bottom
-        state.useDefault = dom.useDefault.checked;
         state.currentGame = 1;
         state.currentPeriod = 1;
 
@@ -395,17 +194,10 @@
     function generateRotation() {
         const playerCount = state.players.length;
         
-        if (state.useDefault && DEFAULT_PATTERNS[playerCount]) {
-            // Use default pattern
-            const pattern = DEFAULT_PATTERNS[playerCount];
-            state.rotation.game1 = pattern.game1.map(row => [...row]);
-            state.rotation.game2 = pattern.game2.map(row => [...row]);
-        } else {
-            // Generate both games together for balanced rotation
-            const bothGames = generateTwoGameSchedule(playerCount);
-            state.rotation.game1 = bothGames.game1;
-            state.rotation.game2 = bothGames.game2;
-        }
+        // Generate both games together for balanced rotation
+        const bothGames = generateTwoGameSchedule(playerCount);
+        state.rotation.game1 = bothGames.game1;
+        state.rotation.game2 = bothGames.game2;
     }
 
     // Generate two-game schedule with balanced rotation across both games
@@ -496,64 +288,7 @@
         return { game1: game1Pattern, game2: game2Pattern };
     }
 
-    // Generate balanced rotation pattern based on list order
-    function generateBalancedPattern(playerCount) {
-        const periods = 8;
-        const playersPerPeriod = 4;
-        const pattern = Array(playerCount).fill(0).map(() => Array(periods).fill(0));
-        
-        // Calculate target plays for each player based on position in list
-        const totalSlots = periods * playersPerPeriod;
-        const basePlays = Math.floor(totalSlots / playerCount);
-        let extraSlots = totalSlots % playerCount;
-        
-        const targetPlays = state.players.map((player, i) => {
-            // Higher priority (top of list) gets extra slots
-            if (i < extraSlots) {
-                return basePlays + 1;
-            }
-            return basePlays;
-        });
 
-        // Assign players to periods
-        for (let period = 0; period < periods; period++) {
-            const available = [];
-            
-            // Find players who haven't reached target and haven't played recently
-            for (let p = 0; p < playerCount; p++) {
-                const played = pattern[p].slice(0, period).reduce((a, b) => a + b, 0);
-                if (played < targetPlays[p]) {
-                    // Check if player didn't play in last period (if possible)
-                    if (period === 0 || pattern[p][period - 1] === 0) {
-                        available.push({ player: p, played, priority: p });
-                    }
-                }
-            }
-            
-            // Add players who played recently but need more time (if we don't have enough)
-            if (available.length < playersPerPeriod) {
-                for (let p = 0; p < playerCount; p++) {
-                    const played = pattern[p].slice(0, period).reduce((a, b) => a + b, 0);
-                    if (played < targetPlays[p] && !available.find(a => a.player === p)) {
-                        available.push({ player: p, played, priority: p });
-                    }
-                }
-            }
-
-            // Sort by list position (lower index = higher priority)
-            available.sort((a, b) => {
-                if (a.played !== b.played) return a.played - b.played;
-                return a.priority - b.priority;
-            });
-
-            // Assign top 4 players
-            for (let i = 0; i < Math.min(playersPerPeriod, available.length); i++) {
-                pattern[available[i].player][period] = 1;
-            }
-        }
-
-        return pattern;
-    }
 
     // Regenerate schedule from current period for active players
     function regenerateFromCurrentPeriod() {
@@ -710,12 +445,44 @@
         renderGame();
     }
 
+    // Toggle view mode between single game and both games
+    function toggleViewMode() {
+        state.showBothGames = !state.showBothGames;
+        dom.toggleView.textContent = state.showBothGames ? 'Show Single Game' : 'Show Both Games';
+        saveToLocalStorage();
+        renderGame();
+    }
+
     // Render game view
     function renderGame() {
         updatePeriodDisplay();
+        updateGameVisibility();
         renderPlayerStatus();
         renderRotationTable('game1', dom.game1Table);
         renderRotationTable('game2', dom.game2Table);
+    }
+
+    function updateGameVisibility() {
+        const game1Grid = document.querySelector('.games-container .game-grid:nth-child(1)');
+        const game2Grid = document.querySelector('.games-container .game-grid:nth-child(2)');
+        
+        if (state.showBothGames) {
+            // Show both games
+            game1Grid.classList.remove('hidden');
+            game2Grid.classList.remove('hidden');
+        } else {
+            // Show only current game
+            if (state.currentGame === 1) {
+                game1Grid.classList.remove('hidden');
+                game2Grid.classList.add('hidden');
+            } else {
+                game1Grid.classList.add('hidden');
+                game2Grid.classList.remove('hidden');
+            }
+        }
+        
+        // Update button text
+        dom.toggleView.textContent = state.showBothGames ? 'Show Single Game' : 'Show Both Games';
     }
 
     function updatePeriodDisplay() {
@@ -725,13 +492,24 @@
     function renderPlayerStatus() {
         dom.playerStatus.innerHTML = '';
         
+        // Determine which players are playing in current period
+        const gameName = `game${state.currentGame}`;
+        const periodIndex = state.currentPeriod - 1;
+        
         state.players.forEach((player, index) => {
             const total1 = state.rotation.game1[index]?.reduce((a, b) => a + b, 0) || 0;
             const total2 = state.rotation.game2[index]?.reduce((a, b) => a + b, 0) || 0;
             const total = total1 + total2;
 
+            // Check if player is playing in current period
+            const isPlayingNow = state.rotation[gameName][index]?.[periodIndex] === 1;
+
             const item = document.createElement('div');
-            item.className = `player-status-item ${!player.active ? 'inactive' : ''}`;
+            const classes = ['player-status-item'];
+            if (!player.active) classes.push('inactive');
+            if (isPlayingNow && player.active) classes.push('active-now');
+            
+            item.className = classes.join(' ');
             item.innerHTML = `
                 <div>
                     <span class="player-name">${player.name}</span>
