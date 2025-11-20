@@ -401,10 +401,99 @@
             state.rotation.game1 = pattern.game1.map(row => [...row]);
             state.rotation.game2 = pattern.game2.map(row => [...row]);
         } else {
-            // Generate balanced pattern
-            state.rotation.game1 = generateBalancedPattern(playerCount);
-            state.rotation.game2 = generateBalancedPattern(playerCount);
+            // Generate both games together for balanced rotation
+            const bothGames = generateTwoGameSchedule(playerCount);
+            state.rotation.game1 = bothGames.game1;
+            state.rotation.game2 = bothGames.game2;
         }
+    }
+
+    // Generate two-game schedule with balanced rotation across both games
+    function generateTwoGameSchedule(playerCount) {
+        const totalPeriods = 16; // 8 periods × 2 games
+        const playersPerPeriod = 4;
+        const game1Pattern = Array(playerCount).fill(0).map(() => Array(8).fill(0));
+        const game2Pattern = Array(playerCount).fill(0).map(() => Array(8).fill(0));
+        
+        // Calculate target plays for each player across BOTH games
+        const totalSlots = totalPeriods * playersPerPeriod;
+        const basePlays = Math.floor(totalSlots / playerCount);
+        let extraSlots = totalSlots % playerCount;
+        
+        const targetPlays = state.players.map((player, i) => {
+            // Higher priority (top of list) gets extra slots
+            if (i < extraSlots) {
+                return basePlays + 1;
+            }
+            return basePlays;
+        });
+
+        // Track total plays across both games
+        const totalPlayed = Array(playerCount).fill(0);
+        
+        // Generate schedule for all 16 periods
+        for (let period = 0; period < totalPeriods; period++) {
+            const isGame1 = period < 8;
+            const periodInGame = period % 8;
+            const currentPattern = isGame1 ? game1Pattern : game2Pattern;
+            
+            const available = [];
+            
+            // First pass: Find players who haven't reached target and didn't play last period
+            for (let p = 0; p < playerCount; p++) {
+                if (totalPlayed[p] < targetPlays[p]) {
+                    // Check if player didn't play in last period (if possible)
+                    let playedLast = false;
+                    if (period > 0) {
+                        if (period === 8) {
+                            // Transition from game1 to game2 - check last period of game1
+                            playedLast = game1Pattern[p][7] === 1;
+                        } else if (isGame1) {
+                            playedLast = game1Pattern[p][periodInGame - 1] === 1;
+                        } else {
+                            playedLast = game2Pattern[p][periodInGame - 1] === 1;
+                        }
+                    }
+                    
+                    if (!playedLast) {
+                        available.push({ player: p, played: totalPlayed[p], priority: p });
+                    }
+                }
+            }
+            
+            // Second pass: Add players who haven't reached target (even if played last)
+            if (available.length < playersPerPeriod) {
+                for (let p = 0; p < playerCount; p++) {
+                    if (totalPlayed[p] < targetPlays[p] && !available.find(a => a.player === p)) {
+                        available.push({ player: p, played: totalPlayed[p], priority: p });
+                    }
+                }
+            }
+            
+            // Third pass: Add ANY remaining players to ensure 4 per period (ignore target)
+            if (available.length < playersPerPeriod) {
+                for (let p = 0; p < playerCount; p++) {
+                    if (!available.find(a => a.player === p)) {
+                        available.push({ player: p, played: totalPlayed[p], priority: p });
+                    }
+                }
+            }
+
+            // Sort by total played (lower first), then by priority
+            available.sort((a, b) => {
+                if (a.played !== b.played) return a.played - b.played;
+                return a.priority - b.priority;
+            });
+
+            // Assign top 4 players
+            for (let i = 0; i < Math.min(playersPerPeriod, available.length); i++) {
+                const playerIndex = available[i].player;
+                currentPattern[playerIndex][periodInGame] = 1;
+                totalPlayed[playerIndex]++;
+            }
+        }
+
+        return { game1: game1Pattern, game2: game2Pattern };
     }
 
     // Generate balanced rotation pattern based on list order
