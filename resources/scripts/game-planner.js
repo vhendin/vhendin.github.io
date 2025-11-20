@@ -200,6 +200,16 @@
         state.rotation.game2 = bothGames.game2;
     }
 
+    // Calculate pairing score for a player based on current lineup
+    // Lower score = better diversity (player has played less with current teammates)
+    function calculatePairingScore(playerIndex, currentLineup, pairingMatrix) {
+        let score = 0;
+        for (let teammate of currentLineup) {
+            score += pairingMatrix[playerIndex][teammate];
+        }
+        return score;
+    }
+
     // Generate two-game schedule with balanced rotation across both games
     function generateTwoGameSchedule(playerCount) {
         const totalPeriods = 16; // 8 periods × 2 games
@@ -222,6 +232,9 @@
 
         // Track total plays across both games
         const totalPlayed = Array(playerCount).fill(0);
+        
+        // Track player pairings - how many times each pair has played together
+        const pairingMatrix = Array(playerCount).fill(0).map(() => Array(playerCount).fill(0));
         
         // Generate schedule for all 16 periods
         for (let period = 0; period < totalPeriods; period++) {
@@ -271,17 +284,43 @@
                 }
             }
 
-            // Sort by total played (lower first), then by priority
-            available.sort((a, b) => {
-                if (a.played !== b.played) return a.played - b.played;
-                return a.priority - b.priority;
-            });
-
-            // Assign top 4 players
-            for (let i = 0; i < Math.min(playersPerPeriod, available.length); i++) {
-                const playerIndex = available[i].player;
-                currentPattern[playerIndex][periodInGame] = 1;
-                totalPlayed[playerIndex]++;
+            // Build lineup incrementally to maximize pairing diversity
+            const selectedPlayers = [];
+            
+            for (let slot = 0; slot < playersPerPeriod && available.length > 0; slot++) {
+                // Calculate pairing score for each candidate based on already-selected players
+                available.forEach(candidate => {
+                    candidate.pairingScore = calculatePairingScore(
+                        candidate.player,
+                        selectedPlayers,
+                        pairingMatrix
+                    );
+                });
+                
+                // Sort by: 1) total played, 2) pairing score (diversity), 3) priority
+                available.sort((a, b) => {
+                    if (a.played !== b.played) return a.played - b.played;
+                    if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;
+                    return a.priority - b.priority;
+                });
+                
+                // Select best candidate
+                const selected = available.shift();
+                selectedPlayers.push(selected.player);
+                
+                // Assign to pattern
+                currentPattern[selected.player][periodInGame] = 1;
+                totalPlayed[selected.player]++;
+            }
+            
+            // Update pairing matrix for all pairs in this lineup
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                for (let j = i + 1; j < selectedPlayers.length; j++) {
+                    const p1 = selectedPlayers[i];
+                    const p2 = selectedPlayers[j];
+                    pairingMatrix[p1][p2]++;
+                    pairingMatrix[p2][p1]++;
+                }
             }
         }
 
