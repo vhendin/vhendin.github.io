@@ -35,6 +35,7 @@
             <div class="game-controls">
                 <div class="control-buttons">
                     <button id="toggleView" class="btn-secondary">Show Both Games</button>
+                    <button id="exportSchedule" class="btn-primary">Export/Print</button>
                     <button id="backToSetup" class="btn-secondary">New Game</button>
                     <button id="clearData" class="btn-danger">Clear All</button>
                 </div>
@@ -71,6 +72,18 @@
                         <table id="game2Table" class="rotation-table"></table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="customModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 id="modalTitle">Confirm Action</h3>
+            <p id="modalMessage">Are you sure?</p>
+            <div class="modal-actions">
+                <button id="modalConfirm" class="btn-danger">Confirm</button>
+                <button id="modalCancel" class="btn-secondary">Cancel</button>
             </div>
         </div>
     </div>

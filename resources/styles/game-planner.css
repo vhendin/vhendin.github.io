@@ -490,3 +490,166 @@ button:active {
         min-width: 24px;
     }
 }
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay:not(.hidden) {
+    display: flex;
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+    background: #fff;
+    border: 2px solid #333;
+    box-shadow: 5px 5px 0 rgba(0,0,0,0.2);
+    padding: 2rem;
+    max-width: 400px;
+    width: 90%;
+    animation: slideIn 0.3s ease;
+}
+
+.modal-content h3 {
+    font-size: 1.3rem;
+    border-bottom: 2px solid #333;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.modal-content p {
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { 
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Print Styles for A4 Export */
+.print-only {
+    display: none;
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+    
+    body {
+        background: white;
+        padding: 0;
+    }
+    
+    /* Hide interactive elements */
+    .game-controls,
+    .player-toggle,
+    .game-nav-arrow,
+    button {
+        display: none !important;
+    }
+    
+    /* Remove shadows and borders for cleaner print */
+    .panel,
+    .game-grid {
+        box-shadow: none;
+        page-break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+    
+    /* Force show both games */
+    .game-grid.hidden {
+        display: block !important;
+    }
+    
+    /* Optimize table for print */
+    .rotation-table {
+        font-size: 9pt;
+        border-collapse: collapse;
+    }
+    
+    .rotation-table th,
+    .rotation-table td {
+        border: 1px solid #333;
+        padding: 4px;
+    }
+    
+    /* Add page break between games */
+    .game-grid:first-child {
+        page-break-after: always;
+    }
+    
+    /* Player status compact layout */
+    .player-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .player-status-item {
+        flex: 0 0 auto;
+        padding: 4px 8px;
+        font-size: 10pt;
+        box-shadow: none;
+    }
+    
+    .player-status-item.active-now {
+        background: #fff;
+        border: 2px solid #333;
+        box-shadow: none;
+        transform: none;
+    }
+    
+    /* Header styling */
+    header h1 {
+        font-size: 18pt;
+        margin-bottom: 8px;
+    }
+    
+    /* Show print-only elements */
+    .print-only {
+        display: block;
+    }
+    
+    /* Remove highlights and gold colors */
+    .rotation-table td.current-period {
+        box-shadow: none;
+    }
+    
+    .rotation-table th.period-header.selected-period {
+        background: #e0e0e0;
+        color: #333;
+        border: 1px solid #333;
+        box-shadow: none;
+    }
+}

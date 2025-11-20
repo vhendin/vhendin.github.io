@@ -1,7 +1,7 @@
 // Basketball Game Planner
 // Manages player rotations for 6-13 players across two 8-period games
 
-(function() {
+(function () {
     'use strict';
 
     // Application state
@@ -24,9 +24,17 @@
         backToSetup: document.getElementById('backToSetup'),
         clearData: document.getElementById('clearData'),
         toggleView: document.getElementById('toggleView'),
+        exportSchedule: document.getElementById('exportSchedule'),
         playerStatus: document.getElementById('playerStatus'),
         game1Table: document.getElementById('game1Table'),
-        game2Table: document.getElementById('game2Table')
+        game2Table: document.getElementById('game2Table'),
+        modal: {
+            overlay: document.getElementById('customModal'),
+            title: document.getElementById('modalTitle'),
+            message: document.getElementById('modalMessage'),
+            confirm: document.getElementById('modalConfirm'),
+            cancel: document.getElementById('modalCancel')
+        }
     };
 
     // Initialize
@@ -34,7 +42,7 @@
         loadFromLocalStorage();
         setupEventListeners();
         renderPlayerInputs();
-        
+
         if (state.players.length > 0) {
             showGameView();
         }
@@ -46,7 +54,8 @@
         dom.backToSetup.addEventListener('click', backToSetup);
         dom.clearData.addEventListener('click', clearAllData);
         dom.toggleView.addEventListener('click', toggleViewMode);
-        
+        dom.exportSchedule.addEventListener('click', exportSchedule);
+
         // Game navigation arrows
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('game-nav-arrow')) {
@@ -60,8 +69,8 @@
     function renderPlayerInputs() {
         const count = parseInt(dom.playerCount.value);
         
-        // Capture existing names before clearing
-        const existingNameInputs = document.querySelectorAll('.player-name');
+        // Capture existing names before clearing (scoped to player inputs container)
+        const existingNameInputs = dom.playerInputs.querySelectorAll('.player-name');
         const existingNames = Array.from(existingNameInputs).map(input => input.value);
         
         dom.playerInputs.innerHTML = '';
@@ -72,11 +81,10 @@
             row.draggable = true;
             row.dataset.index = i;
             
-            // Use existing name if available, otherwise use default
-            const playerName = existingNames[i] || `Player ${i + 1}`;
+            // Priority: state.players (from New Game) > existing DOM names > default
+            const playerName = (state.players[i]?.name) || existingNames[i] || `Player ${i + 1}`;
             
             row.innerHTML = `
-                
                 <input type="text" class="player-name" placeholder="Name" value="${playerName}">
                 <span class="drag-handle">⋮⋮</span>
             `;
@@ -92,6 +100,7 @@
             dom.playerInputs.appendChild(row);
         }
     }
+    
 
     // Drag and drop handlers
     function handleDragStart(e) {
@@ -121,20 +130,20 @@
         if (e.stopPropagation) {
             e.stopPropagation();
         }
-        
+
         e.currentTarget.classList.remove('drag-over');
-        
+
         const dropIndex = parseInt(e.currentTarget.dataset.index);
-        
+
         if (state.draggedIndex !== dropIndex) {
             // Get all name inputs before reordering
             const nameInputs = document.querySelectorAll('.player-name');
             const names = Array.from(nameInputs).map(input => input.value);
-            
+
             // Reorder the names array
             const [draggedName] = names.splice(state.draggedIndex, 1);
             names.splice(dropIndex, 0, draggedName);
-            
+
             // Re-render with new order
             dom.playerInputs.innerHTML = '';
             for (let i = 0; i < names.length; i++) {
@@ -143,27 +152,27 @@
                 row.draggable = true;
                 row.dataset.index = i;
                 row.innerHTML = `
-                    <span class="drag-handle">⋮⋮</span>
                     <input type="text" class="player-name" placeholder="Name" value="${names[i]}">
+                    <span class="drag-handle">⋮⋮</span>
                 `;
-                
+
                 row.addEventListener('dragstart', handleDragStart);
                 row.addEventListener('dragover', handleDragOver);
                 row.addEventListener('drop', handleDrop);
                 row.addEventListener('dragend', handleDragEnd);
                 row.addEventListener('dragenter', handleDragEnter);
                 row.addEventListener('dragleave', handleDragLeave);
-                
+
                 dom.playerInputs.appendChild(row);
             }
         }
-        
+
         return false;
     }
 
     function handleDragEnd(e) {
         e.currentTarget.classList.remove('dragging');
-        
+
         // Remove drag-over class from all rows
         document.querySelectorAll('.player-input-row').forEach(row => {
             row.classList.remove('drag-over');
@@ -172,7 +181,8 @@
 
     // Start game
     function startGame() {
-        const nameInputs = document.querySelectorAll('.player-name');
+        // Scope query to only player inputs container to avoid stray elements
+        const nameInputs = dom.playerInputs.querySelectorAll('.player-name');
         
         state.players = [];
         nameInputs.forEach((input, i) => {
@@ -194,7 +204,7 @@
     // Generate rotation pattern
     function generateRotation() {
         const playerCount = state.players.length;
-        
+
         // Generate both games together for balanced rotation
         const bothGames = generateTwoGameSchedule(playerCount);
         state.rotation.game1 = bothGames.game1;
@@ -217,12 +227,12 @@
         const playersPerPeriod = 4;
         const game1Pattern = Array(playerCount).fill(0).map(() => Array(8).fill(0));
         const game2Pattern = Array(playerCount).fill(0).map(() => Array(8).fill(0));
-        
+
         // Calculate target plays for each player across BOTH games
         const totalSlots = totalPeriods * playersPerPeriod;
         const basePlays = Math.floor(totalSlots / playerCount);
         let extraSlots = totalSlots % playerCount;
-        
+
         const targetPlays = state.players.map((player, i) => {
             // Higher priority (top of list) gets extra slots
             if (i < extraSlots) {
@@ -233,18 +243,18 @@
 
         // Track total plays across both games
         const totalPlayed = Array(playerCount).fill(0);
-        
+
         // Track player pairings - how many times each pair has played together
         const pairingMatrix = Array(playerCount).fill(0).map(() => Array(playerCount).fill(0));
-        
+
         // Generate schedule for all 16 periods
         for (let period = 0; period < totalPeriods; period++) {
             const isGame1 = period < 8;
             const periodInGame = period % 8;
             const currentPattern = isGame1 ? game1Pattern : game2Pattern;
-            
+
             const available = [];
-            
+
             // First pass: Find players who haven't reached target and didn't play last period
             for (let p = 0; p < playerCount; p++) {
                 if (totalPlayed[p] < targetPlays[p]) {
@@ -260,13 +270,13 @@
                             playedLast = game2Pattern[p][periodInGame - 1] === 1;
                         }
                     }
-                    
+
                     if (!playedLast) {
                         available.push({ player: p, played: totalPlayed[p], priority: p });
                     }
                 }
             }
-            
+
             // Second pass: Add players who haven't reached target (even if played last)
             if (available.length < playersPerPeriod) {
                 for (let p = 0; p < playerCount; p++) {
@@ -275,7 +285,7 @@
                     }
                 }
             }
-            
+
             // Third pass: Add ANY remaining players to ensure 4 per period (ignore target)
             if (available.length < playersPerPeriod) {
                 for (let p = 0; p < playerCount; p++) {
@@ -287,7 +297,7 @@
 
             // Build lineup incrementally to maximize pairing diversity
             const selectedPlayers = [];
-            
+
             for (let slot = 0; slot < playersPerPeriod && available.length > 0; slot++) {
                 // Calculate pairing score for each candidate based on already-selected players
                 available.forEach(candidate => {
@@ -296,24 +306,25 @@
                         selectedPlayers,
                         pairingMatrix
                     );
+                    candidate.random = Math.random();  // Add randomness for tiebreaking
                 });
-                
-                // Sort by: 1) total played, 2) pairing score (diversity), 3) priority
+
+                // Sort by: 1) total played, 2) pairing score (diversity), 3) random (breaks rigid patterns)
                 available.sort((a, b) => {
                     if (a.played !== b.played) return a.played - b.played;
                     if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;
-                    return a.priority - b.priority;
+                    return a.random - b.random;  // Random tiebreaker instead of priority
                 });
-                
+
                 // Select best candidate
                 const selected = available.shift();
                 selectedPlayers.push(selected.player);
-                
+
                 // Assign to pattern
                 currentPattern[selected.player][periodInGame] = 1;
                 totalPlayed[selected.player]++;
             }
-            
+
             // Update pairing matrix for all pairs in this lineup
             for (let i = 0; i < selectedPlayers.length; i++) {
                 for (let j = i + 1; j < selectedPlayers.length; j++) {
@@ -335,7 +346,7 @@
         const playerCount = state.players.length;
         const activeIndices = state.players.map((p, i) => p.active ? i : -1).filter(i => i >= 0);
         const activeCount = activeIndices.length;
-        
+
         if (activeCount < 4) {
             alert('Need at least 4 active players!');
             return;
@@ -345,6 +356,34 @@
         const games = ['game1', 'game2'];
         const startGame = state.currentGame - 1;
         const startPeriod = state.currentPeriod - 1;
+
+        // Initialize pairing matrix for active players from already-played periods
+        const pairingMatrix = Array(playerCount).fill(0).map(() => Array(playerCount).fill(0));
+
+        // Build pairing history from all periods up to current point
+        for (let g = 0; g < games.length; g++) {
+            const gameName = games[g];
+            const maxPeriod = (g < startGame) ? 8 : ((g === startGame) ? startPeriod : 0);
+
+            for (let period = 0; period < maxPeriod; period++) {
+                const lineup = [];
+                for (let pi = 0; pi < playerCount; pi++) {
+                    if (state.rotation[gameName][pi][period] === 1) {
+                        lineup.push(pi);
+                    }
+                }
+
+                // Update pairing matrix for this lineup
+                for (let i = 0; i < lineup.length; i++) {
+                    for (let j = i + 1; j < lineup.length; j++) {
+                        const p1 = lineup[i];
+                        const p2 = lineup[j];
+                        pairingMatrix[p1][p2]++;
+                        pairingMatrix[p2][p1]++;
+                    }
+                }
+            }
+        }
 
         // For each game from current onwards
         for (let g = startGame; g < games.length; g++) {
@@ -366,7 +405,7 @@
             });
 
             // Calculate target remaining plays based on list position
-            const totalRemainingSlots = (periods - startP) * 4 + (g === 0 ? 8 * 4 : 0);
+            const totalRemainingSlots = (periods - startP) * 4 + (g === 0 && startGame === 0 ? 8 * 4 : 0);
             const baseRemaining = Math.floor(totalRemainingSlots / activeCount);
             let extraSlots = totalRemainingSlots % activeCount;
 
@@ -386,12 +425,12 @@
                 }
 
                 const available = [];
-                
+
                 // Calculate plays so far including this redistribution
                 for (let idx = 0; idx < activeCount; idx++) {
                     const pi = activeIndices[idx];
                     let playedSoFar = alreadyPlayed[idx];
-                    
+
                     // Add plays from current redistribution
                     for (let gg = startGame; gg <= g; gg++) {
                         const maxP = (gg === g) ? period : 8;
@@ -404,25 +443,77 @@
                     if (playedSoFar < (alreadyPlayed[idx] + targetRemaining[idx])) {
                         // Prefer players who didn't play last period
                         const playedLast = period > 0 && state.rotation[gameName][pi][period - 1] === 1;
-                        available.push({ 
-                            player: pi, 
-                            played: playedSoFar, 
+                        available.push({
+                            player: pi,
+                            played: playedSoFar,
                             playedLast,
                             priority: pi  // Priority based on list position
                         });
                     }
                 }
 
-                // Sort: prioritize players who didn't play last, then by list position
-                available.sort((a, b) => {
-                    if (a.playedLast !== b.playedLast) return a.playedLast ? 1 : -1;
-                    if (a.played !== b.played) return a.played - b.played;
-                    return a.priority - b.priority;
-                });
+                // If not enough players to reach target, add all available active players
+                if (available.length < 4) {
+                    for (let idx = 0; idx < activeCount; idx++) {
+                        const pi = activeIndices[idx];
+                        if (!available.find(a => a.player === pi)) {
+                            let playedSoFar = alreadyPlayed[idx];
+                            for (let gg = startGame; gg <= g; gg++) {
+                                const maxP = (gg === g) ? period : 8;
+                                const minP = (gg === startGame) ? startPeriod : 0;
+                                for (let pp = minP; pp < maxP; pp++) {
+                                    if (state.rotation[games[gg]][pi][pp] === 1) playedSoFar++;
+                                }
+                            }
+                            const playedLast = period > 0 && state.rotation[gameName][pi][period - 1] === 1;
+                            available.push({
+                                player: pi,
+                                played: playedSoFar,
+                                playedLast,
+                                priority: pi
+                            });
+                        }
+                    }
+                }
 
-                // Assign top 4
-                for (let i = 0; i < Math.min(4, available.length); i++) {
-                    state.rotation[gameName][available[i].player][period] = 1;
+                // Build lineup incrementally with pairing diversity
+                const selectedPlayers = [];
+
+                for (let slot = 0; slot < 4 && available.length > 0; slot++) {
+                    // Calculate pairing score for each candidate
+                    available.forEach(candidate => {
+                        candidate.pairingScore = calculatePairingScore(
+                            candidate.player,
+                            selectedPlayers,
+                            pairingMatrix
+                        );
+                        candidate.random = Math.random();  // Add randomness
+                    });
+
+                    // Sort by: 1) didn't play last, 2) total played, 3) pairing score, 4) random
+                    available.sort((a, b) => {
+                        if (a.playedLast !== b.playedLast) return a.playedLast ? 1 : -1;
+                        if (a.played !== b.played) return a.played - b.played;
+                        if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;
+                        return a.random - b.random;  // Random tiebreaker
+                    });
+
+                    // Select best candidate
+                    const selected = available.shift();
+                    selectedPlayers.push(selected.player);
+
+                    // Assign to pattern
+                    state.rotation[gameName][selected.player][period] = 1;
+                }
+
+                // Update pairing matrix for this lineup
+                for (let i = 0; i < selectedPlayers.length; i++) {
+                    for (let j = i + 1; j < selectedPlayers.length; j++) {
+                        const p1 = selectedPlayers[i];
+                        const p2 = selectedPlayers[j];
+                        pairingMatrix[p1][p2]++;
+                        pairingMatrix[p2][p1]++;
+                    }
                 }
             }
         }
@@ -438,24 +529,78 @@
         renderGame();
     }
 
+    // Show custom modal
+    function showModal(title, message, onConfirm) {
+        dom.modal.title.textContent = title;
+        dom.modal.message.textContent = message;
+        dom.modal.overlay.classList.remove('hidden');
+
+        // Remove old listeners by cloning
+        const newConfirm = dom.modal.confirm.cloneNode(true);
+        const newCancel = dom.modal.cancel.cloneNode(true);
+        dom.modal.confirm.replaceWith(newConfirm);
+        dom.modal.cancel.replaceWith(newCancel);
+        dom.modal.confirm = newConfirm;
+        dom.modal.cancel = newCancel;
+
+        // Add new listeners
+        dom.modal.confirm.addEventListener('click', () => {
+            dom.modal.overlay.classList.add('hidden');
+            onConfirm();
+        });
+
+        dom.modal.cancel.addEventListener('click', () => {
+            dom.modal.overlay.classList.add('hidden');
+        });
+
+        // Close on overlay click
+        const overlayClickHandler = (e) => {
+            if (e.target === dom.modal.overlay) {
+                dom.modal.overlay.classList.add('hidden');
+                dom.modal.overlay.removeEventListener('click', overlayClickHandler);
+            }
+        };
+        dom.modal.overlay.addEventListener('click', overlayClickHandler);
+    }
+
     // Back to setup
     function backToSetup() {
-        if (confirm('Start a new game? Current progress will be saved.')) {
-            state.players = [];
-            state.rotation = { game1: [], game2: [] };
-            saveToLocalStorage();
-            dom.setupView.classList.remove('hidden');
-            dom.gameView.classList.add('hidden');
-            renderPlayerInputs();
-        }
+        showModal(
+            'Start New Game?',
+            'This will reset the schedule but keep your player list.',
+            () => {
+                // Keep player names but reset active status
+                state.players = state.players.map(p => ({
+                    name: p.name,
+                    active: true  // Reset all to active
+                }));
+
+                // Clear rotation data
+                state.rotation = { game1: [], game2: [] };
+                state.currentGame = 1;
+                state.currentPeriod = 1;
+
+                saveToLocalStorage();
+                dom.setupView.classList.remove('hidden');
+                dom.gameView.classList.add('hidden');
+
+                // Update player count dropdown to match saved players
+                dom.playerCount.value = state.players.length;
+                renderPlayerInputs();
+            }
+        );
     }
 
     // Clear all data
     function clearAllData() {
-        if (confirm('Clear all data? This cannot be undone.')) {
-            localStorage.removeItem('basketballGamePlanner');
-            location.reload();
-        }
+        showModal(
+            'Clear All Data?',
+            'This will delete all saved data and cannot be undone.',
+            () => {
+                localStorage.removeItem('basketballGamePlanner');
+                location.reload();
+            }
+        );
     }
 
     // Navigate periods
@@ -489,7 +634,7 @@
     function navigateGame(direction) {
         let newGame = state.currentGame + direction;
         if (newGame < 1 || newGame > 2) return; // Stay within game 1-2
-        
+
         state.currentGame = newGame;
         // Keep current period when switching games
         saveToLocalStorage();
@@ -504,6 +649,35 @@
         renderGame();
     }
 
+    // Export/Print schedule to A4
+    function exportSchedule() {
+        // Store current view state
+        const wasShowingBoth = state.showBothGames;
+
+        // Force show both games for print
+        state.showBothGames = true;
+        renderGame();
+
+        // Add timestamp to header
+        const timestamp = document.createElement('p');
+        timestamp.className = 'print-only';
+        timestamp.textContent = `Generated: ${new Date().toLocaleString()}`;
+        timestamp.style.textAlign = 'center';
+        timestamp.style.margin = '0.5rem 0 1rem';
+        timestamp.style.fontFamily = "'Courier New', Courier, monospace";
+        document.querySelector('header').appendChild(timestamp);
+
+        // Trigger print dialog
+        window.print();
+
+        // Restore original state after print dialog closes
+        setTimeout(() => {
+            state.showBothGames = wasShowingBoth;
+            renderGame();
+            timestamp.remove();
+        }, 100);
+    }
+
     // Render game view
     function renderGame() {
         updateGameVisibility();
@@ -515,7 +689,7 @@
     function updateGameVisibility() {
         const game1Grid = document.querySelector('.games-container .game-grid:nth-child(1)');
         const game2Grid = document.querySelector('.games-container .game-grid:nth-child(2)');
-        
+
         if (state.showBothGames) {
             // Show both games
             game1Grid.classList.remove('hidden');
@@ -530,7 +704,7 @@
                 game2Grid.classList.remove('hidden');
             }
         }
-        
+
         // Update button text
         dom.toggleView.textContent = state.showBothGames ? 'Show Single Game' : 'Show Both Games';
     }
@@ -539,11 +713,11 @@
 
     function renderPlayerStatus() {
         dom.playerStatus.innerHTML = '';
-        
+
         // Determine which players are playing in current period
         const gameName = `game${state.currentGame}`;
         const periodIndex = state.currentPeriod - 1;
-        
+
         state.players.forEach((player, index) => {
             const total1 = state.rotation.game1[index]?.reduce((a, b) => a + b, 0) || 0;
             const total2 = state.rotation.game2[index]?.reduce((a, b) => a + b, 0) || 0;
@@ -556,7 +730,7 @@
             const classes = ['player-status-item'];
             if (!player.active) classes.push('inactive');
             if (isPlayingNow && player.active) classes.push('active-now');
-            
+
             item.className = classes.join(' ');
             item.innerHTML = `
                 <div>
@@ -588,7 +762,7 @@
     function togglePlayerInPeriod(playerIndex, period, game) {
         const gameName = `game${game}`;
         const currentValue = state.rotation[gameName][playerIndex][period];
-        
+
         // If currently playing (1), allow removal
         if (currentValue === 1) {
             state.rotation[gameName][playerIndex][period] = 0;
@@ -596,17 +770,17 @@
             renderGame();
             return;
         }
-        
+
         // If currently not playing (0), check if we can add (max 4 players)
         const playersInPeriod = state.players.reduce((count, player, i) => {
             return count + (state.rotation[gameName][i][period] === 1 ? 1 : 0);
         }, 0);
-        
+
         // Silently reject if at capacity (no alert)
         if (playersInPeriod >= 4) {
             return;
         }
-        
+
         // Add player to period
         state.rotation[gameName][playerIndex][period] = 1;
         saveToLocalStorage();
@@ -617,7 +791,7 @@
         const periods = 8;
         const rotation = state.rotation[gameName];
         const gameNum = gameName === 'game1' ? 1 : 2;
-        
+
         let html = '<thead><tr><th></th>';
         for (let p = 1; p <= periods; p++) {
             const isSelected = (gameNum === state.currentGame && p === state.currentPeriod);
@@ -630,34 +804,34 @@
         // Player rows
         state.players.forEach((player, i) => {
             html += `<tr><td class="player-cell">${player.name}</td>`;
-            
+
             for (let p = 0; p < periods; p++) {
                 const isPlaying = rotation[i] && rotation[i][p] === 1;
                 const isCurrent = (gameName === `game${state.currentGame}` && p === state.currentPeriod - 1);
                 const isPast = (gameName === 'game1' && state.currentGame === 1 && p < state.currentPeriod - 1) ||
-                               (gameName === 'game1' && state.currentGame === 2) ||
-                               (gameName === 'game2' && state.currentGame === 2 && p < state.currentPeriod - 1);
-                
+                    (gameName === 'game1' && state.currentGame === 2) ||
+                    (gameName === 'game2' && state.currentGame === 2 && p < state.currentPeriod - 1);
+
                 // Count players in this period for capacity check
                 const playersInPeriod = state.players.reduce((count, pl, idx) => {
                     return count + (rotation[idx][p] === 1 ? 1 : 0);
                 }, 0);
-                
+
                 const isAtCapacity = playersInPeriod >= 4 && !isPlaying;
-                
+
                 let classes = [];
                 if (isPlaying) classes.push('playing');
                 else classes.push('resting');
                 if (isCurrent) classes.push('current-period');
                 if (isPast) classes.push('past');
                 if (isPast || isAtCapacity) classes.push('disabled');
-                
+
                 html += `<td class="${classes.join(' ')} editable-cell" 
                              data-player-index="${i}" 
                              data-period="${p}" 
                              data-game="${gameNum}"></td>`;
             }
-            
+
             const total = rotation[i]?.reduce((a, b) => a + b, 0) || 0;
             html += `<td class="total-cell">${total}</td>`;
             html += '</tr>';
@@ -676,7 +850,7 @@
 
         html += '</tbody>';
         tableEl.innerHTML = html;
-        
+
         // Add click handlers to period headers
         tableEl.querySelectorAll('.period-header').forEach(th => {
             th.addEventListener('click', (e) => {
@@ -688,7 +862,7 @@
                 renderGame();
             });
         });
-        
+
         // Add click handlers to editable cells
         tableEl.querySelectorAll('.editable-cell').forEach(cell => {
             cell.addEventListener('click', (e) => {
@@ -696,11 +870,11 @@
                 if (e.target.classList.contains('disabled')) {
                     return;
                 }
-                
+
                 const playerIndex = parseInt(e.target.dataset.playerIndex);
                 const period = parseInt(e.target.dataset.period);
                 const game = parseInt(e.target.dataset.game);
-                
+
                 togglePlayerInPeriod(playerIndex, period, game);
             });
         });
