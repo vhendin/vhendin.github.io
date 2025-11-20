@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basketball Game Planner</title>
+    <link rel="stylesheet" href="resources/styles/game-planner.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Basketball Game Planner</h1>
+        </header>
+
+        <!-- Setup View -->
+        <div id="setupView" class="view">
+            <div class="panel">
+                <h2>Setup</h2>
+                
+                <div class="form-group">
+                    <label for="playerCount">Number of Players (6-13)</label>
+                    <input type="number" id="playerCount" min="6" max="13" value="6">
+                </div>
+
+                <div id="playerInputs" class="player-inputs"></div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="useDefault" checked>
+                        Use default rotation pattern
+                    </label>
+                </div>
+
+                <div class="actions">
+                    <button id="startGame" class="btn-primary">Start Game</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game View -->
+        <div id="gameView" class="view hidden">
+            <div class="game-controls">
+                <div class="period-control">
+                    <span class="label">Current Period:</span>
+                    <button id="prevPeriod" class="btn-small">←</button>
+                    <span id="currentPeriod" class="period-display">Game 1 - Period 1</span>
+                    <button id="nextPeriod" class="btn-small">→</button>
+                </div>
+                <div class="control-buttons">
+                    <button id="backToSetup" class="btn-secondary">New Game</button>
+                    <button id="clearData" class="btn-danger">Clear All</button>
+                </div>
+            </div>
+
+            <!-- Player Status -->
+            <div class="panel">
+                <h3>Players</h3>
+                <div id="playerStatus" class="player-status"></div>
+            </div>
+
+            <!-- Game Grids -->
+            <div class="games-container">
+                <!-- Game 1 -->
+                <div class="game-grid">
+                    <h3>Game 1</h3>
+                    <div class="grid-wrapper">
+                        <table id="game1Table" class="rotation-table"></table>
+                    </div>
+                </div>
+
+                <!-- Game 2 -->
+                <div class="game-grid">
+                    <h3>Game 2</h3>
+                    <div class="grid-wrapper">
+                        <table id="game2Table" class="rotation-table"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="resources/scripts/game-planner.js"></script>
+</body>
+</html>
