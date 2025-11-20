@@ -584,6 +584,35 @@
         regenerateFromCurrentPeriod();
     }
 
+    // Toggle player in/out of a specific period
+    function togglePlayerInPeriod(playerIndex, period, game) {
+        const gameName = `game${game}`;
+        const currentValue = state.rotation[gameName][playerIndex][period];
+        
+        // If currently playing (1), allow removal
+        if (currentValue === 1) {
+            state.rotation[gameName][playerIndex][period] = 0;
+            saveToLocalStorage();
+            renderGame();
+            return;
+        }
+        
+        // If currently not playing (0), check if we can add (max 4 players)
+        const playersInPeriod = state.players.reduce((count, player, i) => {
+            return count + (state.rotation[gameName][i][period] === 1 ? 1 : 0);
+        }, 0);
+        
+        // Silently reject if at capacity (no alert)
+        if (playersInPeriod >= 4) {
+            return;
+        }
+        
+        // Add player to period
+        state.rotation[gameName][playerIndex][period] = 1;
+        saveToLocalStorage();
+        renderGame();
+    }
+
     function renderRotationTable(gameName, tableEl) {
         const periods = 8;
         const rotation = state.rotation[gameName];
@@ -609,13 +638,24 @@
                                (gameName === 'game1' && state.currentGame === 2) ||
                                (gameName === 'game2' && state.currentGame === 2 && p < state.currentPeriod - 1);
                 
+                // Count players in this period for capacity check
+                const playersInPeriod = state.players.reduce((count, pl, idx) => {
+                    return count + (rotation[idx][p] === 1 ? 1 : 0);
+                }, 0);
+                
+                const isAtCapacity = playersInPeriod >= 4 && !isPlaying;
+                
                 let classes = [];
                 if (isPlaying) classes.push('playing');
                 else classes.push('resting');
                 if (isCurrent) classes.push('current-period');
                 if (isPast) classes.push('past');
+                if (isPast || isAtCapacity) classes.push('disabled');
                 
-                html += `<td class="${classes.join(' ')}">${isPlaying ? '1' : ''}</td>`;
+                html += `<td class="${classes.join(' ')} editable-cell" 
+                             data-player-index="${i}" 
+                             data-period="${p}" 
+                             data-game="${gameNum}"></td>`;
             }
             
             const total = rotation[i]?.reduce((a, b) => a + b, 0) || 0;
@@ -646,6 +686,22 @@
                 state.currentPeriod = period;
                 saveToLocalStorage();
                 renderGame();
+            });
+        });
+        
+        // Add click handlers to editable cells
+        tableEl.querySelectorAll('.editable-cell').forEach(cell => {
+            cell.addEventListener('click', (e) => {
+                // Don't process clicks on disabled cells
+                if (e.target.classList.contains('disabled')) {
+                    return;
+                }
+                
+                const playerIndex = parseInt(e.target.dataset.playerIndex);
+                const period = parseInt(e.target.dataset.period);
+                const game = parseInt(e.target.dataset.game);
+                
+                togglePlayerInPeriod(playerIndex, period, game);
             });
         });
     }
