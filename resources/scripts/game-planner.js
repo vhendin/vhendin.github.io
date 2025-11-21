@@ -327,11 +327,12 @@
                 });
 
                 // Sort by: 1) total played, 2) pairing score (diversity), 3) consecutive streak, 4) random
+                // Note: Priority is enforced via targetPlays, not in period-by-period selection
                 available.sort((a, b) => {
                     if (a.played !== b.played) return a.played - b.played;  // Fair distribution first
                     if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;  // Diversity second
                     if (a.streak !== b.streak) return a.streak - b.streak;  // Prefer rested (soft preference)
-                    return a.random - b.random;  // Random tiebreaker
+                    return a.random - b.random;  // Random tiebreaker for diverse lineups
                 });
 
                 // Select best candidate
@@ -531,11 +532,12 @@
                     });
 
                     // Sort by: 1) total played, 2) pairing score (diversity), 3) consecutive streak, 4) random
+                    // Note: Priority is enforced via targetPlays, not in period-by-period selection
                     available.sort((a, b) => {
                         if (a.played !== b.played) return a.played - b.played;  // Fair distribution first
                         if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;  // Diversity second
                         if (a.streak !== b.streak) return a.streak - b.streak;  // Prefer rested (soft preference)
-                        return a.random - b.random;  // Random tiebreaker
+                        return a.random - b.random;  // Random tiebreaker for diverse lineups
                     });
 
                     // Select best candidate
