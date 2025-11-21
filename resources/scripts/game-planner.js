@@ -186,6 +186,42 @@
         return score;
     }
 
+    // Calculate consecutive periods played for a player up to (but not including) current period
+    // Returns 0, 1, or 2 representing the streak length
+    function calculateConsecutiveStreak(playerIndex, currentGameIndex, currentPeriod, currentGameName) {
+        const games = ['game1', 'game2'];
+        let streak = 0;
+
+        // Look backwards from current period
+        for (let lookback = 1; lookback <= 2; lookback++) {
+            let checkPeriod = currentPeriod - lookback;
+            let checkGame = currentGameIndex;
+
+            // Handle transition from game2 back to game1
+            if (checkPeriod < 0) {
+                if (checkGame === 1) {
+                    // We're in game2, check previous periods from game1
+                    checkGame = 0;
+                    checkPeriod = 8 + checkPeriod;  // e.g., -1 becomes 7
+                } else {
+                    // We're in game1 and before period 0, no more history
+                    break;
+                }
+            }
+
+            // Check if player played in that period
+            const gameName = games[checkGame];
+            if (state.rotation[gameName][playerIndex][checkPeriod] === 1) {
+                streak++;
+            } else {
+                // Streak is broken, stop counting
+                break;
+            }
+        }
+
+        return streak;
+    }
+
     // Generate two-game schedule with balanced rotation across both games
     function generateTwoGameSchedule(playerCount) {
         const totalPeriods = 16; // 8 periods × 2 games
@@ -209,6 +245,9 @@
         // Track total plays across both games
         const totalPlayed = Array(playerCount).fill(0);
 
+        // Track consecutive periods played for each player (0, 1, or 2)
+        const consecutiveStreak = Array(playerCount).fill(0);
+
         // Track player pairings - how many times each pair has played together
         const pairingMatrix = Array(playerCount).fill(0).map(() => Array(playerCount).fill(0));
 
@@ -220,42 +259,55 @@
 
             const available = [];
 
-            // First pass: Find players who haven't reached target and didn't play last period
+            // First pass: Find players who haven't reached target and have streak < 2
             for (let p = 0; p < playerCount; p++) {
                 if (totalPlayed[p] < targetPlays[p]) {
-                    // Check if player didn't play in last period (if possible)
-                    let playedLast = false;
-                    if (period > 0) {
-                        if (period === 8) {
-                            // Transition from game1 to game2 - check last period of game1
-                            playedLast = game1Pattern[p][7] === 1;
-                        } else if (isGame1) {
-                            playedLast = game1Pattern[p][periodInGame - 1] === 1;
-                        } else {
-                            playedLast = game2Pattern[p][periodInGame - 1] === 1;
-                        }
+                    // HARD CONSTRAINT: Skip players with 2 consecutive periods already
+                    if (consecutiveStreak[p] >= 2) {
+                        continue;
                     }
 
-                    if (!playedLast) {
-                        available.push({ player: p, played: totalPlayed[p], priority: p });
-                    }
+                    available.push({ 
+                        player: p, 
+                        played: totalPlayed[p], 
+                        streak: consecutiveStreak[p],
+                        priority: p 
+                    });
                 }
             }
 
-            // Second pass: Add players who haven't reached target (even if played last)
+            // Second pass: Add players who haven't reached target (even with streak=1, but never streak>=2)
             if (available.length < playersPerPeriod) {
                 for (let p = 0; p < playerCount; p++) {
                     if (totalPlayed[p] < targetPlays[p] && !available.find(a => a.player === p)) {
-                        available.push({ player: p, played: totalPlayed[p], priority: p });
+                        // Still enforce the hard limit
+                        if (consecutiveStreak[p] >= 2) {
+                            continue;
+                        }
+                        available.push({ 
+                            player: p, 
+                            played: totalPlayed[p], 
+                            streak: consecutiveStreak[p],
+                            priority: p 
+                        });
                     }
                 }
             }
 
-            // Third pass: Add ANY remaining players to ensure 4 per period (ignore target)
+            // Third pass: Add ANY remaining players to ensure 4 per period (ignore target but respect streak limit)
             if (available.length < playersPerPeriod) {
                 for (let p = 0; p < playerCount; p++) {
                     if (!available.find(a => a.player === p)) {
-                        available.push({ player: p, played: totalPlayed[p], priority: p });
+                        // Still try to respect the 2-period limit if possible
+                        if (consecutiveStreak[p] >= 2 && available.length >= playersPerPeriod) {
+                            continue;
+                        }
+                        available.push({ 
+                            player: p, 
+                            played: totalPlayed[p], 
+                            streak: consecutiveStreak[p],
+                            priority: p 
+                        });
                     }
                 }
             }
@@ -274,11 +326,12 @@
                     candidate.random = Math.random();  // Add randomness for tiebreaking
                 });
 
-                // Sort by: 1) total played, 2) pairing score (diversity), 3) random (breaks rigid patterns)
+                // Sort by: 1) total played, 2) pairing score (diversity), 3) consecutive streak, 4) random
                 available.sort((a, b) => {
-                    if (a.played !== b.played) return a.played - b.played;
-                    if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;
-                    return a.random - b.random;  // Random tiebreaker instead of priority
+                    if (a.played !== b.played) return a.played - b.played;  // Fair distribution first
+                    if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;  // Diversity second
+                    if (a.streak !== b.streak) return a.streak - b.streak;  // Prefer rested (soft preference)
+                    return a.random - b.random;  // Random tiebreaker
                 });
 
                 // Select best candidate
@@ -297,6 +350,15 @@
                     const p2 = selectedPlayers[j];
                     pairingMatrix[p1][p2]++;
                     pairingMatrix[p2][p1]++;
+                }
+            }
+
+            // Update consecutive streaks for next period
+            for (let p = 0; p < playerCount; p++) {
+                if (selectedPlayers.includes(p)) {
+                    consecutiveStreak[p]++;  // Increment streak
+                } else {
+                    consecutiveStreak[p] = 0;  // Reset streak
                 }
             }
         }
@@ -406,12 +468,18 @@
                     }
 
                     if (playedSoFar < (alreadyPlayed[idx] + targetRemaining[idx])) {
-                        // Prefer players who didn't play last period
-                        const playedLast = period > 0 && state.rotation[gameName][pi][period - 1] === 1;
+                        // Calculate consecutive streak for this player
+                        const streak = calculateConsecutiveStreak(pi, g, period, gameName);
+                        
+                        // HARD CONSTRAINT: Skip if already played 2 consecutive
+                        if (streak >= 2) {
+                            continue;
+                        }
+
                         available.push({
                             player: pi,
                             played: playedSoFar,
-                            playedLast,
+                            streak: streak,
                             priority: pi  // Priority based on list position
                         });
                     }
@@ -430,11 +498,18 @@
                                     if (state.rotation[games[gg]][pi][pp] === 1) playedSoFar++;
                                 }
                             }
-                            const playedLast = period > 0 && state.rotation[gameName][pi][period - 1] === 1;
+                            
+                            const streak = calculateConsecutiveStreak(pi, g, period, gameName);
+                            
+                            // Still try to respect the 2-period limit if possible
+                            if (streak >= 2 && available.length >= 4) {
+                                continue;
+                            }
+
                             available.push({
                                 player: pi,
                                 played: playedSoFar,
-                                playedLast,
+                                streak: streak,
                                 priority: pi
                             });
                         }
@@ -455,11 +530,11 @@
                         candidate.random = Math.random();  // Add randomness
                     });
 
-                    // Sort by: 1) didn't play last, 2) total played, 3) pairing score, 4) random
+                    // Sort by: 1) total played, 2) pairing score (diversity), 3) consecutive streak, 4) random
                     available.sort((a, b) => {
-                        if (a.playedLast !== b.playedLast) return a.playedLast ? 1 : -1;
-                        if (a.played !== b.played) return a.played - b.played;
-                        if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;
+                        if (a.played !== b.played) return a.played - b.played;  // Fair distribution first
+                        if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;  // Diversity second
+                        if (a.streak !== b.streak) return a.streak - b.streak;  // Prefer rested (soft preference)
                         return a.random - b.random;  // Random tiebreaker
                     });
 
