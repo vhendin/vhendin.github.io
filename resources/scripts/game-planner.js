@@ -33,6 +33,9 @@
         playerStatus: document.getElementById('playerStatus'),
         game1Table: document.getElementById('game1Table'),
         game2Table: document.getElementById('game2Table'),
+        burgerMenu: document.getElementById('burgerMenu'),
+        controlButtons: document.getElementById('controlButtons'),
+        playersHeader: document.getElementById('playersHeader'),
         modal: {
             overlay: document.getElementById('customModal'),
             title: document.getElementById('modalTitle'),
@@ -61,11 +64,48 @@
         dom.toggleView.addEventListener('click', toggleViewMode);
         dom.exportSchedule.addEventListener('click', exportSchedule);
 
+        // Burger menu toggle
+        dom.burgerMenu.addEventListener('click', toggleBurgerMenu);
+
+        // Player accordion toggle
+        dom.playersHeader.addEventListener('click', togglePlayerAccordion);
+
         // Game navigation arrows
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('game-nav-arrow')) {
                 const direction = parseInt(e.target.dataset.direction);
                 navigateGame(direction);
+            }
+        });
+
+        // Close burger menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+                if (!dom.burgerMenu.contains(e.target) && 
+                    !dom.controlButtons.contains(e.target) &&
+                    dom.controlButtons.classList.contains('open')) {
+                    dom.controlButtons.classList.remove('open');
+                }
+            }
+        });
+
+        // Handle window resize - adjust accordion state
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                // Desktop: always show player status, close burger menu
+                dom.playerStatus.classList.remove('collapsed');
+                dom.playerStatus.classList.add('open');
+                dom.controlButtons.classList.remove('open');
+            } else {
+                // Mobile: restore saved accordion state
+                const isCollapsed = localStorage.getItem('playerAccordionCollapsed') === 'true';
+                if (isCollapsed) {
+                    dom.playerStatus.classList.add('collapsed');
+                    dom.playerStatus.classList.remove('open');
+                } else {
+                    dom.playerStatus.classList.remove('collapsed');
+                    dom.playerStatus.classList.add('open');
+                }
             }
         });
     }
@@ -568,6 +608,7 @@
     function showGameView() {
         dom.setupView.classList.add('hidden');
         dom.gameView.classList.remove('hidden');
+        initAccordionState();
         renderGame();
     }
 
@@ -689,6 +730,45 @@
         dom.toggleView.textContent = state.showBothGames ? 'Show Single Game' : 'Show Both Games';
         saveToLocalStorage();
         renderGame();
+    }
+
+    // Toggle burger menu
+    function toggleBurgerMenu() {
+        dom.controlButtons.classList.toggle('open');
+    }
+
+    // Toggle player accordion
+    function togglePlayerAccordion() {
+        dom.playersHeader.classList.toggle('collapsed');
+        dom.playerStatus.classList.toggle('collapsed');
+        dom.playerStatus.classList.toggle('open');
+        
+        // Save state to localStorage
+        const isCollapsed = dom.playerStatus.classList.contains('collapsed');
+        localStorage.setItem('playerAccordionCollapsed', isCollapsed);
+    }
+
+    // Initialize accordion state from localStorage
+    function initAccordionState() {
+        const isCollapsed = localStorage.getItem('playerAccordionCollapsed') === 'true';
+        
+        // On desktop, always show expanded
+        if (window.innerWidth > 768) {
+            dom.playersHeader.classList.remove('collapsed');
+            dom.playerStatus.classList.remove('collapsed');
+            dom.playerStatus.classList.add('open');
+        } else {
+            // On mobile, use saved state or default to collapsed
+            if (isCollapsed) {
+                dom.playersHeader.classList.add('collapsed');
+                dom.playerStatus.classList.add('collapsed');
+                dom.playerStatus.classList.remove('open');
+            } else {
+                dom.playersHeader.classList.remove('collapsed');
+                dom.playerStatus.classList.remove('collapsed');
+                dom.playerStatus.classList.add('open');
+            }
+        }
     }
 
     // Export/Print schedule to A4
