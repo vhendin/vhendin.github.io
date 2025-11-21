@@ -273,6 +273,7 @@ button:active {
     border: 2px solid #333;
     background: #fafafa;
     transition: all 0.3s ease;
+    transform: scale(0.98);
 }
 
 .player-status-item.inactive {
@@ -286,7 +287,7 @@ button:active {
     border: 3px solid #ff8c00;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
     font-weight: bold;
-    transform: scale(1.02);
+    transform: scale(1.0);
 }
 
 .player-name {
