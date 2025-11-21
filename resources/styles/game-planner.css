@@ -137,6 +137,22 @@ input[type="checkbox"] {
     min-width: 80px;
 }
 
+/* Shopify Draggable Styles */
+.draggable-mirror {
+    opacity: 0.8;
+    z-index: 9999;
+    cursor: grabbing;
+}
+
+.draggable-source--is-dragging {
+    opacity: 0.3;
+}
+
+.draggable--over {
+    border-color: #4a90e2 !important;
+    background: #e8f4ff !important;
+}
+
 /* Buttons */
 button {
     font-family: 'Courier New', Courier, monospace;
