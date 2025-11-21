@@ -13,7 +13,10 @@
         draggedIndex: null,
         showBothGames: false,
         touchDragElement: null,
-        touchStartY: 0
+        touchStartY: 0,
+        placeholderElement: null,
+        dragStartIndex: null,
+        currentHoverIndex: null
     };
 
     // DOM elements
@@ -67,6 +70,298 @@
         });
     }
 
+    // ===== DRAG AND DROP HELPERS =====
+
+    let dragState = {
+        draggedElement: null,
+        placeholderElement: null,
+        dragStartIndex: -1,
+        currentHoverIndex: -1,
+        touchStartY: 0
+    };
+
+    // Get height of a player row
+    function getRowHeight() {
+        const firstRow = dom.playerInputs.querySelector('.player-row');
+        return firstRow ? firstRow.offsetHeight : 50;
+    }
+
+    // Create placeholder element
+    function createPlaceholder() {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'player-row player-row-placeholder';
+        placeholder.innerHTML = `
+            <input type="text" class="player-name" disabled>
+            <span class="drag-handle">⋮⋮</span>
+        `;
+        return placeholder;
+    }
+
+    // Apply transform translations to shift rows
+    function applyTransforms(hoverIndex) {
+        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-row:not(.player-row-placeholder)'));
+        const rowHeight = getRowHeight();
+        const dragIndex = dragState.dragStartIndex;
+
+        rows.forEach((row, index) => {
+            // Skip the dragged element
+            if (index === dragIndex) {
+                row.style.transform = '';
+                return;
+            }
+
+            // Calculate if this row should move
+            let translateY = 0;
+
+            if (dragIndex < hoverIndex) {
+                // Dragging down: shift items between dragIndex and hoverIndex up
+                if (index > dragIndex && index <= hoverIndex) {
+                    translateY = -rowHeight;
+                }
+            } else if (dragIndex > hoverIndex) {
+                // Dragging up: shift items between hoverIndex and dragIndex down
+                if (index >= hoverIndex && index < dragIndex) {
+                    translateY = rowHeight;
+                }
+            }
+
+            row.style.transform = translateY !== 0 ? `translateY(${translateY}px)` : '';
+        });
+    }
+
+    // Finalize reorder: actually move DOM elements
+    function finalizeReorder(fromIndex, toIndex) {
+        if (fromIndex === toIndex) return;
+
+        // If in setup mode (state.players is empty), reorder from DOM
+        if (state.players.length === 0) {
+            const nameInputs = dom.playerInputs.querySelectorAll('.player-name');
+            const names = Array.from(nameInputs).map(input => input.value);
+            const [movedName] = names.splice(fromIndex, 1);
+            names.splice(toIndex, 0, movedName);
+            
+            // Update DOM directly
+            dom.playerInputs.innerHTML = '';
+            names.forEach((name, i) => {
+                const row = document.createElement('div');
+                row.className = 'player-row';
+                row.innerHTML = `
+                    <input type="text" class="player-name" placeholder="Name" value="${name}">
+                    <span class="drag-handle">⋮⋮</span>
+                `;
+                attachDragListeners(row);
+                dom.playerInputs.appendChild(row);
+            });
+        } else {
+            // In game mode, update state.players
+            const [movedPlayer] = state.players.splice(fromIndex, 1);
+            state.players.splice(toIndex, 0, movedPlayer);
+            renderPlayerInputs();
+            saveToLocalStorage();
+        }
+    }
+
+    // ===== DESKTOP DRAG HANDLERS =====
+
+    function handleDragStart(e) {
+        const row = e.target.closest('.player-row');
+        if (!row) return;
+
+        dragState.draggedElement = row;
+        dragState.dragStartIndex = Array.from(dom.playerInputs.querySelectorAll('.player-row')).indexOf(row);
+        dragState.currentHoverIndex = dragState.dragStartIndex;
+
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', row.innerHTML);
+
+        // Insert placeholder
+        dragState.placeholderElement = createPlaceholder();
+        row.parentNode.insertBefore(dragState.placeholderElement, row.nextSibling);
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-row:not(.player-row-placeholder)'));
+        const rowHeight = getRowHeight();
+
+        // Find which row we're hovering over
+        let hoverIndex = dragState.dragStartIndex;
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const rect = row.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+
+            if (e.clientY < midpoint) {
+                hoverIndex = i;
+                break;
+            }
+            hoverIndex = i + 1;
+        }
+
+        // Clamp to valid range
+        hoverIndex = Math.max(0, Math.min(rows.length - 1, hoverIndex));
+
+        if (hoverIndex !== dragState.currentHoverIndex) {
+            dragState.currentHoverIndex = hoverIndex;
+            applyTransforms(hoverIndex);
+
+            // Move placeholder to new position
+            const targetRow = rows[hoverIndex];
+            if (hoverIndex > dragState.dragStartIndex) {
+                targetRow.parentNode.insertBefore(dragState.placeholderElement, targetRow.nextSibling);
+            } else {
+                targetRow.parentNode.insertBefore(dragState.placeholderElement, targetRow);
+            }
+        }
+    }
+
+    function handleDragEnd(e) {
+        if (!dragState.draggedElement) return;
+
+        // Clear transforms
+        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-row:not(.player-row-placeholder)'));
+        rows.forEach(row => {
+            row.style.transform = '';
+            row.classList.remove('dragging');
+        });
+
+        // Remove placeholder
+        if (dragState.placeholderElement) {
+            dragState.placeholderElement.remove();
+        }
+
+        // Finalize reorder
+        finalizeReorder(dragState.dragStartIndex, dragState.currentHoverIndex);
+
+        // Reset drag state
+        dragState = {
+            draggedElement: null,
+            placeholderElement: null,
+            dragStartIndex: -1,
+            currentHoverIndex: -1,
+            touchStartY: 0
+        };
+    }
+
+    // ===== MOBILE TOUCH HANDLERS =====
+
+    function handleTouchStart(e) {
+        const handle = e.target.closest('.drag-handle');
+        if (!handle) return;
+
+        const row = handle.closest('.player-row');
+        if (!row) return;
+
+        dragState.draggedElement = row;
+        dragState.dragStartIndex = Array.from(dom.playerInputs.querySelectorAll('.player-row')).indexOf(row);
+        dragState.currentHoverIndex = dragState.dragStartIndex;
+        dragState.touchStartY = e.touches[0].clientY;
+
+        row.classList.add('dragging');
+
+        // Insert placeholder
+        dragState.placeholderElement = createPlaceholder();
+        row.parentNode.insertBefore(dragState.placeholderElement, row.nextSibling);
+
+        // Prevent scrolling during drag
+        e.preventDefault();
+    }
+
+    function handleTouchMove(e) {
+        if (!dragState.draggedElement) return;
+
+        e.preventDefault(); // Prevent scrolling
+
+        const touchY = e.touches[0].clientY;
+        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-row:not(.player-row-placeholder)'));
+
+        // Find which row we're hovering over
+        let hoverIndex = dragState.dragStartIndex;
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const rect = row.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+
+            if (touchY < midpoint) {
+                hoverIndex = i;
+                break;
+            }
+            hoverIndex = i + 1;
+        }
+
+        // Clamp to valid range
+        hoverIndex = Math.max(0, Math.min(rows.length - 1, hoverIndex));
+
+        if (hoverIndex !== dragState.currentHoverIndex) {
+            dragState.currentHoverIndex = hoverIndex;
+            applyTransforms(hoverIndex);
+
+            // Move placeholder to new position
+            const targetRow = rows[hoverIndex];
+            if (hoverIndex > dragState.dragStartIndex) {
+                targetRow.parentNode.insertBefore(dragState.placeholderElement, targetRow.nextSibling);
+            } else {
+                targetRow.parentNode.insertBefore(dragState.placeholderElement, targetRow);
+            }
+        }
+
+        // Move dragged element with finger
+        const deltaY = touchY - dragState.touchStartY;
+        dragState.draggedElement.style.transform = `translateY(${deltaY}px)`;
+    }
+
+    function handleTouchEnd(e) {
+        if (!dragState.draggedElement) return;
+
+        // Clear transforms
+        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-row:not(.player-row-placeholder)'));
+        rows.forEach(row => {
+            row.style.transform = '';
+            row.classList.remove('dragging');
+        });
+
+        // Remove placeholder
+        if (dragState.placeholderElement) {
+            dragState.placeholderElement.remove();
+        }
+
+        // Finalize reorder
+        finalizeReorder(dragState.dragStartIndex, dragState.currentHoverIndex);
+
+        // Reset drag state
+        dragState = {
+            draggedElement: null,
+            placeholderElement: null,
+            dragStartIndex: -1,
+            currentHoverIndex: -1,
+            touchStartY: 0
+        };
+    }
+
+    // Attach drag listeners to a row
+    function attachDragListeners(row) {
+        // Desktop drag
+        row.setAttribute('draggable', 'true');
+        row.addEventListener('dragstart', handleDragStart);
+        row.addEventListener('dragover', handleDragOver);
+        row.addEventListener('dragend', handleDragEnd);
+
+        // Mobile touch
+        const handle = row.querySelector('.drag-handle');
+        if (handle) {
+            handle.addEventListener('touchstart', handleTouchStart, { passive: false });
+            handle.addEventListener('touchmove', handleTouchMove, { passive: false });
+            handle.addEventListener('touchend', handleTouchEnd);
+        }
+    }
+
+    // ===== END DRAG AND DROP =====
+
     // Render player input fields with drag-and-drop
     function renderPlayerInputs() {
         const count = parseInt(dom.playerCount.value);
@@ -79,9 +374,7 @@
         
         for (let i = 0; i < count; i++) {
             const row = document.createElement('div');
-            row.className = 'player-input-row';
-            row.draggable = true;
-            row.dataset.index = i;
+            row.className = 'player-row';
             
             // Priority: state.players (from New Game) > existing DOM names > default
             const playerName = (state.players[i]?.name) || existingNames[i] || `Player ${i + 1}`;
@@ -96,189 +389,6 @@
             
             dom.playerInputs.appendChild(row);
         }
-    }
-    
-
-    // Drag and drop handlers
-    function handleDragStart(e) {
-        state.draggedIndex = parseInt(e.currentTarget.dataset.index);
-        e.currentTarget.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
-    }
-
-    function handleDragOver(e) {
-        if (e.preventDefault) {
-            e.preventDefault();
-        }
-        e.dataTransfer.dropEffect = 'move';
-        return false;
-    }
-
-    function handleDragEnter(e) {
-        e.currentTarget.classList.add('drag-over');
-    }
-
-    function handleDragLeave(e) {
-        e.currentTarget.classList.remove('drag-over');
-    }
-
-    function handleDrop(e) {
-        if (e.stopPropagation) {
-            e.stopPropagation();
-        }
-        
-        e.currentTarget.classList.remove('drag-over');
-        
-        const dropIndex = parseInt(e.currentTarget.dataset.index);
-        
-        if (state.draggedIndex !== dropIndex) {
-            // Get all name inputs before reordering (scoped to player inputs container)
-            const nameInputs = dom.playerInputs.querySelectorAll('.player-name');
-            const names = Array.from(nameInputs).map(input => input.value);
-            
-            // Reorder the names array
-            const [draggedName] = names.splice(state.draggedIndex, 1);
-            names.splice(dropIndex, 0, draggedName);
-            
-            // Re-render with new order
-            dom.playerInputs.innerHTML = '';
-            for (let i = 0; i < names.length; i++) {
-                const row = document.createElement('div');
-                row.className = 'player-input-row';
-                row.draggable = true;
-                row.dataset.index = i;
-                row.innerHTML = `
-                    <input type="text" class="player-name" placeholder="Name" value="${names[i]}">
-                    <span class="drag-handle">⋮⋮</span>
-                `;
-                
-                // Add both drag and touch event listeners
-                attachDragListeners(row);
-                
-                dom.playerInputs.appendChild(row);
-            }
-        }
-        
-        return false;
-    }
-
-    function handleDragEnd(e) {
-        e.currentTarget.classList.remove('dragging');
-        
-        // Remove drag-over class from all rows
-        document.querySelectorAll('.player-input-row').forEach(row => {
-            row.classList.remove('drag-over');
-        });
-    }
-
-    // Touch event handlers for mobile drag-and-drop
-    function handleTouchStart(e) {
-        state.touchDragElement = e.currentTarget;
-        state.draggedIndex = parseInt(e.currentTarget.dataset.index);
-        state.touchStartY = e.touches[0].clientY;
-        
-        e.currentTarget.classList.add('dragging');
-    }
-
-    function handleTouchMove(e) {
-        if (!state.touchDragElement) return;
-        
-        e.preventDefault(); // Prevent scrolling while dragging
-        
-        const touch = e.touches[0];
-        const currentY = touch.clientY;
-        
-        // Find which row we're over
-        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-input-row'));
-        let targetRow = null;
-        
-        for (let row of rows) {
-            const rect = row.getBoundingClientRect();
-            if (currentY >= rect.top && currentY <= rect.bottom) {
-                targetRow = row;
-                break;
-            }
-        }
-        
-        // Remove all drag-over classes
-        rows.forEach(row => row.classList.remove('drag-over'));
-        
-        // Add drag-over to target row
-        if (targetRow && targetRow !== state.touchDragElement) {
-            targetRow.classList.add('drag-over');
-        }
-    }
-
-    function handleTouchEnd(e) {
-        if (!state.touchDragElement) return;
-        
-        const touch = e.changedTouches[0];
-        const currentY = touch.clientY;
-        
-        // Find drop target
-        const rows = Array.from(dom.playerInputs.querySelectorAll('.player-input-row'));
-        let dropTarget = null;
-        
-        for (let row of rows) {
-            const rect = row.getBoundingClientRect();
-            if (currentY >= rect.top && currentY <= rect.bottom) {
-                dropTarget = row;
-                break;
-            }
-        }
-        
-        if (dropTarget && dropTarget !== state.touchDragElement) {
-            const dropIndex = parseInt(dropTarget.dataset.index);
-            
-            // Get all name inputs before reordering
-            const nameInputs = dom.playerInputs.querySelectorAll('.player-name');
-            const names = Array.from(nameInputs).map(input => input.value);
-            
-            // Reorder the names array
-            const [draggedName] = names.splice(state.draggedIndex, 1);
-            names.splice(dropIndex, 0, draggedName);
-            
-            // Re-render with new order
-            dom.playerInputs.innerHTML = '';
-            for (let i = 0; i < names.length; i++) {
-                const row = document.createElement('div');
-                row.className = 'player-input-row';
-                row.draggable = true;
-                row.dataset.index = i;
-                row.innerHTML = `
-                    <input type="text" class="player-name" placeholder="Name" value="${names[i]}">
-                    <span class="drag-handle">⋮⋮</span>
-                `;
-                
-                // Add both drag and touch event listeners
-                attachDragListeners(row);
-                
-                dom.playerInputs.appendChild(row);
-            }
-        }
-        
-        // Cleanup
-        state.touchDragElement.classList.remove('dragging');
-        rows.forEach(row => row.classList.remove('drag-over'));
-        state.touchDragElement = null;
-        state.draggedIndex = null;
-    }
-
-    // Helper function to attach all drag/touch listeners
-    function attachDragListeners(row) {
-        // Desktop drag and drop
-        row.addEventListener('dragstart', handleDragStart);
-        row.addEventListener('dragover', handleDragOver);
-        row.addEventListener('drop', handleDrop);
-        row.addEventListener('dragend', handleDragEnd);
-        row.addEventListener('dragenter', handleDragEnter);
-        row.addEventListener('dragleave', handleDragLeave);
-        
-        // Mobile touch events
-        row.addEventListener('touchstart', handleTouchStart, { passive: false });
-        row.addEventListener('touchmove', handleTouchMove, { passive: false });
-        row.addEventListener('touchend', handleTouchEnd);
     }
 
     // Start game
@@ -875,7 +985,7 @@
 
         // If currently not playing (0), check if we can add (max 4 players)
         const playersInPeriod = state.players.reduce((count, player, i) => {
-            return count + (state.rotation[gameName][i][period] === 1 ? 1 : 0);
+            return count + (state.rotation[gameName][i] && state.rotation[gameName][i][period] === 1 ? 1 : 0);
         }, 0);
 
         // Silently reject if at capacity (no alert)
@@ -916,7 +1026,7 @@
 
                 // Count players in this period for capacity check
                 const playersInPeriod = state.players.reduce((count, pl, idx) => {
-                    return count + (rotation[idx][p] === 1 ? 1 : 0);
+                    return count + (rotation[idx] && rotation[idx][p] === 1 ? 1 : 0);
                 }, 0);
 
                 const isAtCapacity = playersInPeriod >= 4 && !isPlaying;
