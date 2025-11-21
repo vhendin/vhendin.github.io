@@ -86,6 +86,11 @@
             handle: '.drag-handle',
             mirror: {
                 constrainDimensions: true,
+            },
+            plugins: [Draggable.Plugins.SortAnimation],
+            sortAnimation: {
+                duration: 400,  // Increased to 400ms so animation is more visible
+                easingFunction: 'ease-in-out'
             }
         });
 
