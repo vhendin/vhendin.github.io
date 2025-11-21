@@ -40,6 +40,11 @@ header h1 {
     display: none;
 }
 
+#setupView {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
 /* Panels */
 .panel {
     background: #fff;
