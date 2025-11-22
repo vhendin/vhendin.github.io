@@ -25,6 +25,7 @@
     const dom = {
         landingView: document.getElementById('landingView'),
         setupView: document.getElementById('setupView'),
+        teamManagementView: document.getElementById('teamManagementView'),
         gameView: document.getElementById('gameView'),
         getStarted: document.getElementById('getStarted'),
         backToLanding: document.getElementById('backToLanding'),
@@ -44,6 +45,13 @@
         burgerMenu: document.getElementById('burgerMenu'),
         controlButtons: document.getElementById('controlButtons'),
         playersHeader: document.getElementById('playersHeader'),
+        goToTeamManagement: document.getElementById('goToTeamManagement'),
+        teamRoster: document.getElementById('teamRoster'),
+        addPlayerToRoster: document.getElementById('addPlayerToRoster'),
+        rosterValidationMessage: document.getElementById('rosterValidationMessage'),
+        rosterCount: document.getElementById('rosterCount'),
+        activeCount: document.getElementById('activeCount'),
+        backFromTeamManagement: document.getElementById('backFromTeamManagement'),
         modal: {
             overlay: document.getElementById('customModal'),
             title: document.getElementById('modalTitle'),
@@ -61,6 +69,8 @@
         // Determine which view to show
         if (state.players.length > 0 && state.rotation.game1.length > 0) {
             // Has saved game data - go to game view
+            // Ensure rotation arrays match player count
+            ensureRotationIntegrity();
             showGameView();
         } else if (state.players.length > 0) {
             // Has player data but no game - go to setup
@@ -96,6 +106,11 @@
 
         // Player accordion toggle
         dom.playersHeader.addEventListener('click', togglePlayerAccordion);
+
+        // Team Management
+        dom.goToTeamManagement.addEventListener('click', showTeamManagementView);
+        dom.addPlayerToRoster.addEventListener('click', addPlayerToRoster);
+        dom.backFromTeamManagement.addEventListener('click', backFromTeamManagement);
 
         // Game navigation arrows
         document.addEventListener('click', (e) => {
@@ -137,73 +152,127 @@
         });
     }
 
+    // Ensure rotation arrays match player count
+    function ensureRotationIntegrity() {
+        const playerCount = state.players.length;
+        
+        // Ensure game1 and game2 arrays exist
+        if (!state.rotation.game1) state.rotation.game1 = [];
+        if (!state.rotation.game2) state.rotation.game2 = [];
+        
+        // If we have fewer rotation arrays than players, add empty ones at the end
+        while (state.rotation.game1.length < playerCount) {
+            state.rotation.game1.push(Array(8).fill(0));
+            state.rotation.game2.push(Array(8).fill(0));
+        }
+        
+        // If we have more rotation arrays than players, trim them
+        if (state.rotation.game1.length > playerCount) {
+            state.rotation.game1 = state.rotation.game1.slice(0, playerCount);
+            state.rotation.game2 = state.rotation.game2.slice(0, playerCount);
+        }
+    }
+
     // ===== SHOPIFY DRAGGABLE SORTABLE =====
 
-    let sortableInstance = null;
+    let rotationSortableInstances = { game1: null, game2: null };
 
-    function initSortable() {
-        // Clean up existing instance if any
-        if (sortableInstance) {
-            sortableInstance.destroy();
+    function initRotationTableSortable(tableName) {
+        const tableEl = tableName === 'game1' ? dom.game1Table : dom.game2Table;
+        const tbody = tableEl.querySelector('tbody');
+        
+        if (!tbody) return;
+
+        // Clean up existing instance
+        if (rotationSortableInstances[tableName]) {
+            rotationSortableInstances[tableName].destroy();
         }
 
-        // Initialize Sortable on player inputs container
-        const sortable = new Draggable.Sortable(dom.playerInputs, {
-            draggable: '.player-row',
-            handle: '.drag-handle',
+        // Get all player rows (exclude the last "players-on-court" row)
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const playerRows = rows.slice(0, -1); // All except last row
+
+        // Mark player rows as draggable
+        playerRows.forEach(row => {
+            row.classList.add('rotation-player-row');
+        });
+
+        // Initialize Sortable on tbody
+        const sortable = new Draggable.Sortable(tbody, {
+            draggable: '.rotation-player-row',
+            handle: '.rotation-drag-handle',
             mirror: {
                 constrainDimensions: true,
             },
             plugins: [Draggable.Plugins.SortAnimation],
             sortAnimation: {
-                duration: 400,  // Increased to 400ms so animation is more visible
+                duration: 400,
                 easingFunction: 'ease-in-out'
             }
         });
 
-        // Listen for sortable:stop event (when drag ends)
+        // Listen for sortable:stop event
         sortable.on('sortable:stop', () => {
-            // Update state.players order based on new DOM order
-            if (state.players.length > 0) {
-                const newOrder = [];
-                const rows = dom.playerInputs.querySelectorAll('.player-row');
-                rows.forEach((row) => {
-                    const playerId = parseInt(row.dataset.playerId);
-                    const player = state.players.find(p => p.id === playerId);
-                    if (player) {
-                        newOrder.push(player);
-                    }
+            // Get new order of player indices from DOM
+            const newOrder = [];
+            const reorderedRows = tbody.querySelectorAll('.rotation-player-row');
+            
+            reorderedRows.forEach((row) => {
+                const playerIndex = parseInt(row.dataset.playerIndex);
+                if (!isNaN(playerIndex)) {
+                    newOrder.push(playerIndex);
+                }
+            });
+
+            // Reorder state.players, state.rotation.game1, and state.rotation.game2 based on newOrder
+            if (newOrder.length === state.players.length) {
+                const newPlayers = [];
+                const newGame1 = [];
+                const newGame2 = [];
+
+                newOrder.forEach(oldIndex => {
+                    newPlayers.push(state.players[oldIndex]);
+                    newGame1.push(state.rotation.game1[oldIndex]);
+                    newGame2.push(state.rotation.game2[oldIndex]);
                 });
-                state.players = newOrder;
+
+                state.players = newPlayers;
+                state.rotation.game1 = newGame1;
+                state.rotation.game2 = newGame2;
+
                 saveToLocalStorage();
+                renderGame();
             }
         });
 
-        sortableInstance = sortable;
+        rotationSortableInstances[tableName] = sortable;
     }
 
     // View navigation functions
     function showLandingView() {
         dom.landingView.classList.remove('hidden');
         dom.setupView.classList.add('hidden');
+        dom.teamManagementView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
     }
 
     function showSetupView() {
         dom.landingView.classList.add('hidden');
         dom.setupView.classList.remove('hidden');
+        dom.teamManagementView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
         
         // Populate team name if exists
         dom.teamName.value = state.teamName || '';
         
-        // Initialize with 6 players if empty
+        // Initialize with 4 players if empty
         if (state.players.length === 0) {
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 4; i++) {
                 state.players.push({
                     id: state.nextPlayerId++,
                     name: `Player ${i + 1}`,
-                    active: true
+                    active: true,
+                    inGame: true
                 });
             }
         }
@@ -212,7 +281,160 @@
         validatePlayerCount();
     }
 
-    // Render player input fields with drag-and-drop
+    // Render team roster in Team Management view
+    function renderTeamRoster() {
+        dom.teamRoster.innerHTML = '';
+        
+        state.players.forEach((player) => {
+            const row = document.createElement('div');
+            row.className = player.active ? 'roster-row' : 'roster-row inactive-player';
+            row.dataset.playerId = player.id;
+            
+            row.innerHTML = `
+                <input type="text" class="roster-player-name" data-player-id="${player.id}" placeholder="Player Name" value="${player.name}">
+                <button class="btn-active-toggle ${player.active ? 'active' : 'inactive'}" data-player-id="${player.id}">
+                    ${player.active ? '✓ Active' : 'Deactivate'}
+                </button>
+                <button class="delete-player" data-player-id="${player.id}">×</button>
+            `;
+            
+            dom.teamRoster.appendChild(row);
+        });
+
+        // Update counts
+        const activePlayersCount = state.players.filter(p => p.active).length;
+        dom.rosterCount.textContent = `${state.players.length}/25`;
+        dom.activeCount.textContent = activePlayersCount;
+
+        // Add event listeners for roster controls
+        dom.teamRoster.querySelectorAll('.delete-player').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const playerId = parseInt(e.target.dataset.playerId);
+                deletePlayerFromRoster(playerId);
+            });
+        });
+
+        dom.teamRoster.querySelectorAll('.roster-player-name').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const playerId = parseInt(e.target.dataset.playerId);
+                updatePlayerName(playerId, e.target.value);
+            });
+        });
+
+        dom.teamRoster.querySelectorAll('.btn-active-toggle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const playerId = parseInt(e.target.dataset.playerId);
+                togglePlayerActive(playerId);
+            });
+        });
+
+        validateRosterCount();
+    }
+
+    // Add player to roster
+    function addPlayerToRoster() {
+        if (state.players.length >= 25) {
+            showRosterValidationMessage('Maximum 25 players allowed', 'error');
+            return;
+        }
+
+        state.players.push({
+            id: state.nextPlayerId++,
+            name: `Player ${state.players.length + 1}`,
+            active: true,
+            inGame: true
+        });
+
+        renderTeamRoster();
+        saveToLocalStorage();
+    }
+
+    // Delete player from roster
+    function deletePlayerFromRoster(playerId) {
+        const player = state.players.find(p => p.id === playerId);
+        if (!player) return;
+
+        // Check if player is in an active game
+        const hasActiveGame = state.rotation.game1.length > 0;
+        
+        if (hasActiveGame) {
+            showModal(
+                'Delete Player?',
+                `"${player.name}" will be removed from the roster and the rotation schedule.`,
+                () => {
+                    removePlayerFromState(playerId);
+                }
+            );
+        } else {
+            removePlayerFromState(playerId);
+        }
+    }
+
+    // Remove player from state and update rotation
+    function removePlayerFromState(playerId) {
+        const playerIndex = state.players.findIndex(p => p.id === playerId);
+        if (playerIndex === -1) return;
+
+        // Remove player from array
+        state.players.splice(playerIndex, 1);
+
+        // Remove from rotation if exists
+        if (state.rotation.game1.length > playerIndex) {
+            state.rotation.game1.splice(playerIndex, 1);
+            state.rotation.game2.splice(playerIndex, 1);
+        }
+
+        saveToLocalStorage();
+        renderTeamRoster();
+        
+        // If we're in game view, re-render
+        if (!dom.gameView.classList.contains('hidden')) {
+            renderGame();
+        }
+    }
+
+    // Toggle player active/inactive status
+    function togglePlayerActive(playerId) {
+        const player = state.players.find(p => p.id === playerId);
+        if (!player) return;
+
+        player.active = !player.active;
+        
+        // If setting to inactive, also set to out of game
+        if (!player.active) {
+            player.inGame = false;
+        }
+
+        saveToLocalStorage();
+        renderTeamRoster();
+        
+        // If we're in game view, re-render player status
+        if (!dom.gameView.classList.contains('hidden')) {
+            renderPlayerStatus();
+        }
+    }
+
+    // Validate roster count
+    function validateRosterCount() {
+        const count = state.players.length;
+        const activeCount = state.players.filter(p => p.active).length;
+        
+        if (count >= 25) {
+            showRosterValidationMessage('Roster full (25/25 players)', 'error');
+            dom.addPlayerToRoster.disabled = true;
+        } else {
+            showRosterValidationMessage(`${count} players on roster, ${activeCount} active`, 'success');
+            dom.addPlayerToRoster.disabled = false;
+        }
+    }
+
+    // Show roster validation message
+    function showRosterValidationMessage(message, type) {
+        dom.rosterValidationMessage.textContent = message;
+        dom.rosterValidationMessage.className = 'validation-message ' + type;
+    }
+
+    // Render player input fields
     function renderPlayerInputs() {
         dom.playerInputs.innerHTML = '';
         
@@ -224,7 +446,6 @@
             row.innerHTML = `
                 <input type="text" class="player-name" data-player-id="${player.id}" placeholder="Player Name" value="${player.name}">
                 <button class="delete-player" data-player-id="${player.id}">×</button>
-                <span class="drag-handle">⋮⋮</span>
             `;
             
             dom.playerInputs.appendChild(row);
@@ -245,9 +466,6 @@
                 updatePlayerName(playerId, e.target.value);
             });
         });
-
-        // Initialize sortable after rendering
-        initSortable();
     }
 
     // Add a new player
@@ -260,7 +478,8 @@
         state.players.push({
             id: state.nextPlayerId++,
             name: `Player ${state.players.length + 1}`,
-            active: true
+            active: true,
+            inGame: true
         });
 
         renderPlayerInputs();
@@ -288,17 +507,18 @@
     // Validate player count and show message
     function validatePlayerCount() {
         const count = state.players.length;
+        const activeCount = state.players.filter(p => p.active).length;
         
-        if (count < 6) {
-            showValidationMessage(`Need ${6 - count} more player${6 - count > 1 ? 's' : ''} (minimum 6)`, 'error');
+        if (activeCount < 4) {
+            showValidationMessage(`Need ${4 - activeCount} more active player${4 - activeCount > 1 ? 's' : ''} (minimum 4)`, 'error');
             dom.startGame.disabled = true;
             return false;
-        } else if (count > 13) {
-            showValidationMessage('Too many players (maximum 13)', 'error');
+        } else if (activeCount > 13) {
+            showValidationMessage('Too many active players (maximum 13)', 'error');
             dom.startGame.disabled = true;
             return false;
         } else {
-            showValidationMessage(`${count} players ready ✓`, 'success');
+            showValidationMessage(`${activeCount} active players ready ✓`, 'success');
             dom.startGame.disabled = false;
             return true;
         }
@@ -312,7 +532,7 @@
 
     // Start game
     function startGame() {
-        // Validate player count
+        // Validate player count (active players only)
         if (!validatePlayerCount()) {
             return;
         }
@@ -327,11 +547,18 @@
             }
         });
 
+        // Filter to only include active players for the game
+        // Keep all players in state but only active ones get rotation
+        const activePlayers = state.players.filter(p => p.active);
+        
         // Reset game state
         state.currentGame = 1;
         state.currentPeriod = 1;
 
-        generateRotation();
+        // Initialize empty rotation arrays for each player (including inactive ones)
+        state.rotation.game1 = state.players.map(() => Array(8).fill(0));
+        state.rotation.game2 = state.players.map(() => Array(8).fill(0));
+
         saveToLocalStorage();
         showGameView();
     }
@@ -400,12 +627,14 @@
         const game2Pattern = Array(playerCount).fill(0).map(() => Array(8).fill(0));
 
         // Calculate target plays for each player across BOTH games
+        // Priority is based on player order: top of list = higher priority
         const totalSlots = totalPeriods * playersPerPeriod;
         const basePlays = Math.floor(totalSlots / playerCount);
         let extraSlots = totalSlots % playerCount;
 
         const targetPlays = state.players.map((player, i) => {
-            // Higher priority (top of list) gets extra slots
+            // Higher priority (top of list, lower index) gets extra slots
+            // This ensures players at the top get slightly more playing time when distribution is uneven
             if (i < extraSlots) {
                 return basePlays + 1;
             }
@@ -539,14 +768,14 @@
 
 
 
-    // Regenerate schedule from current period for active players
+    // Regenerate schedule from current period for players in game
     function regenerateFromCurrentPeriod() {
         const playerCount = state.players.length;
-        const activeIndices = state.players.map((p, i) => p.active ? i : -1).filter(i => i >= 0);
+        const activeIndices = state.players.map((p, i) => p.inGame ? i : -1).filter(i => i >= 0);
         const activeCount = activeIndices.length;
 
         if (activeCount < 4) {
-            alert('Need at least 4 active players!');
+            alert('Need at least 4 players marked as "In" to regenerate!');
             return;
         }
 
@@ -603,12 +832,14 @@
             });
 
             // Calculate target remaining plays based on list position
+            // Priority is based on player order in the roster (drag to reorder)
             const totalRemainingSlots = (periods - startP) * 4 + (g === 0 && startGame === 0 ? 8 * 4 : 0);
             const baseRemaining = Math.floor(totalRemainingSlots / activeCount);
             let extraSlots = totalRemainingSlots % activeCount;
 
             const targetRemaining = activeIndices.map((pi, idx) => {
                 // Priority based on position in original list (lower index = higher priority)
+                // Players at the top of the roster get slightly more playing time when uneven
                 if (pi < extraSlots) {
                     return baseRemaining + 1;
                 }
@@ -736,12 +967,41 @@
 
     // Show game view
     function showGameView() {
+        dom.landingView.classList.add('hidden');
         dom.setupView.classList.add('hidden');
+        dom.teamManagementView.classList.add('hidden');
         dom.gameView.classList.remove('hidden');
         initAccordionState();
         renderGame();
         // Add scroll hint after render
         setTimeout(addScrollHint, 500);
+    }
+
+    // Show team management view
+    function showTeamManagementView() {
+        dom.landingView.classList.add('hidden');
+        dom.setupView.classList.add('hidden');
+        dom.gameView.classList.add('hidden');
+        dom.teamManagementView.classList.remove('hidden');
+        
+        // Close burger menu if open
+        dom.controlButtons.classList.remove('open');
+        
+        renderTeamRoster();
+    }
+
+    // Back from team management
+    function backFromTeamManagement() {
+        // If there's an active game, go back to game view
+        if (state.rotation.game1.length > 0) {
+            showGameView();
+        } else if (state.players.length > 0) {
+            // Has players but no game, go to setup
+            showSetupView();
+        } else {
+            // No data, go to landing
+            showLandingView();
+        }
     }
 
     // Show custom modal
@@ -784,11 +1044,12 @@
             'Start New Game?',
             'This will reset the schedule but keep your player list.',
             () => {
-                // Keep player IDs and names but reset active status
+                // Keep player IDs and names but reset active and inGame status
                 state.players = state.players.map(p => ({
                     id: p.id,
                     name: p.name,
-                    active: true  // Reset all to active
+                    active: true,  // Reset all to active
+                    inGame: true   // Reset all to in game
                 }));
 
                 // Clear rotation data
@@ -964,6 +1225,10 @@
         renderPlayerStatus();
         renderRotationTable('game1', dom.game1Table);
         renderRotationTable('game2', dom.game2Table);
+        
+        // Initialize drag-and-drop for rotation tables
+        initRotationTableSortable('game1');
+        initRotationTableSortable('game2');
     }
 
     function updateGameVisibility() {
@@ -994,11 +1259,17 @@
     function renderPlayerStatus() {
         dom.playerStatus.innerHTML = '';
 
+        // Ensure rotation integrity before rendering
+        ensureRotationIntegrity();
+
         // Determine which players are playing in current period
         const gameName = `game${state.currentGame}`;
         const periodIndex = state.currentPeriod - 1;
 
+        // Only show active players
         state.players.forEach((player, index) => {
+            // Skip inactive players
+            if (!player.active) return;
             const total1 = state.rotation.game1[index]?.reduce((a, b) => a + b, 0) || 0;
             const total2 = state.rotation.game2[index]?.reduce((a, b) => a + b, 0) || 0;
             const total = total1 + total2;
@@ -1008,8 +1279,8 @@
 
             const item = document.createElement('div');
             const classes = ['player-status-item'];
-            if (!player.active) classes.push('inactive');
-            if (isPlayingNow && player.active) classes.push('active-now');
+            if (!player.inGame) classes.push('out-of-game');
+            if (isPlayingNow && player.inGame) classes.push('active-now');
 
             item.className = classes.join(' ');
             item.innerHTML = `
@@ -1017,14 +1288,14 @@
                     <span class="player-name">${player.name}</span>
                     <span class="player-total">(${total} periods)</span>
                 </div>
-                <button class="player-toggle btn-small" data-index="${index}">
-                    ${player.active ? 'Out' : 'In'}
+                <button class="player-toggle btn-small ${player.inGame ? 'btn-in' : 'btn-out'}" data-index="${index}">
+                    ${player.inGame ? '✓ In' : '✗ Out'}
                 </button>
             `;
             dom.playerStatus.appendChild(item);
         });
 
-        // Add event listeners to toggle buttons
+        // Add event listeners to In/Out toggle buttons
         document.querySelectorAll('.player-toggle').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const index = parseInt(e.target.dataset.index);
@@ -1034,15 +1305,52 @@
     }
 
     function togglePlayer(index) {
-        state.players[index].active = !state.players[index].active;
+        const player = state.players[index];
+        const wasOut = !player.inGame;
+        
+        player.inGame = !player.inGame;
+        
+        // If setting player back to "In", check all their scheduled periods
+        // and remove slots that would exceed the 4-player limit
+        if (wasOut && player.inGame) {
+            // Check both games
+            ['game1', 'game2'].forEach(gameName => {
+                for (let period = 0; period < 8; period++) {
+                    // If this player has a slot in this period
+                    if (state.rotation[gameName][index][period] === 1) {
+                        // Count how many "In" players are in this period (excluding this player)
+                        let inPlayersCount = 0;
+                        state.players.forEach((pl, i) => {
+                            if (i === index) return; // Skip the player we're toggling
+                            if (pl.inGame && state.rotation[gameName][i][period] === 1) {
+                                inPlayersCount++;
+                            }
+                        });
+                        
+                        // If adding this player would exceed 4, remove their slot
+                        if (inPlayersCount >= 4) {
+                            state.rotation[gameName][index][period] = 0;
+                        }
+                    }
+                }
+            });
+        }
+        
         saveToLocalStorage();
         renderPlayerStatus();
+        renderGame();  // Re-render rotation tables to show crossed-out state
     }
 
     // Toggle player in/out of a specific period
     function togglePlayerInPeriod(playerIndex, period, game) {
         const gameName = `game${game}`;
         const currentValue = state.rotation[gameName][playerIndex][period];
+        const player = state.players[playerIndex];
+
+        // Don't allow toggling for "Out" players
+        if (!player.inGame) {
+            return;
+        }
 
         // If currently playing (1), allow removal
         if (currentValue === 1) {
@@ -1052,12 +1360,22 @@
             return;
         }
 
-        // If currently not playing (0), check if we can add (max 4 players)
-        const playersInPeriod = state.players.reduce((count, player, i) => {
+        // If currently not playing (0), we want to add this player
+        // First, check if there are any "Out" players in this period and clear them
+        for (let i = 0; i < state.players.length; i++) {
+            if (!state.players[i].inGame && state.rotation[gameName][i] && state.rotation[gameName][i][period] === 1) {
+                // Remove the "Out" player's slot
+                state.rotation[gameName][i][period] = 0;
+            }
+        }
+
+        // Now count how many "In" players are in this period
+        const playersInPeriod = state.players.reduce((count, pl, i) => {
+            if (!pl.inGame) return count; // Don't count "Out" players
             return count + (state.rotation[gameName][i] && state.rotation[gameName][i][period] === 1 ? 1 : 0);
         }, 0);
 
-        // Silently reject if at capacity (no alert)
+        // If still at capacity (4 "In" players), reject
         if (playersInPeriod >= 4) {
             return;
         }
@@ -1091,9 +1409,16 @@
         }
         html += '<th>Total</th></tr></thead><tbody>';
 
-        // Player rows
+        // Player rows - only show active players
         state.players.forEach((player, i) => {
-            html += `<tr><td class="player-cell">${player.name}</td>`;
+            // Skip inactive players
+            if (!player.active) return;
+            
+            const playerRowClass = !player.inGame ? 'player-out-of-game' : '';
+            html += `<tr data-player-index="${i}" class="${playerRowClass}"><td class="player-cell">
+                <span class="rotation-drag-handle">⋮⋮</span>
+                <span class="player-name-text ${!player.inGame ? 'crossed-out' : ''}">${player.name}</span>
+            </td>`;
 
             for (let p = 0; p < periods; p++) {
                 const isPlaying = rotation[i] && rotation[i][p] === 1;
@@ -1104,21 +1429,30 @@
                 const isHalftimeEnd = (p === 3);  // Period 4 (index 3)
                 const isHalftimeStart = (p === 4);  // Period 5 (index 4)
 
-                // Count players in this period for capacity check
+                // Count only "In" players in this period for capacity check
                 const playersInPeriod = state.players.reduce((count, pl, idx) => {
+                    if (!pl.inGame) return count; // Skip "Out" players
                     return count + (rotation[idx] && rotation[idx][p] === 1 ? 1 : 0);
                 }, 0);
 
                 const isAtCapacity = playersInPeriod >= 4 && !isPlaying;
+                const isPlayerOut = !player.inGame;
 
                 let classes = [];
-                if (isPlaying) classes.push('playing');
-                else classes.push('resting');
+                if (isPlaying) {
+                    if (isPlayerOut) {
+                        classes.push('out-player-slot'); // Greyed slot for Out player
+                    } else {
+                        classes.push('playing');
+                    }
+                } else {
+                    classes.push('resting');
+                }
                 if (isCurrent) classes.push('current-period');
                 if (isPast) classes.push('past');
                 if (isHalftimeEnd) classes.push('halftime-end');
                 if (isHalftimeStart) classes.push('halftime-start');
-                if (isPast || isAtCapacity) classes.push('disabled');
+                if (isPast || isAtCapacity || isPlayerOut) classes.push('disabled');
 
                 html += `<td class="${classes.join(' ')} editable-cell" 
                              data-player-index="${i}" 
@@ -1131,12 +1465,13 @@
             html += '</tr>';
         });
 
-        // Players on court row
+        // Players on court row - only count "In" players
         html += '<tr class="players-on-court"><td>On Court</td>';
         for (let p = 0; p < periods; p++) {
             let count = 0;
             state.players.forEach((player, i) => {
-                if (rotation[i] && rotation[i][p] === 1) count++;
+                // Only count active players who are "In"
+                if (player.inGame && rotation[i] && rotation[i][p] === 1) count++;
             });
             html += `<td>${count}</td>`;
         }

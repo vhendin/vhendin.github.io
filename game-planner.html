@@ -17,9 +17,28 @@
             <div class="landing-content">
                 <div class="landing-hero">
                     <h2>Manage Your Team Rotation</h2>
-                    <p>Plan fair playing time across two 8-period games for 6-13 players</p>
+                    <p>Plan fair playing time across two 8-period games for 4-13 players</p>
                 </div>
                 <button id="getStarted" class="btn-primary btn-large">Get Started</button>
+            </div>
+        </div>
+
+        <!-- Team Management View -->
+        <div id="teamManagementView" class="view hidden">
+            <div class="panel">
+                <h2>Team Management</h2>
+                <p class="team-info"><span id="rosterCount">0/25</span> players on roster, <span id="activeCount">0</span> active</p>
+                
+                <div class="form-group">
+                    <label>Team Roster</label>
+                    <div id="teamRoster" class="team-roster"></div>
+                    <button id="addPlayerToRoster" class="btn-secondary btn-add">+ Add Player</button>
+                    <p id="rosterValidationMessage" class="validation-message hidden"></p>
+                </div>
+
+                <div class="actions">
+                    <button id="backFromTeamManagement" class="btn-secondary">Back</button>
+                </div>
             </div>
         </div>
 
@@ -34,7 +53,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Players (6-13 required)</label>
+                    <label>Players (4-13 required)</label>
                     <div id="playerInputs" class="player-inputs"></div>
                     <button id="addPlayer" class="btn-secondary btn-add">+ Add Player</button>
                     <p id="validationMessage" class="validation-message hidden"></p>
@@ -52,6 +71,7 @@
             <div class="game-controls">
                 <button id="burgerMenu" class="burger-menu" aria-label="Toggle menu">☰</button>
                 <div class="control-buttons" id="controlButtons">
+                    <button id="goToTeamManagement" class="btn-secondary">Team Management</button>
                     <button id="toggleView" class="btn-secondary">Show Both Games</button>
                     <button id="reshuffleRotation" class="btn-warning">Reshuffle Rotation</button>
                     <button id="exportSchedule" class="btn-primary">Export/Print</button>

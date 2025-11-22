@@ -119,6 +119,66 @@ input[type="checkbox"] {
     margin-right: 0.5rem;
 }
 
+/* Team Management */
+.team-info {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: #f0f0f0;
+    border: 2px solid #333;
+    font-weight: bold;
+}
+
+.team-roster {
+    margin: 1rem 0 0.5rem;
+}
+
+.roster-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    align-items: center;
+    background: #fafafa;
+    border: 2px solid #333;
+    padding: 0.5rem;
+}
+
+.roster-row.inactive-player {
+    opacity: 0.6;
+    background: #e8e8e8;
+}
+
+.roster-row input {
+    border: 1px solid #999;
+}
+
+.btn-active-toggle {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.btn-active-toggle.active {
+    background: #4caf50;
+    color: white;
+    border-color: #45a049;
+}
+
+.btn-active-toggle.active:hover {
+    background: #45a049;
+}
+
+.btn-active-toggle.inactive {
+    background: #e74c3c;
+    color: white;
+    border-color: #c0392b;
+}
+
+.btn-active-toggle.inactive:hover {
+    background: #d73c2c;
+}
+
 /* Player Inputs */
 .player-inputs {
     margin: 1rem 0 0.5rem;
@@ -126,48 +186,55 @@ input[type="checkbox"] {
 
 .player-row {
     display: grid;
-    grid-template-columns: 1fr 40px 40px;
+    grid-template-columns: 1fr 40px;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
     align-items: center;
     background: #fafafa;
     border: 2px solid #333;
     padding: 0.5rem;
-    /* transition removed - SortAnimation plugin handles this via inline styles */
 }
 
-.player-row.dragging {
-    opacity: 0.5;
-    z-index: 1000;
-}
-
-.player-row-placeholder {
-    background: repeating-linear-gradient(
-        45deg,
-        #f0f0f0,
-        #f0f0f0 10px,
-        #e0e0e0 10px,
-        #e0e0e0 20px
-    );
-    border: 2px dashed #999;
-    pointer-events: none;
-}
-
-.player-row-placeholder * {
-    visibility: hidden;
-}
-
-.drag-handle {
-    font-size: 1.2rem;
+.rotation-drag-handle {
+    display: inline-block;
+    font-size: 0.9rem;
     cursor: grab;
     user-select: none;
-    text-align: center;
     color: #666;
-    padding: 0.2rem;
+    margin-right: 0.5rem;
+    vertical-align: middle;
 }
 
-.drag-handle:active {
+.rotation-drag-handle:active {
     cursor: grabbing;
+}
+
+.rotation-player-row {
+    transition: background-color 0.2s ease;
+}
+
+.rotation-player-row.draggable-source--is-dragging {
+    opacity: 0.3;
+}
+
+.player-name-text {
+    vertical-align: middle;
+}
+
+.player-name-text.crossed-out {
+    text-decoration: line-through;
+    color: #999;
+}
+
+.rotation-table tr.player-out-of-game td {
+    opacity: 0.5;
+    background: #f0f0f0;
+}
+
+.rotation-table td.out-player-slot {
+    background: #d0d0d0 !important;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .delete-player {
@@ -357,8 +424,8 @@ button:active {
 
 .player-status-item {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 0.5rem;
     padding: 0.5rem;
     border: 2px solid #333;
     background: #fafafa;
@@ -366,9 +433,20 @@ button:active {
     transform: scale(0.98);
 }
 
-.player-status-item.inactive {
-    opacity: 0.5;
+@media (min-width: 400px) {
+    .player-status-item {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+.player-status-item.out-of-game {
+    opacity: 0.6;
     background: #e0e0e0;
+}
+
+.player-status-item.out-of-game .player-name {
     text-decoration: line-through;
 }
 
@@ -395,6 +473,52 @@ button:active {
     font-size: 0.8rem;
 }
 
+.player-toggle.btn-in {
+    background: #4caf50;
+    color: white;
+    border-color: #45a049;
+}
+
+.player-toggle.btn-in:hover {
+    background: #45a049;
+}
+
+.player-toggle.btn-out {
+    background: #999;
+    color: white;
+    border-color: #777;
+}
+
+.player-toggle.btn-out:hover {
+    background: #888;
+}
+
+.player-controls {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
+.player-active-toggle.btn-active {
+    background: #2196f3;
+    color: white;
+    border-color: #1976d2;
+}
+
+.player-active-toggle.btn-active:hover {
+    background: #1976d2;
+}
+
+.player-active-toggle.btn-inactive {
+    background: #999;
+    color: white;
+    border-color: #777;
+}
+
+.player-active-toggle.btn-inactive:hover {
+    background: #888;
+}
+
 /* Games Container */
 .games-container {
     display: grid;
@@ -407,6 +531,9 @@ button:active {
     padding: 1.5rem;
     box-shadow: 3px 3px 0 rgba(0,0,0,0.1);
     transition: opacity 0.3s ease, transform 0.3s ease;
+
+    width: 100%;
+    overflow-x: auto;
 }
 
 .game-grid.hidden {
@@ -487,7 +614,6 @@ button:active {
 
 .rotation-table th.period-header:hover {
     background: #c0c0c0;
-    transform: scale(1.05);
 }
 
 .rotation-table th.period-header.selected-period {
@@ -501,7 +627,7 @@ button:active {
     text-align: left;
     font-weight: bold;
     background: #f5f5f5;
-    min-width: 100px;
+    white-space: nowrap;
 }
 
 .rotation-table td.total-cell {
@@ -681,7 +807,7 @@ button:active {
     }
 
     .player-row {
-        grid-template-columns: 1fr 40px 40px;
+        grid-template-columns: 1fr 40px;
         gap: 0.3rem;
     }
 
@@ -736,13 +862,14 @@ button:active {
     }
 
     .rotation-table td.player-cell {
-        width: 120px;
+        width: auto;
         font-size: 0.85rem;
         position: sticky;
         left: 0;
         background: #f5f5f5;
         z-index: 2;
         box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+        white-space: nowrap;
     }
 
     .rotation-table th:first-child,
@@ -755,17 +882,7 @@ button:active {
         width: 70px;
     }
 
-    /* Scroll indicator shadow */
-    .grid-wrapper::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 30px;
-        background: linear-gradient(to left, rgba(0,0,0,0.15), transparent);
-        pointer-events: none;
-    }
+
 
     .actions {
         flex-direction: column;
