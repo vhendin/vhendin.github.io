@@ -29,6 +29,7 @@
         backToSetup: document.getElementById('backToSetup'),
         clearData: document.getElementById('clearData'),
         toggleView: document.getElementById('toggleView'),
+        reshuffleRotation: document.getElementById('reshuffleRotation'),
         exportSchedule: document.getElementById('exportSchedule'),
         playerStatus: document.getElementById('playerStatus'),
         game1Table: document.getElementById('game1Table'),
@@ -62,6 +63,7 @@
         dom.backToSetup.addEventListener('click', backToSetup);
         dom.clearData.addEventListener('click', clearAllData);
         dom.toggleView.addEventListener('click', toggleViewMode);
+        dom.reshuffleRotation.addEventListener('click', handleReshuffleClick);
         dom.exportSchedule.addEventListener('click', exportSchedule);
 
         // Burger menu toggle
@@ -610,6 +612,8 @@
         dom.gameView.classList.remove('hidden');
         initAccordionState();
         renderGame();
+        // Add scroll hint after render
+        setTimeout(addScrollHint, 500);
     }
 
     // Show custom modal
@@ -737,6 +741,17 @@
         dom.controlButtons.classList.toggle('open');
     }
 
+    // Handle reshuffle rotation click
+    function handleReshuffleClick() {
+        showModal(
+            'Reshuffle Rotation?',
+            'This will regenerate the schedule from the current period based on active players.',
+            () => {
+                regenerateFromCurrentPeriod();
+            }
+        );
+    }
+
     // Toggle player accordion
     function togglePlayerAccordion() {
         dom.playersHeader.classList.toggle('collapsed');
@@ -768,6 +783,25 @@
                 dom.playerStatus.classList.remove('collapsed');
                 dom.playerStatus.classList.add('open');
             }
+        }
+    }
+
+    // Add scroll hint for mobile users (one-time)
+    function addScrollHint() {
+        if (window.innerWidth <= 768 && !localStorage.getItem('scrollHintShown')) {
+            const gridWrappers = document.querySelectorAll('.grid-wrapper');
+            gridWrappers.forEach(wrapper => {
+                const hint = document.createElement('div');
+                hint.className = 'scroll-hint';
+                hint.textContent = '← Swipe to see all periods →';
+                wrapper.parentElement.insertBefore(hint, wrapper);
+                
+                setTimeout(() => {
+                    hint.style.opacity = '0';
+                    setTimeout(() => hint.remove(), 300);
+                }, 3000);
+            });
+            localStorage.setItem('scrollHintShown', 'true');
         }
     }
 
@@ -877,7 +911,8 @@
 
     function togglePlayer(index) {
         state.players[index].active = !state.players[index].active;
-        regenerateFromCurrentPeriod();
+        saveToLocalStorage();
+        renderPlayerStatus();
     }
 
     // Toggle player in/out of a specific period
@@ -917,7 +952,16 @@
         let html = '<thead><tr><th></th>';
         for (let p = 1; p <= periods; p++) {
             const isSelected = (gameNum === state.currentGame && p === state.currentPeriod);
-            html += `<th class="period-header ${isSelected ? 'selected-period' : ''}" 
+            const isHalftimeEnd = (p === 4);
+            const isHalftimeStart = (p === 5);
+            const halfClass = p <= 4 ? 'first-half' : 'second-half';
+            
+            let classes = ['period-header', halfClass];
+            if (isSelected) classes.push('selected-period');
+            if (isHalftimeEnd) classes.push('halftime-end');
+            if (isHalftimeStart) classes.push('halftime-start');
+            
+            html += `<th class="${classes.join(' ')}" 
                          data-period="${p}" 
                          data-game="${gameNum}">${p}</th>`;
         }
@@ -933,6 +977,8 @@
                 const isPast = (gameName === 'game1' && state.currentGame === 1 && p < state.currentPeriod - 1) ||
                     (gameName === 'game1' && state.currentGame === 2) ||
                     (gameName === 'game2' && state.currentGame === 2 && p < state.currentPeriod - 1);
+                const isHalftimeEnd = (p === 3);  // Period 4 (index 3)
+                const isHalftimeStart = (p === 4);  // Period 5 (index 4)
 
                 // Count players in this period for capacity check
                 const playersInPeriod = state.players.reduce((count, pl, idx) => {
@@ -946,6 +992,8 @@
                 else classes.push('resting');
                 if (isCurrent) classes.push('current-period');
                 if (isPast) classes.push('past');
+                if (isHalftimeEnd) classes.push('halftime-end');
+                if (isHalftimeStart) classes.push('halftime-start');
                 if (isPast || isAtCapacity) classes.push('disabled');
 
                 html += `<td class="${classes.join(' ')} editable-cell" 
