@@ -6,7 +6,8 @@
 
     // Application state
     const state = {
-        players: [],
+        teamName: '',
+        players: [],  // Now each player is { id, name, active }
         currentGame: 1,
         currentPeriod: 1,
         rotation: { game1: [], game2: [] },
@@ -16,15 +17,21 @@
         touchStartY: 0,
         placeholderElement: null,
         dragStartIndex: null,
-        currentHoverIndex: null
+        currentHoverIndex: null,
+        nextPlayerId: 1
     };
 
     // DOM elements
     const dom = {
+        landingView: document.getElementById('landingView'),
         setupView: document.getElementById('setupView'),
         gameView: document.getElementById('gameView'),
-        playerCount: document.getElementById('playerCount'),
+        getStarted: document.getElementById('getStarted'),
+        backToLanding: document.getElementById('backToLanding'),
+        teamName: document.getElementById('teamName'),
         playerInputs: document.getElementById('playerInputs'),
+        addPlayer: document.getElementById('addPlayer'),
+        validationMessage: document.getElementById('validationMessage'),
         startGame: document.getElementById('startGame'),
         backToSetup: document.getElementById('backToSetup'),
         clearData: document.getElementById('clearData'),
@@ -50,16 +57,34 @@
     function init() {
         loadFromLocalStorage();
         setupEventListeners();
-        renderPlayerInputs();
-
-        if (state.players.length > 0) {
+        
+        // Determine which view to show
+        if (state.players.length > 0 && state.rotation.game1.length > 0) {
+            // Has saved game data - go to game view
             showGameView();
+        } else if (state.players.length > 0) {
+            // Has player data but no game - go to setup
+            showSetupView();
+        } else {
+            // No data - show landing
+            showLandingView();
         }
     }
 
     function setupEventListeners() {
-        dom.playerCount.addEventListener('change', renderPlayerInputs);
+        // Landing view
+        dom.getStarted.addEventListener('click', () => {
+            showSetupView();
+        });
+
+        // Setup view
+        dom.backToLanding.addEventListener('click', () => {
+            showLandingView();
+        });
+        dom.addPlayer.addEventListener('click', addPlayer);
         dom.startGame.addEventListener('click', startGame);
+
+        // Game view
         dom.backToSetup.addEventListener('click', backToSetup);
         dom.clearData.addEventListener('click', clearAllData);
         dom.toggleView.addEventListener('click', toggleViewMode);
@@ -138,13 +163,13 @@
 
         // Listen for sortable:stop event (when drag ends)
         sortable.on('sortable:stop', () => {
-            // Update state.players order if in game mode
+            // Update state.players order based on new DOM order
             if (state.players.length > 0) {
                 const newOrder = [];
-                const inputs = dom.playerInputs.querySelectorAll('.player-name');
-                inputs.forEach((input) => {
-                    const playerName = input.value;
-                    const player = state.players.find(p => p.name === playerName);
+                const rows = dom.playerInputs.querySelectorAll('.player-row');
+                rows.forEach((row) => {
+                    const playerId = parseInt(row.dataset.playerId);
+                    const player = state.players.find(p => p.id === playerId);
                     if (player) {
                         newOrder.push(player);
                     }
@@ -157,49 +182,152 @@
         sortableInstance = sortable;
     }
 
+    // View navigation functions
+    function showLandingView() {
+        dom.landingView.classList.remove('hidden');
+        dom.setupView.classList.add('hidden');
+        dom.gameView.classList.add('hidden');
+    }
+
+    function showSetupView() {
+        dom.landingView.classList.add('hidden');
+        dom.setupView.classList.remove('hidden');
+        dom.gameView.classList.add('hidden');
+        
+        // Populate team name if exists
+        dom.teamName.value = state.teamName || '';
+        
+        // Initialize with 6 players if empty
+        if (state.players.length === 0) {
+            for (let i = 0; i < 6; i++) {
+                state.players.push({
+                    id: state.nextPlayerId++,
+                    name: `Player ${i + 1}`,
+                    active: true
+                });
+            }
+        }
+        
+        renderPlayerInputs();
+        validatePlayerCount();
+    }
+
     // Render player input fields with drag-and-drop
     function renderPlayerInputs() {
-        const count = parseInt(dom.playerCount.value);
-        
-        // Capture existing names before clearing (scoped to player inputs container)
-        const existingNameInputs = dom.playerInputs.querySelectorAll('.player-name');
-        const existingNames = Array.from(existingNameInputs).map(input => input.value);
-        
         dom.playerInputs.innerHTML = '';
         
-        for (let i = 0; i < count; i++) {
+        state.players.forEach((player) => {
             const row = document.createElement('div');
             row.className = 'player-row';
-            
-            // Priority: state.players (from New Game) > existing DOM names > default
-            const playerName = (state.players[i]?.name) || existingNames[i] || `Player ${i + 1}`;
+            row.dataset.playerId = player.id;
             
             row.innerHTML = `
-                <input type="text" class="player-name" placeholder="Name" value="${playerName}">
+                <input type="text" class="player-name" data-player-id="${player.id}" placeholder="Player Name" value="${player.name}">
+                <button class="delete-player" data-player-id="${player.id}">×</button>
                 <span class="drag-handle">⋮⋮</span>
             `;
             
             dom.playerInputs.appendChild(row);
-        }
+        });
+
+        // Add event listeners for delete buttons
+        dom.playerInputs.querySelectorAll('.delete-player').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const playerId = parseInt(e.target.dataset.playerId);
+                deletePlayer(playerId);
+            });
+        });
+
+        // Add event listeners for name inputs
+        dom.playerInputs.querySelectorAll('.player-name').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const playerId = parseInt(e.target.dataset.playerId);
+                updatePlayerName(playerId, e.target.value);
+            });
+        });
 
         // Initialize sortable after rendering
         initSortable();
     }
 
-    // Start game
-    function startGame() {
-        // Scope query to only player inputs container to avoid stray elements
-        const nameInputs = dom.playerInputs.querySelectorAll('.player-name');
-        
-        state.players = [];
-        nameInputs.forEach((input, i) => {
-            state.players.push({
-                name: input.value || `Player ${i + 1}`,
-                active: true
-            });
+    // Add a new player
+    function addPlayer() {
+        if (state.players.length >= 13) {
+            showValidationMessage('Maximum 13 players allowed', 'error');
+            return;
+        }
+
+        state.players.push({
+            id: state.nextPlayerId++,
+            name: `Player ${state.players.length + 1}`,
+            active: true
         });
 
-        // No sorting - players are already in order from top to bottom
+        renderPlayerInputs();
+        validatePlayerCount();
+        saveToLocalStorage();
+    }
+
+    // Delete a player
+    function deletePlayer(playerId) {
+        state.players = state.players.filter(p => p.id !== playerId);
+        renderPlayerInputs();
+        validatePlayerCount();
+        saveToLocalStorage();
+    }
+
+    // Update player name
+    function updatePlayerName(playerId, newName) {
+        const player = state.players.find(p => p.id === playerId);
+        if (player) {
+            player.name = newName || `Player ${state.players.indexOf(player) + 1}`;
+            saveToLocalStorage();
+        }
+    }
+
+    // Validate player count and show message
+    function validatePlayerCount() {
+        const count = state.players.length;
+        
+        if (count < 6) {
+            showValidationMessage(`Need ${6 - count} more player${6 - count > 1 ? 's' : ''} (minimum 6)`, 'error');
+            dom.startGame.disabled = true;
+            return false;
+        } else if (count > 13) {
+            showValidationMessage('Too many players (maximum 13)', 'error');
+            dom.startGame.disabled = true;
+            return false;
+        } else {
+            showValidationMessage(`${count} players ready ✓`, 'success');
+            dom.startGame.disabled = false;
+            return true;
+        }
+    }
+
+    // Show validation message
+    function showValidationMessage(message, type) {
+        dom.validationMessage.textContent = message;
+        dom.validationMessage.className = 'validation-message ' + type;
+    }
+
+    // Start game
+    function startGame() {
+        // Validate player count
+        if (!validatePlayerCount()) {
+            return;
+        }
+
+        // Save team name
+        state.teamName = dom.teamName.value || '';
+
+        // Ensure all players have names
+        state.players.forEach((player, i) => {
+            if (!player.name || player.name.trim() === '') {
+                player.name = `Player ${i + 1}`;
+            }
+        });
+
+        // Reset game state
         state.currentGame = 1;
         state.currentPeriod = 1;
 
@@ -656,8 +784,9 @@
             'Start New Game?',
             'This will reset the schedule but keep your player list.',
             () => {
-                // Keep player names but reset active status
+                // Keep player IDs and names but reset active status
                 state.players = state.players.map(p => ({
+                    id: p.id,
                     name: p.name,
                     active: true  // Reset all to active
                 }));
@@ -668,12 +797,7 @@
                 state.currentPeriod = 1;
 
                 saveToLocalStorage();
-                dom.setupView.classList.remove('hidden');
-                dom.gameView.classList.add('hidden');
-
-                // Update player count dropdown to match saved players
-                dom.playerCount.value = state.players.length;
-                renderPlayerInputs();
+                showSetupView();
             }
         );
     }
@@ -1059,6 +1183,26 @@
         const saved = localStorage.getItem('basketballGamePlanner');
         if (saved) {
             const loaded = JSON.parse(saved);
+            
+            // Migration: Add IDs to players if they don't have them
+            if (loaded.players && loaded.players.length > 0) {
+                let needsMigration = false;
+                loaded.players.forEach((player, i) => {
+                    if (!player.id) {
+                        needsMigration = true;
+                        player.id = i + 1;
+                    }
+                });
+                
+                if (needsMigration) {
+                    loaded.nextPlayerId = loaded.players.length + 1;
+                }
+            }
+            
+            // Set defaults for new properties
+            if (!loaded.teamName) loaded.teamName = '';
+            if (!loaded.nextPlayerId) loaded.nextPlayerId = 1;
+            
             Object.assign(state, loaded);
         }
     }

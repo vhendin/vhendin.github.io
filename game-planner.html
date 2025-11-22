@@ -12,19 +12,36 @@
             <h1>Basketball Game Planner</h1>
         </header>
 
+        <!-- Landing View -->
+        <div id="landingView" class="view">
+            <div class="landing-content">
+                <div class="landing-hero">
+                    <h2>Manage Your Team Rotation</h2>
+                    <p>Plan fair playing time across two 8-period games for 6-13 players</p>
+                </div>
+                <button id="getStarted" class="btn-primary btn-large">Get Started</button>
+            </div>
+        </div>
+
         <!-- Setup View -->
-        <div id="setupView" class="view">
+        <div id="setupView" class="view hidden">
             <div class="panel">
-                <h2>Setup</h2>
+                <h2>Team Setup</h2>
                 
                 <div class="form-group">
-                    <label for="playerCount">Number of Players (6-13)</label>
-                    <input type="number" id="playerCount" min="6" max="13" value="6">
+                    <label for="teamName">Team Name (optional)</label>
+                    <input type="text" id="teamName" placeholder="Enter your team name">
                 </div>
 
-                <div id="playerInputs" class="player-inputs"></div>
+                <div class="form-group">
+                    <label>Players (6-13 required)</label>
+                    <div id="playerInputs" class="player-inputs"></div>
+                    <button id="addPlayer" class="btn-secondary btn-add">+ Add Player</button>
+                    <p id="validationMessage" class="validation-message hidden"></p>
+                </div>
 
                 <div class="actions">
+                    <button id="backToLanding" class="btn-secondary">Back</button>
                     <button id="startGame" class="btn-primary">Start Game</button>
                 </div>
             </div>

@@ -40,6 +40,39 @@ header h1 {
     display: none;
 }
 
+/* Landing View */
+#landingView {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.landing-content {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.landing-hero {
+    margin-bottom: 3rem;
+}
+
+.landing-hero h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    font-weight: bold;
+}
+
+.landing-hero p {
+    font-size: 1.1rem;
+    color: #666;
+    line-height: 1.8;
+}
+
+.btn-large {
+    font-size: 1.2rem;
+    padding: 1rem 2rem;
+    min-width: 200px;
+}
+
 #setupView {
     max-width: 800px;
     margin: 0 auto;
@@ -88,12 +121,12 @@ input[type="checkbox"] {
 
 /* Player Inputs */
 .player-inputs {
-    margin: 1.5rem 0;
+    margin: 1rem 0 0.5rem;
 }
 
 .player-row {
     display: grid;
-    grid-template-columns: 1fr 40px;
+    grid-template-columns: 1fr 40px 40px;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
     align-items: center;
@@ -137,9 +170,56 @@ input[type="checkbox"] {
     cursor: grabbing;
 }
 
+.delete-player {
+    font-size: 1.2rem;
+    cursor: pointer;
+    text-align: center;
+    color: #e74c3c;
+    padding: 0.2rem;
+    background: transparent;
+    border: none;
+    transition: all 0.2s;
+    font-weight: bold;
+}
+
+.delete-player:hover {
+    color: #c0392b;
+    transform: scale(1.2);
+    background: transparent;
+    box-shadow: none;
+}
+
 .player-row label {
     font-weight: bold;
     min-width: 80px;
+}
+
+.btn-add {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.validation-message {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border: 2px solid #333;
+    background: #fff3cd;
+    color: #856404;
+    font-weight: bold;
+}
+
+.validation-message.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.validation-message.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.validation-message.hidden {
+    display: none;
 }
 
 /* Shopify Draggable Styles */
@@ -601,8 +681,27 @@ button:active {
     }
 
     .player-row {
-        grid-template-columns: 1fr 40px;
+        grid-template-columns: 1fr 40px 40px;
         gap: 0.3rem;
+    }
+
+    .delete-player {
+        font-size: 1.5rem;
+        padding: 0.5rem;
+    }
+
+    .landing-hero h2 {
+        font-size: 1.5rem;
+    }
+
+    .landing-hero p {
+        font-size: 1rem;
+    }
+
+    .btn-large {
+        font-size: 1.1rem;
+        padding: 0.8rem 1.5rem;
+        min-width: 150px;
     }
 
     .player-status {
