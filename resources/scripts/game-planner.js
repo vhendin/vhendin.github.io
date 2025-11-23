@@ -27,7 +27,9 @@
         setupView: document.getElementById('setupView'),
         teamManagementView: document.getElementById('teamManagementView'),
         gameView: document.getElementById('gameView'),
-        getStarted: document.getElementById('getStarted'),
+        resumeGame: document.getElementById('resumeGame'),
+        newGameFromLanding: document.getElementById('newGameFromLanding'),
+        manageTeamFromLanding: document.getElementById('manageTeamFromLanding'),
         backToLanding: document.getElementById('backToLanding'),
         teamName: document.getElementById('teamName'),
         playerInputs: document.getElementById('playerInputs'),
@@ -83,8 +85,16 @@
 
     function setupEventListeners() {
         // Landing view
-        dom.getStarted.addEventListener('click', () => {
-            showSetupView();
+        dom.resumeGame.addEventListener('click', () => {
+            showGameView();
+        });
+        
+        dom.newGameFromLanding.addEventListener('click', () => {
+            handleNewGameClick();
+        });
+        
+        dom.manageTeamFromLanding.addEventListener('click', () => {
+            showTeamManagementView();
         });
 
         // Setup view
@@ -254,6 +264,24 @@
         dom.setupView.classList.add('hidden');
         dom.teamManagementView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
+        renderLandingButtons();
+    }
+
+    // Render landing page buttons based on state
+    function renderLandingButtons() {
+        const hasGame = state.rotation.game1.length > 0;
+        
+        if (hasGame) {
+            // Show Resume Game as primary
+            dom.resumeGame.classList.remove('hidden');
+            dom.newGameFromLanding.classList.remove('btn-large');
+            dom.newGameFromLanding.classList.add('btn-secondary');
+        } else {
+            // Show New Game as primary
+            dom.resumeGame.classList.add('hidden');
+            dom.newGameFromLanding.classList.add('btn-large');
+            dom.newGameFromLanding.classList.remove('btn-secondary');
+        }
     }
 
     function showSetupView() {
@@ -725,12 +753,12 @@
                     candidate.random = Math.random();  // Add randomness for tiebreaking
                 });
 
-                // Sort by: 1) total played, 2) pairing score (diversity), 3) consecutive streak, 4) random
-                // Note: Priority is enforced via targetPlays, not in period-by-period selection
+                // Sort by: 1) total played, 2) pairing score (diversity), 3) consecutive streak, 4) priority (player order), 5) random
                 available.sort((a, b) => {
                     if (a.played !== b.played) return a.played - b.played;  // Fair distribution first
                     if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;  // Diversity second
                     if (a.streak !== b.streak) return a.streak - b.streak;  // Prefer rested (soft preference)
+                    if (a.priority !== b.priority) return a.priority - b.priority;  // Respect player order priority
                     return a.random - b.random;  // Random tiebreaker for diverse lineups
                 });
 
@@ -771,11 +799,14 @@
     // Regenerate schedule from current period for players in game
     function regenerateFromCurrentPeriod() {
         const playerCount = state.players.length;
-        const activeIndices = state.players.map((p, i) => p.inGame ? i : -1).filter(i => i >= 0);
+        const activeIndices = state.players.map((p, i) => (p.active && p.inGame) ? i : -1).filter(i => i >= 0);
         const activeCount = activeIndices.length;
+        
+        const totalActive = state.players.filter(p => p.active).length;
+        const totalIn = state.players.filter(p => p.inGame).length;
 
         if (activeCount < 4) {
-            alert('Need at least 4 players marked as "In" to regenerate!');
+            alert(`Need at least 4 active players marked as "In" to reshuffle.\n\nCurrent status:\n- ${totalActive} active players\n- ${totalIn} players marked "In"\n- ${activeCount} players both active AND in`);
             return;
         }
 
@@ -1004,6 +1035,30 @@
         }
     }
 
+    // Handle New Game click from landing
+    function handleNewGameClick() {
+        const hasGame = state.rotation.game1.length > 0;
+        
+        if (hasGame) {
+            // Show confirmation modal
+            showModal(
+                'Start New Game?',
+                'This will remove the current game and rotation schedule. Your team roster will be kept.',
+                () => {
+                    // Clear rotation data
+                    state.rotation = { game1: [], game2: [] };
+                    state.currentGame = 1;
+                    state.currentPeriod = 1;
+                    saveToLocalStorage();
+                    showSetupView();
+                }
+            );
+        } else {
+            // No game exists, go directly to setup
+            showSetupView();
+        }
+    }
+
     // Show custom modal
     function showModal(title, message, onConfirm) {
         dom.modal.title.textContent = title;
@@ -1225,20 +1280,37 @@
         renderPlayerStatus();
         renderRotationTable('game1', dom.game1Table);
         renderRotationTable('game2', dom.game2Table);
+        updateReshuffleButton();
         
         // Initialize drag-and-drop for rotation tables
         initRotationTableSortable('game1');
         initRotationTableSortable('game2');
     }
+    
+    // Update reshuffle button state based on available players
+    function updateReshuffleButton() {
+        const eligibleCount = state.players.filter(p => p.active && p.inGame).length;
+        
+        if (eligibleCount < 4) {
+            dom.reshuffleRotation.disabled = true;
+            dom.reshuffleRotation.title = `Need at least 4 active players marked "In" (currently ${eligibleCount})`;
+        } else {
+            dom.reshuffleRotation.disabled = false;
+            dom.reshuffleRotation.title = 'Reshuffle rotation from current period';
+        }
+    }
 
     function updateGameVisibility() {
         const game1Grid = document.querySelector('.games-container .game-grid:nth-child(1)');
         const game2Grid = document.querySelector('.games-container .game-grid:nth-child(2)');
+        const allArrows = document.querySelectorAll('.game-nav-arrow');
 
         if (state.showBothGames) {
             // Show both games
             game1Grid.classList.remove('hidden');
             game2Grid.classList.remove('hidden');
+            // Hide navigation arrows when showing both games
+            allArrows.forEach(arrow => arrow.style.display = 'none');
         } else {
             // Show only current game
             if (state.currentGame === 1) {
@@ -1248,6 +1320,8 @@
                 game1Grid.classList.add('hidden');
                 game2Grid.classList.remove('hidden');
             }
+            // Show navigation arrows in single game view
+            allArrows.forEach(arrow => arrow.style.display = '');
         }
 
         // Update button text
@@ -1338,7 +1412,7 @@
         
         saveToLocalStorage();
         renderPlayerStatus();
-        renderGame();  // Re-render rotation tables to show crossed-out state
+        renderGame();  // Re-render rotation tables and update button states
     }
 
     // Toggle player in/out of a specific period
@@ -1416,7 +1490,7 @@
             
             const playerRowClass = !player.inGame ? 'player-out-of-game' : '';
             html += `<tr data-player-index="${i}" class="${playerRowClass}"><td class="player-cell">
-                <span class="rotation-drag-handle">⋮⋮</span>
+                <span class="rotation-drag-handle" title="Drag to reorder (higher = more priority)">⋮⋮</span>
                 <span class="player-name-text ${!player.inGame ? 'crossed-out' : ''}">${player.name}</span>
             </td>`;
 
@@ -1473,7 +1547,8 @@
                 // Only count active players who are "In"
                 if (player.inGame && rotation[i] && rotation[i][p] === 1) count++;
             });
-            html += `<td>${count}</td>`;
+            const cellClass = count < 4 ? 'under-capacity' : '';
+            html += `<td class="${cellClass}">${count}</td>`;
         }
         html += '<td></td></tr>';
 
