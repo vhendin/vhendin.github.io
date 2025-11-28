@@ -1567,10 +1567,10 @@
         html += `<p style="font-size: 0.85rem;">Min: ${min} | Avg: ${avg.toFixed(1)} | Max: ${max}</p>`;
         html += `</div>`;
         
-        // Playing time bars
+        // Playing time bars (scaled to actual max, not theoretical 16)
         html += '<div class="fairness-bars">';
         playingTimes.forEach(pt => {
-            const percentage = Math.min(100, (pt.periods / 16) * 100);
+            const percentage = max > 0 ? (pt.periods / max) * 100 : 0;
             html += `<div class="fairness-bar-item">`;
             html += `<span class="fairness-bar-label">${pt.name}: ${pt.periods}</span>`;
             html += `<div class="fairness-bar-track">`;
