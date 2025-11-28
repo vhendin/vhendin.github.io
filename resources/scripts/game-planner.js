@@ -65,13 +65,26 @@
             confirm: document.getElementById('modalConfirm'),
             cancel: document.getElementById('modalCancel')
         },
-        validationWarningsPanel: document.getElementById('validationWarningsPanel'),
-        validationWarnings: document.getElementById('validationWarnings')
+        themeToggle: document.getElementById('themeToggle')
     };
+
+    // Theme Management
+    function initTheme() {
+        const savedTheme = localStorage.getItem('basketballPlannerTheme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('basketballPlannerTheme', newTheme);
+    }
 
     // Initialize
     function init() {
         loadFromLocalStorage();
+        initTheme();
         setupEventListeners();
         
         // Initialize undo/redo button states
@@ -137,6 +150,17 @@
 
         // Player accordion toggle
         dom.playersHeader.addEventListener('click', togglePlayerAccordion);
+
+        // Analytics accordion toggle
+        const analyticsAccordion = document.getElementById('analyticsAccordion');
+        if (analyticsAccordion) {
+            analyticsAccordion.addEventListener('click', toggleAnalyticsAccordion);
+        }
+
+        // Theme toggle
+        if (dom.themeToggle) {
+            dom.themeToggle.addEventListener('click', toggleTheme);
+        }
 
         // Team Management
         dom.goToTeamManagement.addEventListener('click', showTeamManagementView);
@@ -354,6 +378,7 @@
         dom.setupView.classList.add('hidden');
         dom.teamManagementView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
+        updateTeamNameDisplay();
         renderLandingButtons();
     }
 
@@ -1099,9 +1124,23 @@
         dom.teamManagementView.classList.add('hidden');
         dom.gameView.classList.remove('hidden');
         initAccordionState();
+        updateTeamNameDisplay();
         renderGame();
         // Add scroll hint after render
         setTimeout(addScrollHint, 500);
+    }
+    
+    // Update team name display
+    function updateTeamNameDisplay() {
+        const teamNameDisplay = document.getElementById('teamNameDisplay');
+        if (teamNameDisplay) {
+            if (state.teamName && state.teamName.trim() !== '') {
+                teamNameDisplay.textContent = state.teamName;
+                teamNameDisplay.classList.remove('hidden');
+            } else {
+                teamNameDisplay.classList.add('hidden');
+            }
+        }
     }
 
     // Show team management view
@@ -1299,9 +1338,25 @@
         localStorage.setItem('playerAccordionCollapsed', isCollapsed);
     }
 
+    // Toggle analytics accordion
+    function toggleAnalyticsAccordion() {
+        const analyticsHeader = document.getElementById('analyticsAccordion');
+        const analyticsContent = document.getElementById('analyticsContent');
+        
+        if (analyticsHeader && analyticsContent) {
+            analyticsHeader.classList.toggle('collapsed');
+            analyticsContent.classList.toggle('collapsed');
+            
+            // Save state to localStorage
+            const isCollapsed = analyticsContent.classList.contains('collapsed');
+            localStorage.setItem('analyticsAccordionCollapsed', isCollapsed);
+        }
+    }
+
     // Initialize accordion state from localStorage
     function initAccordionState() {
         const isCollapsed = localStorage.getItem('playerAccordionCollapsed') === 'true';
+        const analyticsIsCollapsed = localStorage.getItem('analyticsAccordionCollapsed') !== 'false'; // Default to collapsed
         
         // On desktop, always show expanded
         if (window.innerWidth > 768) {
@@ -1318,6 +1373,20 @@
                 dom.playersHeader.classList.remove('collapsed');
                 dom.playerStatus.classList.remove('collapsed');
                 dom.playerStatus.classList.add('open');
+            }
+        }
+        
+        // Initialize analytics accordion state (default to collapsed)
+        const analyticsHeader = document.getElementById('analyticsAccordion');
+        const analyticsContent = document.getElementById('analyticsContent');
+        
+        if (analyticsHeader && analyticsContent) {
+            if (analyticsIsCollapsed) {
+                analyticsHeader.classList.add('collapsed');
+                analyticsContent.classList.add('collapsed');
+            } else {
+                analyticsHeader.classList.remove('collapsed');
+                analyticsContent.classList.remove('collapsed');
             }
         }
     }
@@ -1376,12 +1445,143 @@
         renderPlayerStatus();
         renderRotationTable('game1', dom.game1Table);
         renderRotationTable('game2', dom.game2Table);
+        renderPairingAnalytics(); // Render analytics and fairness
         updateReshuffleButton();
-        validateRotation(); // Check for warnings after rendering
         
         // Initialize drag-and-drop for rotation tables
         initRotationTableSortable('game1');
         initRotationTableSortable('game2');
+    }
+    
+    // Render pairing analytics and fairness scoring
+    function renderPairingAnalytics() {
+        const analyticsEl = document.getElementById('pairingAnalytics');
+        if (!analyticsEl) return;
+        
+        const activePlayers = state.players.filter(p => p.active);
+        const playerCount = activePlayers.length;
+        
+        if (playerCount < 2) {
+            analyticsEl.innerHTML = '<p style="text-align: center; color: #666;">Add more players to see analytics</p>';
+            return;
+        }
+        
+        // Build pairing matrix from both games
+        const pairingMatrix = Array(playerCount).fill(0).map(() => Array(playerCount).fill(0));
+        
+        ['game1', 'game2'].forEach(gameName => {
+            const rotation = state.rotation[gameName];
+            for (let p = 0; p < 8; p++) {
+                const lineup = [];
+                activePlayers.forEach((player, i) => {
+                    const originalIndex = state.players.indexOf(player);
+                    if (rotation[originalIndex] && rotation[originalIndex][p] === 1) {
+                        lineup.push(i);
+                    }
+                });
+                
+                // Update pairing counts for all pairs in this lineup
+                for (let i = 0; i < lineup.length; i++) {
+                    for (let j = i + 1; j < lineup.length; j++) {
+                        pairingMatrix[lineup[i]][lineup[j]]++;
+                        pairingMatrix[lineup[j]][lineup[i]]++;
+                    }
+                }
+            }
+        });
+        
+        // Build pairing list
+        const pairings = [];
+        for (let i = 0; i < playerCount; i++) {
+            for (let j = i + 1; j < playerCount; j++) {
+                pairings.push({
+                    player1: activePlayers[i].name,
+                    player2: activePlayers[j].name,
+                    count: pairingMatrix[i][j]
+                });
+            }
+        }
+        
+        // Sort by count
+        pairings.sort((a, b) => b.count - a.count);
+        
+        let html = '<div class="analytics-row">';
+        
+        // Pairing diversity section
+        html += '<div class="analytics-section">';
+        html += '<h4>Most Paired</h4>';
+        html += '<ul class="pairing-list">';
+        const topPairs = pairings.slice(0, Math.min(5, pairings.length));
+        if (topPairs.length > 0 && topPairs[0].count > 0) {
+            topPairs.forEach(p => {
+                html += `<li><strong>${p.player1}</strong> & <strong>${p.player2}</strong>: ${p.count} periods</li>`;
+            });
+        } else {
+            html += '<li style="color: #666;">No pairings yet</li>';
+        }
+        html += '</ul></div>';
+        
+        html += '<div class="analytics-section">';
+        html += '<h4>Least Paired</h4>';
+        html += '<ul class="pairing-list">';
+        const bottomPairs = pairings.slice(-Math.min(5, pairings.length)).reverse();
+        if (bottomPairs.length > 0 && bottomPairs[bottomPairs.length - 1].count >= 0) {
+            bottomPairs.forEach(p => {
+                html += `<li><strong>${p.player1}</strong> & <strong>${p.player2}</strong>: ${p.count} periods</li>`;
+            });
+        } else {
+            html += '<li style="color: #666;">No pairings yet</li>';
+        }
+        html += '</ul></div>';
+        
+        // Fairness scoring section
+        html += '<div class="analytics-section fairness-section">';
+        html += '<h4>Playing Time Fairness</h4>';
+        
+        // Calculate playing time for each active player
+        const playingTimes = activePlayers.map(player => {
+            const originalIndex = state.players.indexOf(player);
+            let periods = 0;
+            ['game1', 'game2'].forEach(gameName => {
+                const rotation = state.rotation[gameName];
+                if (rotation[originalIndex]) {
+                    periods += rotation[originalIndex].reduce((sum, val) => sum + val, 0);
+                }
+            });
+            return { name: player.name, periods };
+        });
+        
+        const times = playingTimes.map(p => p.periods);
+        const min = Math.min(...times);
+        const max = Math.max(...times);
+        const avg = times.reduce((a, b) => a + b, 0) / times.length;
+        const variance = max - min;
+        
+        // Fairness indicator
+        const isFair = variance <= 2;
+        const fairnessClass = isFair ? 'fair' : 'unfair';
+        const fairnessIcon = isFair ? '✓' : '⚠';
+        
+        html += `<div class="fairness-summary ${fairnessClass}">`;
+        html += `<p><strong>${fairnessIcon} Fairness Score: ${variance} period variance</strong></p>`;
+        html += `<p style="font-size: 0.85rem;">Min: ${min} | Avg: ${avg.toFixed(1)} | Max: ${max}</p>`;
+        html += `</div>`;
+        
+        // Playing time bars
+        html += '<div class="fairness-bars">';
+        playingTimes.forEach(pt => {
+            const percentage = Math.min(100, (pt.periods / 16) * 100);
+            html += `<div class="fairness-bar-item">`;
+            html += `<span class="fairness-bar-label">${pt.name}: ${pt.periods}</span>`;
+            html += `<div class="fairness-bar-track">`;
+            html += `<div class="fairness-bar-fill" style="width: ${percentage}%"></div>`;
+            html += `</div></div>`;
+        });
+        html += '</div></div>';
+        
+        html += '</div>'; // Close analytics-row
+        
+        analyticsEl.innerHTML = html;
     }
     
     // Update reshuffle button state based on available players
@@ -1397,62 +1597,7 @@
         }
     }
 
-    // Validate rotation and show warnings
-    function validateRotation() {
-        const eligiblePlayers = state.players.filter(p => p.active && p.inGame);
-        
-        if (eligiblePlayers.length === 0) {
-            // No warnings if no players are active/in
-            dom.validationWarningsPanel.classList.add('hidden');
-            return;
-        }
 
-        let hasIncompleteSchedule = false;
-        let incompletePeriods = 0;
-        let emptyPeriods = 0;
-
-        // Check each period for capacity issues
-        ['game1', 'game2'].forEach((gameName) => {
-            const gamePattern = state.rotation[gameName];
-            if (!gamePattern || gamePattern.length === 0) return;
-
-            for (let period = 0; period < 8; period++) {
-                let playersInPeriod = 0;
-                state.players.forEach((player, playerIdx) => {
-                    if (player.active && player.inGame && playerIdx < gamePattern.length && gamePattern[playerIdx][period] === 1) {
-                        playersInPeriod++;
-                    }
-                });
-
-                if (playersInPeriod < 4 && playersInPeriod > 0) {
-                    hasIncompleteSchedule = true;
-                    incompletePeriods++;
-                } else if (playersInPeriod === 0 && eligiblePlayers.length >= 4) {
-                    hasIncompleteSchedule = true;
-                    emptyPeriods++;
-                }
-            }
-        });
-
-        // Show simple warning if schedule is incomplete
-        if (hasIncompleteSchedule) {
-            dom.validationWarningsPanel.classList.remove('hidden');
-            let message = '⚠️ Rotation schedule is incomplete. ';
-            if (incompletePeriods > 0) {
-                message += `${incompletePeriods} period${incompletePeriods === 1 ? '' : 's'} need${incompletePeriods === 1 ? 's' : ''} more players. `;
-            }
-            if (emptyPeriods > 0) {
-                message += `${emptyPeriods} period${emptyPeriods === 1 ? '' : 's'} ${emptyPeriods === 1 ? 'has' : 'have'} no players assigned.`;
-            }
-            dom.validationWarnings.innerHTML = `
-                <div class="warning-item warning">
-                    <span class="warning-text">${message}</span>
-                </div>
-            `;
-        } else {
-            dom.validationWarningsPanel.classList.add('hidden');
-        }
-    }
 
     // ===== UNDO/REDO SYSTEM =====
     
@@ -1793,12 +1938,16 @@
                     playersInThisPeriod++;
                 }
             });
-            const tooltip = playersInThisPeriod < 4 
-                ? `Period ${p}: ${playersInThisPeriod}/4 players (needs more!)`
+            
+            const hasWarning = playersInThisPeriod < 4;
+            const missingPlayers = 4 - playersInThisPeriod;
+            const tooltip = hasWarning 
+                ? `⚠️ Period ${p}: Only ${playersInThisPeriod}/4 players - needs ${missingPlayers} more!`
                 : `Period ${p}: ${playersInThisPeriod}/4 players`;
             
             let classes = ['period-header', halfClass];
             if (isSelected) classes.push('selected-period');
+            if (hasWarning) classes.push('period-warning');
             if (isHalftimeEnd) classes.push('halftime-end');
             if (isHalftimeStart) classes.push('halftime-start');
             
@@ -1854,10 +2003,13 @@
                 if (isHalftimeStart) classes.push('halftime-start');
                 if (isPast || isAtCapacity || isPlayerOut) classes.push('disabled');
 
+                const indicator = isPlaying ? '✓' : '';  // Checkmark for B&W printing
                 html += `<td class="${classes.join(' ')} editable-cell" 
                              data-player-index="${i}" 
                              data-period="${p}" 
-                             data-game="${gameNum}"></td>`;
+                             data-game="${gameNum}">
+                            <span class="cell-indicator">${indicator}</span>
+                         </td>`;
             }
 
             const total = rotation[i]?.reduce((a, b) => a + b, 0) || 0;

@@ -10,6 +10,10 @@
     <div class="container">
         <header>
             <h1>Basketball Game Planner</h1>
+            <div id="teamNameDisplay" class="team-name-display hidden"></div>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+                <span class="theme-icon"></span>
+            </button>
         </header>
 
         <!-- Landing View -->
@@ -74,7 +78,7 @@
 
         <!-- Game View -->
         <div id="gameView" class="view hidden">
-            <div class="game-controls">
+            <div class="game-controls panel">
                 <button id="burgerMenu" class="burger-menu" aria-label="Toggle menu">☰</button>
                 <div class="control-buttons" id="controlButtons">
                     <button id="goToTeamManagement" class="btn-secondary">Team Management</button>
@@ -86,14 +90,6 @@
                     <button id="backToSetup" class="btn-secondary">New Game</button>
                     <button id="clearData" class="btn-danger">Clear All</button>
                 </div>
-            </div>
-
-            <!-- Validation Warnings -->
-            <div id="validationWarningsPanel" class="panel validation-warnings-panel hidden">
-                <h3 class="warnings-header">
-                    <span>⚠️ Rotation Warnings</span>
-                </h3>
-                <div id="validationWarnings" class="validation-warnings-list"></div>
             </div>
 
             <!-- Player Status -->
@@ -108,7 +104,7 @@
             <!-- Game Grids -->
             <div class="games-container">
                 <!-- Game 1 -->
-                <div class="game-grid">
+                <div class="game-grid panel">
                     <div class="game-header">
                         <button class="game-nav-arrow game-nav-prev" data-direction="-1">◀</button>
                         <h3>Game 1</h3>
@@ -120,7 +116,7 @@
                 </div>
 
                 <!-- Game 2 -->
-                <div class="game-grid">
+                <div class="game-grid panel">
                     <div class="game-header">
                         <button class="game-nav-arrow game-nav-prev" data-direction="-1">◀</button>
                         <h3>Game 2</h3>
@@ -129,6 +125,17 @@
                     <div class="grid-wrapper">
                         <table id="game2Table" class="rotation-table"></table>
                     </div>
+                </div>
+            </div>
+
+            <!-- Pairing Analytics & Fairness -->
+            <div class="panel">
+                <h3 class="accordion-header" id="analyticsAccordion">
+                    <span>📊 Analytics & Fairness</span>
+                    <span class="accordion-icon">▼</span>
+                </h3>
+                <div class="accordion-content" id="analyticsContent">
+                    <div id="pairingAnalytics" class="pairing-analytics"></div>
                 </div>
             </div>
         </div>
