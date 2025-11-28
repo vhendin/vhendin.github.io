@@ -80,6 +80,8 @@
                     <button id="goToTeamManagement" class="btn-secondary">Team Management</button>
                     <button id="toggleView" class="btn-secondary">Show Both Games</button>
                     <button id="reshuffleRotation" class="btn-warning">Reshuffle Rotation</button>
+                    <button id="undoButton" class="btn-secondary" disabled>↶ Undo</button>
+                    <button id="redoButton" class="btn-secondary" disabled>↷ Redo</button>
                     <button id="exportSchedule" class="btn-primary">Export/Print</button>
                     <button id="backToSetup" class="btn-secondary">New Game</button>
                     <button id="clearData" class="btn-danger">Clear All</button>
@@ -142,6 +144,17 @@
                 <button id="modalCancel" class="btn-secondary">Cancel</button>
             </div>
         </div>
+    </div>
+
+    <!-- Floating Action Buttons for Undo/Redo (Mobile) -->
+    <div id="undoRedoFab" class="undo-redo-fab hidden">
+        <button id="undoFab" class="fab-button" aria-label="Undo">
+            <span>↶</span>
+            <span class="fab-badge">0</span>
+        </button>
+        <button id="redoFab" class="fab-button" aria-label="Redo">
+            <span>↷</span>
+        </button>
     </div>
 
     <script src="resources/scripts/draggable.bundle.js"></script>
