@@ -60,7 +60,9 @@
             message: document.getElementById('modalMessage'),
             confirm: document.getElementById('modalConfirm'),
             cancel: document.getElementById('modalCancel')
-        }
+        },
+        validationWarningsPanel: document.getElementById('validationWarningsPanel'),
+        validationWarnings: document.getElementById('validationWarnings')
     };
 
     // Initialize
@@ -160,6 +162,69 @@
                 }
             }
         });
+
+        // Swipe gesture support for period navigation on mobile
+        setupSwipeGestures();
+    }
+
+    // Setup swipe gestures for navigating periods
+    function setupSwipeGestures() {
+        const gamesContainer = document.querySelector('.games-container');
+        if (!gamesContainer) return;
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        gamesContainer.addEventListener('touchstart', (e) => {
+            // Only activate on mobile
+            if (window.innerWidth > 768) return;
+            
+            // Ignore if touch starts on a button or editable cell
+            if (e.target.tagName === 'BUTTON' || 
+                e.target.classList.contains('editable-cell') ||
+                e.target.closest('button')) {
+                return;
+            }
+            
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        gamesContainer.addEventListener('touchend', (e) => {
+            // Only activate on mobile
+            if (window.innerWidth > 768) return;
+            
+            // Ignore if touch starts on a button or editable cell
+            if (e.target.tagName === 'BUTTON' || 
+                e.target.classList.contains('editable-cell') ||
+                e.target.closest('button')) {
+                return;
+            }
+            
+            touchEndX = e.changedTouches[0].screenX;
+            touchEndY = e.changedTouches[0].screenY;
+            
+            handleSwipe();
+        }, { passive: true });
+
+        function handleSwipe() {
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const minSwipeDistance = 50;
+            
+            // Check if horizontal swipe is stronger than vertical
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+                if (deltaX > 0) {
+                    // Swipe right - go to previous period
+                    navigatePeriod(-1);
+                } else {
+                    // Swipe left - go to next period
+                    navigatePeriod(1);
+                }
+            }
+        }
     }
 
     // Ensure rotation arrays match player count
@@ -1281,6 +1346,7 @@
         renderRotationTable('game1', dom.game1Table);
         renderRotationTable('game2', dom.game2Table);
         updateReshuffleButton();
+        validateRotation(); // Check for warnings after rendering
         
         // Initialize drag-and-drop for rotation tables
         initRotationTableSortable('game1');
@@ -1297,6 +1363,63 @@
         } else {
             dom.reshuffleRotation.disabled = false;
             dom.reshuffleRotation.title = 'Reshuffle rotation from current period';
+        }
+    }
+
+    // Validate rotation and show warnings
+    function validateRotation() {
+        const eligiblePlayers = state.players.filter(p => p.active && p.inGame);
+        
+        if (eligiblePlayers.length === 0) {
+            // No warnings if no players are active/in
+            dom.validationWarningsPanel.classList.add('hidden');
+            return;
+        }
+
+        let hasIncompleteSchedule = false;
+        let incompletePeriods = 0;
+        let emptyPeriods = 0;
+
+        // Check each period for capacity issues
+        ['game1', 'game2'].forEach((gameName) => {
+            const gamePattern = state.rotation[gameName];
+            if (!gamePattern || gamePattern.length === 0) return;
+
+            for (let period = 0; period < 8; period++) {
+                let playersInPeriod = 0;
+                state.players.forEach((player, playerIdx) => {
+                    if (player.active && player.inGame && playerIdx < gamePattern.length && gamePattern[playerIdx][period] === 1) {
+                        playersInPeriod++;
+                    }
+                });
+
+                if (playersInPeriod < 4 && playersInPeriod > 0) {
+                    hasIncompleteSchedule = true;
+                    incompletePeriods++;
+                } else if (playersInPeriod === 0 && eligiblePlayers.length >= 4) {
+                    hasIncompleteSchedule = true;
+                    emptyPeriods++;
+                }
+            }
+        });
+
+        // Show simple warning if schedule is incomplete
+        if (hasIncompleteSchedule) {
+            dom.validationWarningsPanel.classList.remove('hidden');
+            let message = '⚠️ Rotation schedule is incomplete. ';
+            if (incompletePeriods > 0) {
+                message += `${incompletePeriods} period${incompletePeriods === 1 ? '' : 's'} need${incompletePeriods === 1 ? 's' : ''} more players. `;
+            }
+            if (emptyPeriods > 0) {
+                message += `${emptyPeriods} period${emptyPeriods === 1 ? '' : 's'} ${emptyPeriods === 1 ? 'has' : 'have'} no players assigned.`;
+            }
+            dom.validationWarnings.innerHTML = `
+                <div class="warning-item warning">
+                    <span class="warning-text">${message}</span>
+                </div>
+            `;
+        } else {
+            dom.validationWarningsPanel.classList.add('hidden');
         }
     }
 
@@ -1472,6 +1595,17 @@
             const isHalftimeStart = (p === 5);
             const halfClass = p <= 4 ? 'first-half' : 'second-half';
             
+            // Count players in this period for tooltip
+            let playersInThisPeriod = 0;
+            state.players.forEach((player, i) => {
+                if (player.active && player.inGame && rotation[i] && rotation[i][p - 1] === 1) {
+                    playersInThisPeriod++;
+                }
+            });
+            const tooltip = playersInThisPeriod < 4 
+                ? `Period ${p}: ${playersInThisPeriod}/4 players (needs more!)`
+                : `Period ${p}: ${playersInThisPeriod}/4 players`;
+            
             let classes = ['period-header', halfClass];
             if (isSelected) classes.push('selected-period');
             if (isHalftimeEnd) classes.push('halftime-end');
@@ -1479,7 +1613,8 @@
             
             html += `<th class="${classes.join(' ')}" 
                          data-period="${p}" 
-                         data-game="${gameNum}">${p}</th>`;
+                         data-game="${gameNum}"
+                         title="${tooltip}">${p}</th>`;
         }
         html += '<th>Total</th></tr></thead><tbody>';
 
