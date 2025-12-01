@@ -220,6 +220,149 @@ header h1 {
     min-width: 200px;
 }
 
+/* Game Header (in game view) */
+.game-header {
+    margin-bottom: 1rem;
+}
+
+.game-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.game-title-section {
+    flex: 1;
+    min-width: 200px;
+}
+
+.game-title-section h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    border: none;
+    padding: 0;
+}
+
+.game-metadata {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.game-selector-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.game-selector {
+    padding: 0.5rem;
+    border: 2px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.game-selector:hover {
+    background: var(--cell-hover);
+}
+
+@media (max-width: 768px) {
+    .game-header-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .game-selector-section {
+        justify-content: stretch;
+    }
+    
+    .game-selector {
+        width: 100%;
+    }
+}
+
+/* Games List Section */
+.games-list-section {
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+.games-list-section h3 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.games-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.game-card {
+    background: var(--bg-panel);
+    border: 2px solid var(--border-color);
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 2px 2px 0 var(--shadow-color);
+}
+
+.game-card:hover {
+    transform: translateX(2px);
+    box-shadow: 4px 4px 0 var(--shadow-color);
+}
+
+.game-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.game-card-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.game-card-status {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--cell-current);
+    color: var(--text-primary);
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.game-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.game-card-actions {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.game-card-actions button {
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+}
+
 #setupView {
     max-width: 800px;
     margin: 0 auto;
@@ -254,6 +397,12 @@ header h1 {
     font-weight: bold;
 }
 
+.form-group .help-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
 input[type="text"],
 input[type="number"] {
     width: 100%;
@@ -268,6 +417,57 @@ input[type="number"] {
 
 input[type="checkbox"] {
     margin-right: 0.5rem;
+}
+
+input[type="date"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 2px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1rem;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Player Selection for Game Creation */
+.player-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+}
+
+.player-selection-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.player-selection-item:hover {
+    background: var(--cell-hover);
+}
+
+.player-selection-item.inactive {
+    opacity: 0.5;
+}
+
+.player-selection-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.player-selection-item label {
+    cursor: pointer;
+    flex: 1;
+    margin: 0;
 }
 
 /* Team Management */

@@ -7,18 +7,15 @@
     // Application state
     const state = {
         teamName: '',
-        players: [],  // Now each player is { id, name, active }
-        currentGame: 1,
-        currentPeriod: 1,
-        rotation: { game1: [], game2: [] },
-        draggedIndex: null,
-        showBothGames: false,
-        touchDragElement: null,
-        touchStartY: 0,
-        placeholderElement: null,
-        dragStartIndex: null,
-        currentHoverIndex: null,
+        players: [],  // Each player is { id, name, active, inGame }
+        games: [],  // Array of game objects: { id, name, date, opponent, rotation: [], currentPeriod, timerState, playerIds }
+        currentGameId: null,  // Currently viewed game ID
+        nextGameId: 1,
         nextPlayerId: 1,
+        settings: {
+            periodLength: 5,  // minutes
+            timerSound: false
+        },
         // Undo/Redo system
         history: [],
         historyIndex: -1,
@@ -29,6 +26,7 @@
     const dom = {
         landingView: document.getElementById('landingView'),
         setupView: document.getElementById('setupView'),
+        settingsView: document.getElementById('settingsView'),
         teamManagementView: document.getElementById('teamManagementView'),
         gameView: document.getElementById('gameView'),
         resumeGame: document.getElementById('resumeGame'),
@@ -42,12 +40,10 @@
         startGame: document.getElementById('startGame'),
         backToSetup: document.getElementById('backToSetup'),
         clearData: document.getElementById('clearData'),
-        toggleView: document.getElementById('toggleView'),
         reshuffleRotation: document.getElementById('reshuffleRotation'),
         exportSchedule: document.getElementById('exportSchedule'),
         playerStatus: document.getElementById('playerStatus'),
-        game1Table: document.getElementById('game1Table'),
-        game2Table: document.getElementById('game2Table'),
+        gameTable: document.getElementById('gameTable'),
         burgerMenu: document.getElementById('burgerMenu'),
         controlButtons: document.getElementById('controlButtons'),
         playersHeader: document.getElementById('playersHeader'),
@@ -65,7 +61,30 @@
             confirm: document.getElementById('modalConfirm'),
             cancel: document.getElementById('modalCancel')
         },
-        themeToggle: document.getElementById('themeToggle')
+        themeToggle: document.getElementById('themeToggle'),
+        // Settings
+        goToSettings: document.getElementById('goToSettings'),
+        goToSettingsFromLanding: document.getElementById('goToSettingsFromLanding'),
+        settingsPeriodLength: document.getElementById('periodLength'),
+        settingsTimerSound: document.getElementById('timerSound'),
+        backFromSettings: document.getElementById('backFromSettings'),
+        // Games list
+        gamesListSection: document.getElementById('gamesListSection'),
+        gamesList: document.getElementById('gamesList'),
+        // Game creation
+        gameCreationView: document.getElementById('gameCreationView'),
+        gameName: document.getElementById('gameName'),
+        gameOpponent: document.getElementById('gameOpponent'),
+        gameDate: document.getElementById('gameDate'),
+        gamePlayerSelection: document.getElementById('gamePlayerSelection'),
+        gameCreationValidation: document.getElementById('gameCreationValidation'),
+        backFromGameCreation: document.getElementById('backFromGameCreation'),
+        createGameButton: document.getElementById('createGameButton'),
+        // Game view header
+        gameHeader: document.getElementById('gameHeader'),
+        currentGameTitle: document.getElementById('currentGameTitle'),
+        gameMetadata: document.getElementById('gameMetadata'),
+        gameSelector: document.getElementById('gameSelector')
     };
 
     // Theme Management
@@ -92,14 +111,13 @@
         updateFabVisibility();
         
         // Determine which view to show
-        if (state.players.length > 0 && state.rotation.game1.length > 0) {
-            // Has saved game data - go to game view
-            // Ensure rotation arrays match player count
-            ensureRotationIntegrity();
+        // Check for games in new format
+        if (state.games && state.games.length > 0 && state.currentGameId) {
+            // Has games - go to game view
             showGameView();
         } else if (state.players.length > 0) {
-            // Has player data but no game - go to setup
-            showSetupView();
+            // Has player data but no game - go to landing
+            showLandingView();
         } else {
             // No data - show landing
             showLandingView();
@@ -108,7 +126,7 @@
 
     function setupEventListeners() {
         // Landing view
-        dom.resumeGame.addEventListener('click', () => {
+        dom.resumeGame?.addEventListener('click', () => {
             showGameView();
         });
         
@@ -118,6 +136,10 @@
         
         dom.manageTeamFromLanding.addEventListener('click', () => {
             showTeamManagementView();
+        });
+        
+        dom.goToSettingsFromLanding?.addEventListener('click', () => {
+            showSettingsView();
         });
 
         // Setup view
@@ -130,7 +152,6 @@
         // Game view
         dom.backToSetup.addEventListener('click', backToSetup);
         dom.clearData.addEventListener('click', clearAllData);
-        dom.toggleView.addEventListener('click', toggleViewMode);
         dom.reshuffleRotation.addEventListener('click', handleReshuffleClick);
         dom.exportSchedule.addEventListener('click', exportSchedule);
         
@@ -166,14 +187,6 @@
         dom.goToTeamManagement.addEventListener('click', showTeamManagementView);
         dom.addPlayerToRoster.addEventListener('click', addPlayerToRoster);
         dom.backFromTeamManagement.addEventListener('click', backFromTeamManagement);
-
-        // Game navigation arrows
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('game-nav-arrow')) {
-                const direction = parseInt(e.target.dataset.direction);
-                navigateGame(direction);
-            }
-        });
 
         // Close burger menu when clicking outside
         document.addEventListener('click', (e) => {
@@ -274,39 +287,19 @@
     }
 
     // Ensure rotation arrays match player count
-    function ensureRotationIntegrity() {
-        const playerCount = state.players.length;
-        
-        // Ensure game1 and game2 arrays exist
-        if (!state.rotation.game1) state.rotation.game1 = [];
-        if (!state.rotation.game2) state.rotation.game2 = [];
-        
-        // If we have fewer rotation arrays than players, add empty ones at the end
-        while (state.rotation.game1.length < playerCount) {
-            state.rotation.game1.push(Array(8).fill(0));
-            state.rotation.game2.push(Array(8).fill(0));
-        }
-        
-        // If we have more rotation arrays than players, trim them
-        if (state.rotation.game1.length > playerCount) {
-            state.rotation.game1 = state.rotation.game1.slice(0, playerCount);
-            state.rotation.game2 = state.rotation.game2.slice(0, playerCount);
-        }
-    }
+    // ===== DRAG AND DROP FOR PLAYER REORDERING =====
 
-    // ===== SHOPIFY DRAGGABLE SORTABLE =====
+    let rotationSortableInstance = null;
 
-    let rotationSortableInstances = { game1: null, game2: null };
-
-    function initRotationTableSortable(tableName) {
-        const tableEl = tableName === 'game1' ? dom.game1Table : dom.game2Table;
-        const tbody = tableEl.querySelector('tbody');
+    function initRotationTableSortable() {
+        const tableEl = dom.gameTable;
+        const tbody = tableEl?.querySelector('tbody');
         
         if (!tbody) return;
 
         // Clean up existing instance
-        if (rotationSortableInstances[tableName]) {
-            rotationSortableInstances[tableName].destroy();
+        if (rotationSortableInstance) {
+            rotationSortableInstance.destroy();
         }
 
         // Get all player rows (exclude the last "players-on-court" row)
@@ -345,21 +338,26 @@
                 }
             });
 
-            // Reorder state.players, state.rotation.game1, and state.rotation.game2 based on newOrder
-            if (newOrder.length === state.players.length) {
-                const newPlayers = [];
-                const newGame1 = [];
-                const newGame2 = [];
+            const currentGame = getCurrentGame();
+            if (!currentGame) return;
+
+            // Reorder rotation for current game based on new player order
+            if (newOrder.length > 0) {
+                const newRotation = [];
 
                 newOrder.forEach(oldIndex => {
-                    newPlayers.push(state.players[oldIndex]);
-                    newGame1.push(state.rotation.game1[oldIndex]);
-                    newGame2.push(state.rotation.game2[oldIndex]);
+                    newRotation.push(currentGame.rotation[oldIndex]);
                 });
 
-                state.players = newPlayers;
-                state.rotation.game1 = newGame1;
-                state.rotation.game2 = newGame2;
+                currentGame.rotation = newRotation;
+
+                // Also need to reorder playerIds
+                const newPlayerIds = [];
+                newOrder.forEach(oldIndex => {
+                    const playerId = currentGame.playerIds[oldIndex];
+                    newPlayerIds.push(playerId);
+                });
+                currentGame.playerIds = newPlayerIds;
 
                 // Save snapshot for undo
                 saveSnapshot("Reordered players");
@@ -369,7 +367,7 @@
             }
         });
 
-        rotationSortableInstances[tableName] = sortable;
+        rotationSortableInstance = sortable;
     }
 
     // View navigation functions
@@ -377,32 +375,109 @@
         dom.landingView.classList.remove('hidden');
         dom.setupView.classList.add('hidden');
         dom.teamManagementView.classList.add('hidden');
+        dom.settingsView.classList.add('hidden');
+        dom.gameCreationView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
         updateTeamNameDisplay();
         renderLandingButtons();
     }
 
-    // Render landing page buttons based on state
+    // Render landing page with games list
     function renderLandingButtons() {
-        const hasGame = state.rotation.game1.length > 0;
-        
-        if (hasGame) {
-            // Show Resume Game as primary
-            dom.resumeGame.classList.remove('hidden');
-            dom.newGameFromLanding.classList.remove('btn-large');
-            dom.newGameFromLanding.classList.add('btn-secondary');
+        // Show games list if any games exist
+        if (state.games && state.games.length > 0) {
+            dom.gamesListSection?.classList.remove('hidden');
+            renderGamesList();
         } else {
-            // Show New Game as primary
-            dom.resumeGame.classList.add('hidden');
-            dom.newGameFromLanding.classList.add('btn-large');
-            dom.newGameFromLanding.classList.remove('btn-secondary');
+            dom.gamesListSection?.classList.add('hidden');
         }
+    }
+
+    // Render the list of games
+    function renderGamesList() {
+        if (!dom.gamesList) return;
+        
+        dom.gamesList.innerHTML = '';
+        
+        state.games.forEach(game => {
+            const card = document.createElement('div');
+            card.className = 'game-card';
+            card.dataset.gameId = game.id;
+            
+            // Format date if exists
+            const dateStr = game.date ? new Date(game.date).toLocaleDateString() : 'No date set';
+            
+            // Determine status
+            const statusText = game.currentPeriod > 8 ? 'Finished' : `Period ${game.currentPeriod}/8`;
+            
+            card.innerHTML = `
+                <div class="game-card-header">
+                    <div class="game-card-title">${game.name || 'Untitled Game'}</div>
+                    <div class="game-card-status">${statusText}</div>
+                </div>
+                <div class="game-card-info">
+                    ${game.opponent ? `<div>vs ${game.opponent}</div>` : ''}
+                    <div>${dateStr}</div>
+                </div>
+                <div class="game-card-actions">
+                    <button class="btn-primary resume-game-btn" data-game-id="${game.id}">Resume</button>
+                    <button class="btn-danger delete-game-btn" data-game-id="${game.id}">Delete</button>
+                </div>
+            `;
+            
+            dom.gamesList.appendChild(card);
+        });
+        
+        // Add event listeners for game cards
+        dom.gamesList.querySelectorAll('.resume-game-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const gameId = parseInt(e.target.dataset.gameId);
+                resumeGame(gameId);
+            });
+        });
+        
+        dom.gamesList.querySelectorAll('.delete-game-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const gameId = parseInt(e.target.dataset.gameId);
+                deleteGame(gameId);
+            });
+        });
+    }
+
+    // Resume a specific game
+    function resumeGame(gameId) {
+        state.currentGameId = gameId;
+        saveToLocalStorage();
+        showGameView();
+    }
+
+    // Delete a game
+    function deleteGame(gameId) {
+        const game = state.games.find(g => g.id === gameId);
+        const gameName = game?.name || 'this game';
+        
+        showModal(
+            'Delete Game?',
+            `Are you sure you want to delete "${gameName}"? This cannot be undone.`,
+            () => {
+                state.games = state.games.filter(g => g.id !== gameId);
+                if (state.currentGameId === gameId) {
+                    state.currentGameId = null;
+                }
+                saveToLocalStorage();
+                renderLandingButtons();
+            }
+        );
     }
 
     function showSetupView() {
         dom.landingView.classList.add('hidden');
         dom.setupView.classList.remove('hidden');
         dom.teamManagementView.classList.add('hidden');
+        dom.settingsView.classList.add('hidden');
+        dom.gameCreationView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
         
         // Populate team name if exists
@@ -497,13 +572,13 @@
         const player = state.players.find(p => p.id === playerId);
         if (!player) return;
 
-        // Check if player is in an active game
-        const hasActiveGame = state.rotation.game1.length > 0;
+        // Check if player is in any active game
+        const hasActiveGame = state.games.length > 0;
         
         if (hasActiveGame) {
             showModal(
                 'Delete Player?',
-                `"${player.name}" will be removed from the roster and the rotation schedule.`,
+                `"${player.name}" will be removed from the roster. Any games using this player will be affected.`,
                 () => {
                     removePlayerFromState(playerId);
                 }
@@ -513,7 +588,7 @@
         }
     }
 
-    // Remove player from state and update rotation
+    // Remove player from state
     function removePlayerFromState(playerId) {
         const playerIndex = state.players.findIndex(p => p.id === playerId);
         if (playerIndex === -1) return;
@@ -521,11 +596,9 @@
         // Remove player from array
         state.players.splice(playerIndex, 1);
 
-        // Remove from rotation if exists
-        if (state.rotation.game1.length > playerIndex) {
-            state.rotation.game1.splice(playerIndex, 1);
-            state.rotation.game2.splice(playerIndex, 1);
-        }
+        // Note: Games store their own playerIds array, so removing from global
+        // players list doesn't automatically remove from games. This is intentional
+        // to preserve game history. Users can recreate games if needed.
 
         saveToLocalStorage();
         renderTeamRoster();
@@ -542,11 +615,6 @@
         if (!player) return;
 
         player.active = !player.active;
-        
-        // If setting to inactive, also set to out of game
-        if (!player.active) {
-            player.inGame = false;
-        }
 
         saveToLocalStorage();
         renderTeamRoster();
@@ -914,116 +982,138 @@
 
 
 
-    // Regenerate schedule from current period for players in game
+    // Regenerate schedule from current period for current game
     function regenerateFromCurrentPeriod() {
-        const playerCount = state.players.length;
-        const activeIndices = state.players.map((p, i) => (p.active && p.inGame) ? i : -1).filter(i => i >= 0);
-        const activeCount = activeIndices.length;
-        
-        const totalActive = state.players.filter(p => p.active).length;
-        const totalIn = state.players.filter(p => p.inGame).length;
-
-        if (activeCount < 4) {
-            alert(`Need at least 4 active players marked as "In" to reshuffle.\n\nCurrent status:\n- ${totalActive} active players\n- ${totalIn} players marked "In"\n- ${activeCount} players both active AND in`);
+        const currentGame = getCurrentGame();
+        if (!currentGame) {
+            alert('No game selected');
             return;
         }
 
-        // Determine which game and period we're starting from
-        const games = ['game1', 'game2'];
-        const startGame = state.currentGame - 1;
-        const startPeriod = state.currentPeriod - 1;
+        const gamePlayers = getGamePlayers(currentGame);
+        const activeIndices = gamePlayers
+            .map((p, localIdx) => p.active ? localIdx : -1)
+            .filter(i => i >= 0);
+        const activeCount = activeIndices.length;
 
-        // Initialize pairing matrix for active players from already-played periods
+        if (activeCount < 4) {
+            const totalActive = gamePlayers.filter(p => p.active).length;
+            alert(`Need at least 4 active players to reshuffle.\n\nCurrent status:\n- ${totalActive} active players in this game\n- Need at least 4 active to reshuffle`);
+            return;
+        }
+
+        const startPeriod = currentGame.currentPeriod - 1;
+        const periods = 8;
+        const playerCount = gamePlayers.length;
+
+        // Initialize pairing matrix from already-played periods
         const pairingMatrix = Array(playerCount).fill(0).map(() => Array(playerCount).fill(0));
 
-        // Build pairing history from all periods up to current point
-        for (let g = 0; g < games.length; g++) {
-            const gameName = games[g];
-            const maxPeriod = (g < startGame) ? 8 : ((g === startGame) ? startPeriod : 0);
-
-            for (let period = 0; period < maxPeriod; period++) {
-                const lineup = [];
-                for (let pi = 0; pi < playerCount; pi++) {
-                    if (state.rotation[gameName][pi][period] === 1) {
-                        lineup.push(pi);
-                    }
+        // Build pairing history from periods 0 to startPeriod-1
+        for (let period = 0; period < startPeriod; period++) {
+            const lineup = [];
+            for (let pi = 0; pi < playerCount; pi++) {
+                if (currentGame.rotation[pi][period] === 1) {
+                    lineup.push(pi);
                 }
+            }
 
-                // Update pairing matrix for this lineup
-                for (let i = 0; i < lineup.length; i++) {
-                    for (let j = i + 1; j < lineup.length; j++) {
-                        const p1 = lineup[i];
-                        const p2 = lineup[j];
-                        pairingMatrix[p1][p2]++;
-                        pairingMatrix[p2][p1]++;
-                    }
+            // Update pairing matrix
+            for (let i = 0; i < lineup.length; i++) {
+                for (let j = i + 1; j < lineup.length; j++) {
+                    const p1 = lineup[i];
+                    const p2 = lineup[j];
+                    pairingMatrix[p1][p2]++;
+                    pairingMatrix[p2][p1]++;
                 }
             }
         }
 
-        // For each game from current onwards
-        for (let g = startGame; g < games.length; g++) {
-            const gameName = games[g];
-            const periods = 8;
-            const startP = (g === startGame) ? startPeriod : 0;
+        // Calculate how many periods each active player has already played
+        const alreadyPlayed = activeIndices.map(pi => {
+            let count = 0;
+            for (let pp = 0; pp < startPeriod; pp++) {
+                if (currentGame.rotation[pi][pp] === 1) count++;
+            }
+            return count;
+        });
 
-            // Calculate how many periods each active player has already played
-            const alreadyPlayed = activeIndices.map(pi => {
-                let count = 0;
-                // Count from both games up to current point
-                for (let gg = 0; gg < games.length; gg++) {
-                    const maxPer = (gg < startGame) ? 8 : ((gg === startGame) ? startPeriod : 0);
-                    for (let pp = 0; pp < maxPer; pp++) {
-                        if (state.rotation[games[gg]][pi][pp] === 1) count++;
+        // Calculate target remaining plays based on roster position
+        const totalRemainingSlots = (periods - startPeriod) * 4;
+        const baseRemaining = Math.floor(totalRemainingSlots / activeCount);
+        let extraSlots = totalRemainingSlots % activeCount;
+
+        const targetRemaining = activeIndices.map((pi, idx) => {
+            // Priority based on position in roster (lower index = higher priority)
+            if (idx < extraSlots) {
+                return baseRemaining + 1;
+            }
+            return baseRemaining;
+        });
+
+        // Helper: Calculate consecutive streak for a player
+        const calculateStreak = (playerIdx, upToPeriod) => {
+            let streak = 0;
+            for (let p = upToPeriod - 1; p >= 0; p--) {
+                if (currentGame.rotation[playerIdx][p] === 1) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            return streak;
+        };
+
+        // Fill periods from startPeriod onwards
+        for (let period = startPeriod; period < periods; period++) {
+            // Clear this period
+            for (let pi = 0; pi < playerCount; pi++) {
+                currentGame.rotation[pi][period] = 0;
+            }
+
+            const available = [];
+
+            // Build available pool
+            for (let idx = 0; idx < activeCount; idx++) {
+                const pi = activeIndices[idx];
+                let playedSoFar = alreadyPlayed[idx];
+
+                // Count plays from redistribution (startPeriod to period-1)
+                for (let pp = startPeriod; pp < period; pp++) {
+                    if (currentGame.rotation[pi][pp] === 1) playedSoFar++;
+                }
+
+                if (playedSoFar < (alreadyPlayed[idx] + targetRemaining[idx])) {
+                    const streak = calculateStreak(pi, period);
+                    
+                    // HARD CONSTRAINT: Skip if already played 2 consecutive
+                    if (streak >= 2) {
+                        continue;
                     }
+
+                    available.push({
+                        player: pi,
+                        played: playedSoFar,
+                        streak: streak,
+                        priority: pi
+                    });
                 }
-                return count;
-            });
+            }
 
-            // Calculate target remaining plays based on list position
-            // Priority is based on player order in the roster (drag to reorder)
-            const totalRemainingSlots = (periods - startP) * 4 + (g === 0 && startGame === 0 ? 8 * 4 : 0);
-            const baseRemaining = Math.floor(totalRemainingSlots / activeCount);
-            let extraSlots = totalRemainingSlots % activeCount;
-
-            const targetRemaining = activeIndices.map((pi, idx) => {
-                // Priority based on position in original list (lower index = higher priority)
-                // Players at the top of the roster get slightly more playing time when uneven
-                if (pi < extraSlots) {
-                    return baseRemaining + 1;
-                }
-                return baseRemaining;
-            });
-
-            // Fill periods from startP onwards
-            for (let period = startP; period < periods; period++) {
-                // Clear this period for all players
-                for (let pi = 0; pi < playerCount; pi++) {
-                    state.rotation[gameName][pi][period] = 0;
-                }
-
-                const available = [];
-
-                // Calculate plays so far including this redistribution
+            // If not enough players, add all available (relaxing streak constraint)
+            if (available.length < 4) {
                 for (let idx = 0; idx < activeCount; idx++) {
                     const pi = activeIndices[idx];
-                    let playedSoFar = alreadyPlayed[idx];
-
-                    // Add plays from current redistribution
-                    for (let gg = startGame; gg <= g; gg++) {
-                        const maxP = (gg === g) ? period : 8;
-                        const minP = (gg === startGame) ? startPeriod : 0;
-                        for (let pp = minP; pp < maxP; pp++) {
-                            if (state.rotation[games[gg]][pi][pp] === 1) playedSoFar++;
+                    if (!available.find(a => a.player === pi)) {
+                        let playedSoFar = alreadyPlayed[idx];
+                        for (let pp = startPeriod; pp < period; pp++) {
+                            if (currentGame.rotation[pi][pp] === 1) playedSoFar++;
                         }
-                    }
-
-                    if (playedSoFar < (alreadyPlayed[idx] + targetRemaining[idx])) {
-                        // Calculate consecutive streak for this player
-                        const streak = calculateConsecutiveStreak(pi, g, period, gameName);
                         
-                        // HARD CONSTRAINT: Skip if already played 2 consecutive
-                        if (streak >= 2) {
+                        const streak = calculateStreak(pi, period);
+                        
+                        // Still try to respect limit if we have enough
+                        if (streak >= 2 && available.length >= 4) {
                             continue;
                         }
 
@@ -1031,87 +1121,53 @@
                             player: pi,
                             played: playedSoFar,
                             streak: streak,
-                            priority: pi  // Priority based on list position
+                            priority: pi
                         });
                     }
                 }
+            }
 
-                // If not enough players to reach target, add all available active players
-                if (available.length < 4) {
-                    for (let idx = 0; idx < activeCount; idx++) {
-                        const pi = activeIndices[idx];
-                        if (!available.find(a => a.player === pi)) {
-                            let playedSoFar = alreadyPlayed[idx];
-                            for (let gg = startGame; gg <= g; gg++) {
-                                const maxP = (gg === g) ? period : 8;
-                                const minP = (gg === startGame) ? startPeriod : 0;
-                                for (let pp = minP; pp < maxP; pp++) {
-                                    if (state.rotation[games[gg]][pi][pp] === 1) playedSoFar++;
-                                }
-                            }
-                            
-                            const streak = calculateConsecutiveStreak(pi, g, period, gameName);
-                            
-                            // Still try to respect the 2-period limit if possible
-                            if (streak >= 2 && available.length >= 4) {
-                                continue;
-                            }
+            // Build lineup incrementally with pairing diversity
+            const selectedPlayers = [];
 
-                            available.push({
-                                player: pi,
-                                played: playedSoFar,
-                                streak: streak,
-                                priority: pi
-                            });
-                        }
-                    }
-                }
-
-                // Build lineup incrementally with pairing diversity
-                const selectedPlayers = [];
-
-                for (let slot = 0; slot < 4 && available.length > 0; slot++) {
-                    // Calculate pairing score for each candidate
-                    available.forEach(candidate => {
-                        candidate.pairingScore = calculatePairingScore(
-                            candidate.player,
-                            selectedPlayers,
-                            pairingMatrix
-                        );
-                        candidate.random = Math.random();  // Add randomness
+            for (let slot = 0; slot < 4 && available.length > 0; slot++) {
+                // Calculate pairing score for each candidate
+                available.forEach(candidate => {
+                    let score = 0;
+                    selectedPlayers.forEach(sp => {
+                        score += pairingMatrix[candidate.player][sp];
                     });
+                    candidate.pairingScore = score;
+                    candidate.random = Math.random();
+                });
 
-                    // Sort by: 1) total played, 2) pairing score (diversity), 3) consecutive streak, 4) random
-                    // Note: Priority is enforced via targetPlays, not in period-by-period selection
-                    available.sort((a, b) => {
-                        if (a.played !== b.played) return a.played - b.played;  // Fair distribution first
-                        if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;  // Diversity second
-                        if (a.streak !== b.streak) return a.streak - b.streak;  // Prefer rested (soft preference)
-                        return a.random - b.random;  // Random tiebreaker for diverse lineups
-                    });
+                // Sort by: played, pairing score, streak, random
+                available.sort((a, b) => {
+                    if (a.played !== b.played) return a.played - b.played;
+                    if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;
+                    if (a.streak !== b.streak) return a.streak - b.streak;
+                    return a.random - b.random;
+                });
 
-                    // Select best candidate
-                    const selected = available.shift();
-                    selectedPlayers.push(selected.player);
+                // Select best candidate
+                const selected = available.shift();
+                selectedPlayers.push(selected.player);
+                currentGame.rotation[selected.player][period] = 1;
+            }
 
-                    // Assign to pattern
-                    state.rotation[gameName][selected.player][period] = 1;
-                }
-
-                // Update pairing matrix for this lineup
-                for (let i = 0; i < selectedPlayers.length; i++) {
-                    for (let j = i + 1; j < selectedPlayers.length; j++) {
-                        const p1 = selectedPlayers[i];
-                        const p2 = selectedPlayers[j];
-                        pairingMatrix[p1][p2]++;
-                        pairingMatrix[p2][p1]++;
-                    }
+            // Update pairing matrix
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                for (let j = i + 1; j < selectedPlayers.length; j++) {
+                    const p1 = selectedPlayers[i];
+                    const p2 = selectedPlayers[j];
+                    pairingMatrix[p1][p2]++;
+                    pairingMatrix[p2][p1]++;
                 }
             }
         }
 
         // Save snapshot for undo
-        saveSnapshot(`Reshuffled from period ${state.currentPeriod}`);
+        saveSnapshot(`Reshuffled from period ${currentGame.currentPeriod}`);
         
         renderGame();
         saveToLocalStorage();
@@ -1122,6 +1178,8 @@
         dom.landingView.classList.add('hidden');
         dom.setupView.classList.add('hidden');
         dom.teamManagementView.classList.add('hidden');
+        dom.settingsView.classList.add('hidden');
+        dom.gameCreationView.classList.add('hidden');
         dom.gameView.classList.remove('hidden');
         initAccordionState();
         updateTeamNameDisplay();
@@ -1147,6 +1205,8 @@
     function showTeamManagementView() {
         dom.landingView.classList.add('hidden');
         dom.setupView.classList.add('hidden');
+        dom.settingsView.classList.add('hidden');
+        dom.gameCreationView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
         dom.teamManagementView.classList.remove('hidden');
         
@@ -1159,39 +1219,341 @@
     // Back from team management
     function backFromTeamManagement() {
         // If there's an active game, go back to game view
-        if (state.rotation.game1.length > 0) {
+        if (state.games.length > 0 && state.currentGameId) {
             showGameView();
         } else if (state.players.length > 0) {
-            // Has players but no game, go to setup
-            showSetupView();
+            // Has players but no game, go to landing
+            showLandingView();
         } else {
             // No data, go to landing
             showLandingView();
         }
     }
 
+    // Show settings view
+    function showSettingsView() {
+        dom.landingView.classList.add('hidden');
+        dom.setupView.classList.add('hidden');
+        dom.gameView.classList.add('hidden');
+        dom.teamManagementView.classList.add('hidden');
+        dom.gameCreationView.classList.add('hidden');
+        dom.settingsView.classList.remove('hidden');
+        
+        // Close burger menu if open
+        dom.controlButtons.classList.remove('open');
+        
+        // Populate settings from state
+        dom.settingsPeriodLength.value = state.settings.periodLength;
+        dom.settingsTimerSound.checked = state.settings.timerSound;
+    }
+
+    // Back from settings
+    function backFromSettings() {
+        // If there's an active game, go back to game view
+        if (state.games.length > 0 && state.currentGameId) {
+            showGameView();
+        } else {
+            // No active game, go to landing
+            showLandingView();
+        }
+    }
+
+    // Show game creation view
+    function showGameCreationView() {
+        dom.landingView.classList.add('hidden');
+        dom.setupView.classList.add('hidden');
+        dom.gameView.classList.add('hidden');
+        dom.teamManagementView.classList.add('hidden');
+        dom.settingsView.classList.add('hidden');
+        dom.gameCreationView.classList.remove('hidden');
+        
+        // Clear form
+        dom.gameName.value = '';
+        dom.gameOpponent.value = '';
+        dom.gameDate.value = '';
+        
+        // Render player selection
+        renderGamePlayerSelection();
+        validateGameCreation();
+    }
+
+    // Render player selection checkboxes
+    function renderGamePlayerSelection() {
+        dom.gamePlayerSelection.innerHTML = '';
+        
+        if (state.players.length === 0) {
+            dom.gamePlayerSelection.innerHTML = '<p class="help-text">No players in roster. Go to Team Management to add players.</p>';
+            return;
+        }
+        
+        state.players.forEach(player => {
+            const item = document.createElement('div');
+            item.className = `player-selection-item ${!player.active ? 'inactive' : ''}`;
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `game-player-${player.id}`;
+            checkbox.dataset.playerId = player.id;
+            checkbox.checked = player.active; // Default to active players
+            checkbox.disabled = !player.active;
+            
+            const label = document.createElement('label');
+            label.htmlFor = `game-player-${player.id}`;
+            label.textContent = player.name + (!player.active ? ' (Inactive)' : '');
+            
+            checkbox.addEventListener('change', validateGameCreation);
+            
+            item.appendChild(checkbox);
+            item.appendChild(label);
+            dom.gamePlayerSelection.appendChild(item);
+        });
+    }
+
+    // Validate game creation form
+    function validateGameCreation() {
+        const selectedPlayers = Array.from(
+            dom.gamePlayerSelection.querySelectorAll('input[type="checkbox"]:checked')
+        ).length;
+        
+        const isValid = selectedPlayers >= 4 && selectedPlayers <= 13;
+        
+        if (selectedPlayers < 4) {
+            dom.gameCreationValidation.textContent = 'Please select at least 4 players';
+            dom.gameCreationValidation.classList.remove('hidden');
+            dom.createGameButton.disabled = true;
+        } else if (selectedPlayers > 13) {
+            dom.gameCreationValidation.textContent = 'Maximum 13 players allowed';
+            dom.gameCreationValidation.classList.remove('hidden');
+            dom.createGameButton.disabled = true;
+        } else {
+            dom.gameCreationValidation.classList.add('hidden');
+            dom.createGameButton.disabled = false;
+        }
+        
+        return isValid;
+    }
+
+    // Back from game creation
+    function backFromGameCreation() {
+        showLandingView();
+    }
+
+    // Create new game
+    function createNewGame() {
+        if (!validateGameCreation()) {
+            return;
+        }
+        
+        const gameName = dom.gameName.value.trim();
+        if (!gameName) {
+            alert('Please enter a game name');
+            dom.gameName.focus();
+            return;
+        }
+        
+        // Get selected players
+        const selectedPlayerIds = Array.from(
+            dom.gamePlayerSelection.querySelectorAll('input[type="checkbox"]:checked')
+        ).map(cb => parseInt(cb.dataset.playerId));
+        
+        const selectedPlayers = state.players.filter(p => selectedPlayerIds.includes(p.id));
+        
+        // Generate rotation for single game
+        const rotation = generateSingleGameRotation(selectedPlayers);
+        
+        // Create new game object
+        const newGame = {
+            id: state.nextGameId++,
+            name: gameName,
+            opponent: dom.gameOpponent.value.trim(),
+            date: dom.gameDate.value,
+            rotation: rotation,
+            currentPeriod: 1,
+            timerState: {
+                isRunning: false,
+                remainingSeconds: state.settings.periodLength * 60,
+                totalSeconds: state.settings.periodLength * 60
+            },
+            playerIds: selectedPlayerIds
+        };
+        
+        // Add to games array
+        state.games.push(newGame);
+        state.currentGameId = newGame.id;
+        
+        saveToLocalStorage();
+        showGameView();
+    }
+
+    // Get current game object
+    function getCurrentGame() {
+        if (!state.currentGameId || !state.games) return null;
+        return state.games.find(g => g.id === state.currentGameId);
+    }
+
+    // Get players for current game
+    function getGamePlayers(game) {
+        if (!game || !game.playerIds) return [];
+        return state.players.filter(p => game.playerIds.includes(p.id));
+    }
+
+    // Generate rotation for a single game (8 periods)
+    function generateSingleGameRotation(players) {
+        const playerCount = players.length;
+        const totalPeriods = 8;
+        const playersPerPeriod = 4;
+        const gamePattern = Array(playerCount).fill(0).map(() => Array(8).fill(0));
+
+        // Calculate target plays for each player
+        const totalSlots = totalPeriods * playersPerPeriod;
+        const basePlays = Math.floor(totalSlots / playerCount);
+        let extraSlots = totalSlots % playerCount;
+
+        const targetPlays = players.map((player, i) => {
+            // Higher priority (top of list, lower index) gets extra slots
+            if (i < extraSlots) {
+                return basePlays + 1;
+            }
+            return basePlays;
+        });
+
+        // Track total plays
+        const totalPlayed = Array(playerCount).fill(0);
+
+        // Track consecutive periods played for each player (0, 1, or 2)
+        const consecutiveStreak = Array(playerCount).fill(0);
+
+        // Track player pairings - how many times each pair has played together
+        const pairingMatrix = Array(playerCount).fill(0).map(() => Array(playerCount).fill(0));
+
+        // Generate schedule for all 8 periods
+        for (let period = 0; period < totalPeriods; period++) {
+            const available = [];
+
+            // First pass: Find players who haven't reached target and have streak < 2
+            for (let p = 0; p < playerCount; p++) {
+                if (totalPlayed[p] < targetPlays[p]) {
+                    // HARD CONSTRAINT: Skip players with 2 consecutive periods already
+                    if (consecutiveStreak[p] >= 2) {
+                        continue;
+                    }
+
+                    available.push({ 
+                        player: p, 
+                        played: totalPlayed[p], 
+                        streak: consecutiveStreak[p],
+                        priority: p 
+                    });
+                }
+            }
+
+            // Second pass: Add players who haven't reached target (even with streak=1, but never streak>=2)
+            if (available.length < playersPerPeriod) {
+                for (let p = 0; p < playerCount; p++) {
+                    if (totalPlayed[p] < targetPlays[p] && !available.find(a => a.player === p)) {
+                        // Still enforce the hard limit
+                        if (consecutiveStreak[p] >= 2) {
+                            continue;
+                        }
+                        available.push({ 
+                            player: p, 
+                            played: totalPlayed[p], 
+                            streak: consecutiveStreak[p],
+                            priority: p 
+                        });
+                    }
+                }
+            }
+
+            // Third pass: Add ANY remaining players to ensure 4 per period (ignore target but respect streak limit)
+            if (available.length < playersPerPeriod) {
+                for (let p = 0; p < playerCount; p++) {
+                    if (!available.find(a => a.player === p)) {
+                        // Still try to respect the 2-period limit if possible
+                        if (consecutiveStreak[p] >= 2 && available.length >= playersPerPeriod) {
+                            continue;
+                        }
+                        available.push({ 
+                            player: p, 
+                            played: totalPlayed[p], 
+                            streak: consecutiveStreak[p],
+                            priority: p 
+                        });
+                    }
+                }
+            }
+
+            // Build lineup incrementally to maximize pairing diversity
+            const selectedPlayers = [];
+
+            for (let slot = 0; slot < playersPerPeriod && available.length > 0; slot++) {
+                // Calculate pairing score for each candidate based on already-selected players
+                available.forEach(candidate => {
+                    candidate.pairingScore = calculatePairingScore(
+                        candidate.player,
+                        selectedPlayers,
+                        pairingMatrix
+                    );
+                    candidate.random = Math.random();  // Add randomness for tiebreaking
+                });
+
+                // Sort by: 1) total played, 2) pairing score (diversity), 3) consecutive streak, 4) priority (player order), 5) random
+                available.sort((a, b) => {
+                    if (a.played !== b.played) return a.played - b.played;  // Fair distribution first
+                    if (a.pairingScore !== b.pairingScore) return a.pairingScore - b.pairingScore;  // Diversity second
+                    if (a.streak !== b.streak) return a.streak - b.streak;  // Prefer rested (soft preference)
+                    if (a.priority !== b.priority) return a.priority - b.priority;  // Respect player order priority
+                    return a.random - b.random;  // Random tiebreaker for diverse lineups
+                });
+
+                // Select best candidate
+                const selected = available.shift();
+                selectedPlayers.push(selected.player);
+
+                // Assign to pattern
+                gamePattern[selected.player][period] = 1;
+                totalPlayed[selected.player]++;
+            }
+
+            // Update pairing matrix for all pairs in this lineup
+            for (let i = 0; i < selectedPlayers.length; i++) {
+                for (let j = i + 1; j < selectedPlayers.length; j++) {
+                    const p1 = selectedPlayers[i];
+                    const p2 = selectedPlayers[j];
+                    pairingMatrix[p1][p2]++;
+                    pairingMatrix[p2][p1]++;
+                }
+            }
+
+            // Update consecutive streaks for next period
+            for (let p = 0; p < playerCount; p++) {
+                if (selectedPlayers.includes(p)) {
+                    consecutiveStreak[p]++;  // Increment streak
+                } else {
+                    consecutiveStreak[p] = 0;  // Reset streak
+                }
+            }
+        }
+
+        return gamePattern;
+    }
+
     // Handle New Game click from landing
     function handleNewGameClick() {
-        const hasGame = state.rotation.game1.length > 0;
-        
-        if (hasGame) {
-            // Show confirmation modal
+        // Check if user has any players in roster
+        if (state.players.length === 0) {
             showModal(
-                'Start New Game?',
-                'This will remove the current game and rotation schedule. Your team roster will be kept.',
+                'No Players in Roster',
+                'Please add players to your team roster first.',
                 () => {
-                    // Clear rotation data
-                    state.rotation = { game1: [], game2: [] };
-                    state.currentGame = 1;
-                    state.currentPeriod = 1;
-                    saveToLocalStorage();
-                    showSetupView();
+                    showTeamManagementView();
                 }
             );
-        } else {
-            // No game exists, go directly to setup
-            showSetupView();
+            return;
         }
+        
+        // Go directly to game creation view
+        showGameCreationView();
     }
 
     // Show custom modal
@@ -1231,24 +1593,10 @@
     // Back to setup
     function backToSetup() {
         showModal(
-            'Start New Game?',
-            'This will reset the schedule but keep your player list.',
+            'Exit to Landing?',
+            'Go back to the games list?',
             () => {
-                // Keep player IDs and names but reset active and inGame status
-                state.players = state.players.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    active: true,  // Reset all to active
-                    inGame: true   // Reset all to in game
-                }));
-
-                // Clear rotation data
-                state.rotation = { game1: [], game2: [] };
-                state.currentGame = 1;
-                state.currentPeriod = 1;
-
-                saveToLocalStorage();
-                showSetupView();
+                showLandingView();
             }
         );
     }
@@ -1267,46 +1615,16 @@
 
     // Navigate periods
     function navigatePeriod(direction) {
-        let newPeriod = state.currentPeriod + direction;
-        let newGame = state.currentGame;
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
 
-        if (newPeriod < 1) {
-            if (newGame === 2) {
-                newGame = 1;
-                newPeriod = 8;
-            } else {
-                return; // Can't go before game 1 period 1
-            }
-        } else if (newPeriod > 8) {
-            if (newGame === 1) {
-                newGame = 2;
-                newPeriod = 1;
-            } else {
-                return; // Can't go after game 2 period 8
-            }
-        }
+        let newPeriod = currentGame.currentPeriod + direction;
 
-        state.currentGame = newGame;
-        state.currentPeriod = newPeriod;
-        saveToLocalStorage();
-        renderGame();
-    }
+        // Keep within bounds (1-8)
+        if (newPeriod < 1) newPeriod = 1;
+        if (newPeriod > 8) newPeriod = 8;
 
-    // Navigate between games using arrows
-    function navigateGame(direction) {
-        let newGame = state.currentGame + direction;
-        if (newGame < 1 || newGame > 2) return; // Stay within game 1-2
-
-        state.currentGame = newGame;
-        // Keep current period when switching games
-        saveToLocalStorage();
-        renderGame();
-    }
-
-    // Toggle view mode between single game and both games
-    function toggleViewMode() {
-        state.showBothGames = !state.showBothGames;
-        dom.toggleView.textContent = state.showBothGames ? 'Show Single Game' : 'Show Both Games';
+        currentGame.currentPeriod = newPeriod;
         saveToLocalStorage();
         renderGame();
     }
@@ -1412,12 +1730,11 @@
 
     // Export/Print schedule to A4
     function exportSchedule() {
-        // Store current view state
-        const wasShowingBoth = state.showBothGames;
-
-        // Force show both games for print
-        state.showBothGames = true;
-        renderGame();
+        const currentGame = getCurrentGame();
+        if (!currentGame) {
+            alert('No game selected to export');
+            return;
+        }
 
         // Add timestamp to header
         const timestamp = document.createElement('p');
@@ -1428,29 +1745,77 @@
         timestamp.style.fontFamily = "'Courier New', Courier, monospace";
         document.querySelector('header').appendChild(timestamp);
 
-        // Trigger print dialog
+        // Trigger print dialog (prints current game view)
         window.print();
 
-        // Restore original state after print dialog closes
+        // Remove timestamp after print dialog closes
         setTimeout(() => {
-            state.showBothGames = wasShowingBoth;
-            renderGame();
             timestamp.remove();
         }, 100);
     }
 
     // Render game view
+    // Render game header with title, metadata, and selector
+    function renderGameHeader() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        // Show game header
+        dom.gameHeader?.classList.remove('hidden');
+
+        // Set title
+        if (dom.currentGameTitle) {
+            dom.currentGameTitle.textContent = currentGame.name || 'Untitled Game';
+        }
+
+        // Set metadata (opponent, date)
+        if (dom.gameMetadata) {
+            const metadata = [];
+            if (currentGame.opponent) metadata.push(`vs ${currentGame.opponent}`);
+            if (currentGame.date) {
+                const dateStr = new Date(currentGame.date).toLocaleDateString();
+                metadata.push(dateStr);
+            }
+            metadata.push(`Period ${currentGame.currentPeriod}/8`);
+            
+            dom.gameMetadata.innerHTML = metadata.join(' • ');
+        }
+
+        // Populate game selector
+        if (dom.gameSelector) {
+            dom.gameSelector.innerHTML = '';
+            state.games.forEach(game => {
+                const option = document.createElement('option');
+                option.value = game.id;
+                option.textContent = game.name || `Game ${game.id}`;
+                option.selected = game.id === state.currentGameId;
+                dom.gameSelector.appendChild(option);
+            });
+
+            // Show/hide selector based on number of games
+            if (state.games.length <= 1) {
+                dom.gameSelector.style.display = 'none';
+            } else {
+                dom.gameSelector.style.display = '';
+            }
+        }
+    }
+
     function renderGame() {
-        updateGameVisibility();
+        const currentGame = getCurrentGame();
+        if (!currentGame) {
+            console.error('No current game to render');
+            return;
+        }
+
+        renderGameHeader();
         renderPlayerStatus();
-        renderRotationTable('game1', dom.game1Table);
-        renderRotationTable('game2', dom.game2Table);
-        renderPairingAnalytics(); // Render analytics and fairness
+        renderRotationTable();
+        renderPairingAnalytics();
         updateReshuffleButton();
         
-        // Initialize drag-and-drop for rotation tables
-        initRotationTableSortable('game1');
-        initRotationTableSortable('game2');
+        // Initialize drag-and-drop for rotation table
+        initRotationTableSortable();
     }
     
     // Render pairing analytics and fairness scoring
@@ -1458,45 +1823,44 @@
         const analyticsEl = document.getElementById('pairingAnalytics');
         if (!analyticsEl) return;
         
-        const activePlayers = state.players.filter(p => p.active);
-        const playerCount = activePlayers.length;
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        const gamePlayers = getGamePlayers(currentGame);
+        const playerCount = gamePlayers.length;
         
         if (playerCount < 2) {
             analyticsEl.innerHTML = '<p style="text-align: center; color: #666;">Add more players to see analytics</p>';
             return;
         }
         
-        // Build pairing matrix from both games
+        // Build pairing matrix from current game
         const pairingMatrix = Array(playerCount).fill(0).map(() => Array(playerCount).fill(0));
         
-        ['game1', 'game2'].forEach(gameName => {
-            const rotation = state.rotation[gameName];
-            for (let p = 0; p < 8; p++) {
-                const lineup = [];
-                activePlayers.forEach((player, i) => {
-                    const originalIndex = state.players.indexOf(player);
-                    if (rotation[originalIndex] && rotation[originalIndex][p] === 1) {
-                        lineup.push(i);
-                    }
-                });
-                
-                // Update pairing counts for all pairs in this lineup
-                for (let i = 0; i < lineup.length; i++) {
-                    for (let j = i + 1; j < lineup.length; j++) {
-                        pairingMatrix[lineup[i]][lineup[j]]++;
-                        pairingMatrix[lineup[j]][lineup[i]]++;
-                    }
+        for (let p = 0; p < 8; p++) {
+            const lineup = [];
+            currentGame.rotation.forEach((playerRotation, i) => {
+                if (playerRotation && playerRotation[p] === 1) {
+                    lineup.push(i);
+                }
+            });
+            
+            // Update pairing counts for all pairs in this lineup
+            for (let i = 0; i < lineup.length; i++) {
+                for (let j = i + 1; j < lineup.length; j++) {
+                    pairingMatrix[lineup[i]][lineup[j]]++;
+                    pairingMatrix[lineup[j]][lineup[i]]++;
                 }
             }
-        });
+        }
         
         // Build pairing list
         const pairings = [];
         for (let i = 0; i < playerCount; i++) {
             for (let j = i + 1; j < playerCount; j++) {
                 pairings.push({
-                    player1: activePlayers[i].name,
-                    player2: activePlayers[j].name,
+                    player1: gamePlayers[i].name,
+                    player2: gamePlayers[j].name,
                     count: pairingMatrix[i][j]
                 });
             }
@@ -1538,16 +1902,9 @@
         html += '<div class="analytics-section fairness-section">';
         html += '<h4>Playing Time Fairness</h4>';
         
-        // Calculate playing time for each active player
-        const playingTimes = activePlayers.map(player => {
-            const originalIndex = state.players.indexOf(player);
-            let periods = 0;
-            ['game1', 'game2'].forEach(gameName => {
-                const rotation = state.rotation[gameName];
-                if (rotation[originalIndex]) {
-                    periods += rotation[originalIndex].reduce((sum, val) => sum + val, 0);
-                }
-            });
+        // Calculate playing time for each player in this game
+        const playingTimes = gamePlayers.map((player, i) => {
+            const periods = currentGame.rotation[i]?.reduce((sum, val) => sum + val, 0) || 0;
             return { name: player.name, periods };
         });
         
@@ -1558,7 +1915,7 @@
         const variance = max - min;
         
         // Fairness indicator
-        const isFair = variance <= 2;
+        const isFair = variance <= 1;
         const fairnessClass = isFair ? 'fair' : 'unfair';
         const fairnessIcon = isFair ? '✓' : '⚠';
         
@@ -1567,7 +1924,7 @@
         html += `<p style="font-size: 0.85rem;">Min: ${min} | Avg: ${avg.toFixed(1)} | Max: ${max}</p>`;
         html += `</div>`;
         
-        // Playing time bars (scaled to actual max, not theoretical 16)
+        // Playing time bars (scaled to actual max)
         html += '<div class="fairness-bars">';
         playingTimes.forEach(pt => {
             const percentage = max > 0 ? (pt.periods / max) * 100 : 0;
@@ -1586,11 +1943,19 @@
     
     // Update reshuffle button state based on available players
     function updateReshuffleButton() {
-        const eligibleCount = state.players.filter(p => p.active && p.inGame).length;
+        const currentGame = getCurrentGame();
+        if (!currentGame) {
+            dom.reshuffleRotation.disabled = true;
+            dom.reshuffleRotation.title = 'No game selected';
+            return;
+        }
+
+        const gamePlayers = getGamePlayers(currentGame);
+        const eligibleCount = gamePlayers.filter(p => p.active).length;
         
         if (eligibleCount < 4) {
             dom.reshuffleRotation.disabled = true;
-            dom.reshuffleRotation.title = `Need at least 4 active players marked "In" (currently ${eligibleCount})`;
+            dom.reshuffleRotation.title = `Need at least 4 active players (currently ${eligibleCount})`;
         } else {
             dom.reshuffleRotation.disabled = false;
             dom.reshuffleRotation.title = 'Reshuffle rotation from current period';
@@ -1606,13 +1971,8 @@
         return {
             timestamp: Date.now(),
             description: description,
-            rotation: JSON.parse(JSON.stringify(state.rotation)),
-            players: JSON.parse(JSON.stringify(state.players.map(p => ({
-                id: p.id,
-                name: p.name,
-                active: p.active,
-                inGame: p.inGame
-            }))))
+            games: JSON.parse(JSON.stringify(state.games)),
+            players: JSON.parse(JSON.stringify(state.players))
         };
     }
 
@@ -1656,7 +2016,7 @@
         // Restore state (or go to initial if at index -1)
         if (state.historyIndex >= 0) {
             const snapshot = state.history[state.historyIndex];
-            state.rotation = JSON.parse(JSON.stringify(snapshot.rotation));
+            state.games = JSON.parse(JSON.stringify(snapshot.games));
             state.players = JSON.parse(JSON.stringify(snapshot.players));
         }
         
@@ -1674,7 +2034,7 @@
         state.historyIndex++;
         
         const snapshot = state.history[state.historyIndex];
-        state.rotation = JSON.parse(JSON.stringify(snapshot.rotation));
+        state.games = JSON.parse(JSON.stringify(snapshot.games));
         state.players = JSON.parse(JSON.stringify(snapshot.players));
         
         saveToLocalStorage();
@@ -1739,61 +2099,26 @@
         }, 2000);
     }
 
-    function updateGameVisibility() {
-        const game1Grid = document.querySelector('.games-container .game-grid:nth-child(1)');
-        const game2Grid = document.querySelector('.games-container .game-grid:nth-child(2)');
-        const allArrows = document.querySelectorAll('.game-nav-arrow');
-
-        if (state.showBothGames) {
-            // Show both games
-            game1Grid.classList.remove('hidden');
-            game2Grid.classList.remove('hidden');
-            // Hide navigation arrows when showing both games
-            allArrows.forEach(arrow => arrow.style.display = 'none');
-        } else {
-            // Show only current game
-            if (state.currentGame === 1) {
-                game1Grid.classList.remove('hidden');
-                game2Grid.classList.add('hidden');
-            } else {
-                game1Grid.classList.add('hidden');
-                game2Grid.classList.remove('hidden');
-            }
-            // Show navigation arrows in single game view
-            allArrows.forEach(arrow => arrow.style.display = '');
-        }
-
-        // Update button text
-        dom.toggleView.textContent = state.showBothGames ? 'Show Single Game' : 'Show Both Games';
-    }
-
-
-
     function renderPlayerStatus() {
         dom.playerStatus.innerHTML = '';
 
-        // Ensure rotation integrity before rendering
-        ensureRotationIntegrity();
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
 
-        // Determine which players are playing in current period
-        const gameName = `game${state.currentGame}`;
-        const periodIndex = state.currentPeriod - 1;
+        const gamePlayers = getGamePlayers(currentGame);
+        const periodIndex = currentGame.currentPeriod - 1;
 
-        // Only show active players
-        state.players.forEach((player, index) => {
-            // Skip inactive players
-            if (!player.active) return;
-            const total1 = state.rotation.game1[index]?.reduce((a, b) => a + b, 0) || 0;
-            const total2 = state.rotation.game2[index]?.reduce((a, b) => a + b, 0) || 0;
-            const total = total1 + total2;
+        // Render each player in the game
+        gamePlayers.forEach((player, gamePlayerIndex) => {
+            // Calculate total periods played in this game
+            const total = currentGame.rotation[gamePlayerIndex]?.reduce((a, b) => a + b, 0) || 0;
 
             // Check if player is playing in current period
-            const isPlayingNow = state.rotation[gameName][index]?.[periodIndex] === 1;
+            const isPlayingNow = currentGame.rotation[gamePlayerIndex]?.[periodIndex] === 1;
 
             const item = document.createElement('div');
             const classes = ['player-status-item'];
-            if (!player.inGame) classes.push('out-of-game');
-            if (isPlayingNow && player.inGame) classes.push('active-now');
+            if (isPlayingNow) classes.push('active-now');
 
             item.className = classes.join(' ');
             item.innerHTML = `
@@ -1801,19 +2126,9 @@
                     <span class="player-name">${player.name}</span>
                     <span class="player-total">(${total} periods)</span>
                 </div>
-                <button class="player-toggle btn-small ${player.inGame ? 'btn-in' : 'btn-out'}" data-index="${index}">
-                    ${player.inGame ? '✓ In' : '✗ Out'}
-                </button>
             `;
-            dom.playerStatus.appendChild(item);
-        });
 
-        // Add event listeners to In/Out toggle buttons
-        document.querySelectorAll('.player-toggle').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const index = parseInt(e.target.dataset.index);
-                togglePlayer(index);
-            });
+            dom.playerStatus.appendChild(item);
         });
     }
 
@@ -1862,19 +2177,15 @@
     let manualEditTimeout;
 
     // Toggle player in/out of a specific period
-    function togglePlayerInPeriod(playerIndex, period, game) {
-        const gameName = `game${game}`;
-        const currentValue = state.rotation[gameName][playerIndex][period];
-        const player = state.players[playerIndex];
+    function togglePlayerInPeriod(playerIndex, period) {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
 
-        // Don't allow toggling for "Out" players
-        if (!player.inGame) {
-            return;
-        }
+        const currentValue = currentGame.rotation[playerIndex][period];
 
         // If currently playing (1), allow removal
         if (currentValue === 1) {
-            state.rotation[gameName][playerIndex][period] = 0;
+            currentGame.rotation[playerIndex][period] = 0;
             saveToLocalStorage();
             renderGame();
             
@@ -1887,28 +2198,19 @@
             return;
         }
 
-        // If currently not playing (0), we want to add this player
-        // First, check if there are any "Out" players in this period and clear them
-        for (let i = 0; i < state.players.length; i++) {
-            if (!state.players[i].inGame && state.rotation[gameName][i] && state.rotation[gameName][i][period] === 1) {
-                // Remove the "Out" player's slot
-                state.rotation[gameName][i][period] = 0;
-            }
-        }
-
-        // Now count how many "In" players are in this period
-        const playersInPeriod = state.players.reduce((count, pl, i) => {
-            if (!pl.inGame) return count; // Don't count "Out" players
-            return count + (state.rotation[gameName][i] && state.rotation[gameName][i][period] === 1 ? 1 : 0);
+        // If currently not playing (0), check if we can add
+        // Count how many players are in this period
+        const playersInPeriod = currentGame.rotation.reduce((count, playerRotation) => {
+            return count + (playerRotation && playerRotation[period] === 1 ? 1 : 0);
         }, 0);
 
-        // If still at capacity (4 "In" players), reject
+        // If at capacity (4 players), reject
         if (playersInPeriod >= 4) {
             return;
         }
 
         // Add player to period
-        state.rotation[gameName][playerIndex][period] = 1;
+        currentGame.rotation[playerIndex][period] = 1;
         saveToLocalStorage();
         renderGame();
         
@@ -1919,22 +2221,25 @@
         }, 1000);
     }
 
-    function renderRotationTable(gameName, tableEl) {
+    function renderRotationTable() {
+        const currentGame = getCurrentGame();
+        if (!currentGame || !dom.gameTable) return;
+
+        const gamePlayers = getGamePlayers(currentGame);
+        const rotation = currentGame.rotation;
         const periods = 8;
-        const rotation = state.rotation[gameName];
-        const gameNum = gameName === 'game1' ? 1 : 2;
 
         let html = '<thead><tr><th></th>';
         for (let p = 1; p <= periods; p++) {
-            const isSelected = (gameNum === state.currentGame && p === state.currentPeriod);
+            const isSelected = (p === currentGame.currentPeriod);
             const isHalftimeEnd = (p === 4);
             const isHalftimeStart = (p === 5);
             const halfClass = p <= 4 ? 'first-half' : 'second-half';
             
-            // Count players in this period for tooltip
+            // Count players in this period
             let playersInThisPeriod = 0;
-            state.players.forEach((player, i) => {
-                if (player.active && player.inGame && rotation[i] && rotation[i][p - 1] === 1) {
+            rotation.forEach((playerRotation) => {
+                if (playerRotation && playerRotation[p - 1] === 1) {
                     playersInThisPeriod++;
                 }
             });
@@ -1953,47 +2258,34 @@
             
             html += `<th class="${classes.join(' ')}" 
                          data-period="${p}" 
-                         data-game="${gameNum}"
                          title="${tooltip}">${p}</th>`;
         }
         html += '<th>Total</th></tr></thead><tbody>';
 
-        // Player rows - only show active players
-        state.players.forEach((player, i) => {
-            // Skip inactive players
-            if (!player.active) return;
-            
-            const playerRowClass = !player.inGame ? 'player-out-of-game' : '';
-            html += `<tr data-player-index="${i}" class="${playerRowClass}"><td class="player-cell">
+        // Player rows
+        gamePlayers.forEach((player, gamePlayerIndex) => {
+            html += `<tr data-player-index="${gamePlayerIndex}"><td class="player-cell">
                 <span class="rotation-drag-handle" title="Drag to reorder (higher = more priority)">⋮⋮</span>
-                <span class="player-name-text ${!player.inGame ? 'crossed-out' : ''}">${player.name}</span>
+                <span class="player-name-text">${player.name}</span>
             </td>`;
 
             for (let p = 0; p < periods; p++) {
-                const isPlaying = rotation[i] && rotation[i][p] === 1;
-                const isCurrent = (gameName === `game${state.currentGame}` && p === state.currentPeriod - 1);
-                const isPast = (gameName === 'game1' && state.currentGame === 1 && p < state.currentPeriod - 1) ||
-                    (gameName === 'game1' && state.currentGame === 2) ||
-                    (gameName === 'game2' && state.currentGame === 2 && p < state.currentPeriod - 1);
+                const isPlaying = rotation[gamePlayerIndex] && rotation[gamePlayerIndex][p] === 1;
+                const isCurrent = (p === currentGame.currentPeriod - 1);
+                const isPast = (p < currentGame.currentPeriod - 1);
                 const isHalftimeEnd = (p === 3);  // Period 4 (index 3)
                 const isHalftimeStart = (p === 4);  // Period 5 (index 4)
 
-                // Count only "In" players in this period for capacity check
-                const playersInPeriod = state.players.reduce((count, pl, idx) => {
-                    if (!pl.inGame) return count; // Skip "Out" players
-                    return count + (rotation[idx] && rotation[idx][p] === 1 ? 1 : 0);
+                // Count players in this period
+                const playersInPeriod = rotation.reduce((count, playerRotation) => {
+                    return count + (playerRotation && playerRotation[p] === 1 ? 1 : 0);
                 }, 0);
 
                 const isAtCapacity = playersInPeriod >= 4 && !isPlaying;
-                const isPlayerOut = !player.inGame;
 
                 let classes = [];
                 if (isPlaying) {
-                    if (isPlayerOut) {
-                        classes.push('out-player-slot'); // Greyed slot for Out player
-                    } else {
-                        classes.push('playing');
-                    }
+                    classes.push('playing');
                 } else {
                     classes.push('resting');
                 }
@@ -2001,29 +2293,27 @@
                 if (isPast) classes.push('past');
                 if (isHalftimeEnd) classes.push('halftime-end');
                 if (isHalftimeStart) classes.push('halftime-start');
-                if (isPast || isAtCapacity || isPlayerOut) classes.push('disabled');
+                if (isPast || isAtCapacity) classes.push('disabled');
 
                 const indicator = isPlaying ? '✓' : '';  // Checkmark for B&W printing
                 html += `<td class="${classes.join(' ')} editable-cell" 
-                             data-player-index="${i}" 
-                             data-period="${p}" 
-                             data-game="${gameNum}">
+                             data-player-index="${gamePlayerIndex}" 
+                             data-period="${p}">
                             <span class="cell-indicator">${indicator}</span>
                          </td>`;
             }
 
-            const total = rotation[i]?.reduce((a, b) => a + b, 0) || 0;
+            const total = rotation[gamePlayerIndex]?.reduce((a, b) => a + b, 0) || 0;
             html += `<td class="total-cell">${total}</td>`;
             html += '</tr>';
         });
 
-        // Players on court row - only count "In" players
+        // Players on court row
         html += '<tr class="players-on-court"><td>On Court</td>';
         for (let p = 0; p < periods; p++) {
             let count = 0;
-            state.players.forEach((player, i) => {
-                // Only count active players who are "In"
-                if (player.inGame && rotation[i] && rotation[i][p] === 1) count++;
+            rotation.forEach((playerRotation) => {
+                if (playerRotation && playerRotation[p] === 1) count++;
             });
             const cellClass = count < 4 ? 'under-capacity' : '';
             html += `<td class="${cellClass}">${count}</td>`;
@@ -2031,22 +2321,20 @@
         html += '<td></td></tr>';
 
         html += '</tbody>';
-        tableEl.innerHTML = html;
+        dom.gameTable.innerHTML = html;
 
         // Add click handlers to period headers
-        tableEl.querySelectorAll('.period-header').forEach(th => {
+        dom.gameTable.querySelectorAll('.period-header').forEach(th => {
             th.addEventListener('click', (e) => {
                 const period = parseInt(e.target.dataset.period);
-                const game = parseInt(e.target.dataset.game);
-                state.currentGame = game;
-                state.currentPeriod = period;
+                currentGame.currentPeriod = period;
                 saveToLocalStorage();
                 renderGame();
             });
         });
 
         // Add click handlers to editable cells
-        tableEl.querySelectorAll('.editable-cell').forEach(cell => {
+        dom.gameTable.querySelectorAll('.editable-cell').forEach(cell => {
             cell.addEventListener('click', (e) => {
                 // Don't process clicks on disabled cells
                 if (e.target.classList.contains('disabled')) {
@@ -2055,9 +2343,8 @@
 
                 const playerIndex = parseInt(e.target.dataset.playerIndex);
                 const period = parseInt(e.target.dataset.period);
-                const game = parseInt(e.target.dataset.game);
 
-                togglePlayerInPeriod(playerIndex, period, game);
+                togglePlayerInPeriod(playerIndex, period);
             });
         });
     }
@@ -2072,24 +2359,21 @@
         if (saved) {
             const loaded = JSON.parse(saved);
             
-            // Migration: Add IDs to players if they don't have them
-            if (loaded.players && loaded.players.length > 0) {
-                let needsMigration = false;
-                loaded.players.forEach((player, i) => {
-                    if (!player.id) {
-                        needsMigration = true;
-                        player.id = i + 1;
-                    }
-                });
-                
-                if (needsMigration) {
-                    loaded.nextPlayerId = loaded.players.length + 1;
-                }
-            }
-            
-            // Set defaults for new properties
+            // Set defaults for missing properties
             if (!loaded.teamName) loaded.teamName = '';
             if (!loaded.nextPlayerId) loaded.nextPlayerId = 1;
+            if (!loaded.nextGameId) loaded.nextGameId = 1;
+            if (!loaded.games) loaded.games = [];
+            if (!loaded.players) loaded.players = [];
+            if (!loaded.currentGameId) loaded.currentGameId = null;
+            if (!loaded.settings) {
+                loaded.settings = {
+                    periodLength: 5,
+                    timerSound: false
+                };
+            }
+            if (!loaded.history) loaded.history = [];
+            if (loaded.historyIndex === undefined) loaded.historyIndex = -1;
             
             Object.assign(state, loaded);
         }

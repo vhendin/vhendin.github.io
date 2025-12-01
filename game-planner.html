@@ -21,14 +21,20 @@
             <div class="landing-content">
                 <div class="landing-hero">
                     <h2>Manage Your Team Rotation</h2>
-                    <p>Plan fair playing time across two 8-period games for 4-13 players</p>
+                    <p>Plan fair playing time for 4-13 players per game</p>
                 </div>
+                
+                <!-- Games List (shown when games exist) -->
+                <div id="gamesListSection" class="games-list-section hidden">
+                    <h3>Your Games</h3>
+                    <div id="gamesList" class="games-list"></div>
+                </div>
+                
+                <!-- Action Buttons -->
                 <div class="landing-buttons">
                     <button id="manageTeamFromLanding" class="btn-secondary">Team Management</button>
-                    <div class="landing-button-group">
-                        <button id="resumeGame" class="btn-primary btn-large hidden">Resume Game</button>
-                        <button id="newGameFromLanding" class="btn-primary btn-large">New Game</button>
-                    </div>
+                    <button id="goToSettingsFromLanding" class="btn-secondary">Settings</button>
+                    <button id="newGameFromLanding" class="btn-primary btn-large">Create New Game</button>
                 </div>
             </div>
         </div>
@@ -48,6 +54,65 @@
 
                 <div class="actions">
                     <button id="backFromTeamManagement" class="btn-secondary">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settingsView" class="view hidden">
+            <div class="panel">
+                <h2>Settings</h2>
+                
+                <div class="form-group">
+                    <label for="periodLength">Period Length (minutes)</label>
+                    <input type="number" id="periodLength" min="1" max="60" value="5">
+                    <p class="help-text">Default: 5 minutes per period</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="timerSound">
+                        Play sound when period ends
+                    </label>
+                </div>
+                
+                <div class="actions">
+                    <button id="backFromSettings" class="btn-secondary">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Creation View -->
+        <div id="gameCreationView" class="view hidden">
+            <div class="panel">
+                <h2>Create New Game</h2>
+                
+                <div class="form-group">
+                    <label for="gameName">Game Name *</label>
+                    <input type="text" id="gameName" placeholder="e.g., Home Game #5">
+                    <p class="help-text">Give your game a memorable name</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="gameOpponent">Opponent</label>
+                    <input type="text" id="gameOpponent" placeholder="e.g., Lakers">
+                </div>
+                
+                <div class="form-group">
+                    <label for="gameDate">Game Date</label>
+                    <input type="date" id="gameDate">
+                </div>
+                
+                <div class="form-group">
+                    <label>Select Players for This Game *</label>
+                    <p class="help-text">Choose which players will participate (4-13 players)</p>
+                    <div id="gamePlayerSelection" class="player-selection"></div>
+                    <p id="gameCreationValidation" class="validation-message hidden"></p>
+                </div>
+                
+                <div class="actions">
+                    <button id="backFromGameCreation" class="btn-secondary">Back</button>
+                    <button id="createGameButton" class="btn-primary">Create Game</button>
                 </div>
             </div>
         </div>
@@ -82,13 +147,28 @@
                 <button id="burgerMenu" class="burger-menu" aria-label="Toggle menu">☰</button>
                 <div class="control-buttons" id="controlButtons">
                     <button id="goToTeamManagement" class="btn-secondary">Team Management</button>
-                    <button id="toggleView" class="btn-secondary">Show Both Games</button>
+                    <button id="goToSettings" class="btn-secondary">Settings</button>
                     <button id="reshuffleRotation" class="btn-warning">Reshuffle Rotation</button>
                     <button id="undoButton" class="btn-secondary" disabled>↶ Undo</button>
                     <button id="redoButton" class="btn-secondary" disabled>↷ Redo</button>
                     <button id="exportSchedule" class="btn-primary">Export/Print</button>
-                    <button id="backToSetup" class="btn-secondary">New Game</button>
+                    <button id="backToSetup" class="btn-secondary">Back to Landing</button>
                     <button id="clearData" class="btn-danger">Clear All</button>
+                </div>
+            </div>
+
+            <!-- Game Header (for new multi-game structure) -->
+            <div id="gameHeader" class="panel game-header hidden">
+                <div class="game-header-content">
+                    <div class="game-title-section">
+                        <h2 id="currentGameTitle">Game</h2>
+                        <div id="gameMetadata" class="game-metadata"></div>
+                    </div>
+                    <div class="game-selector-section">
+                        <select id="gameSelector" class="game-selector">
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -101,29 +181,11 @@
                 <div id="playerStatus" class="player-status accordion-content"></div>
             </div>
 
-            <!-- Game Grids -->
+            <!-- Game Rotation Table -->
             <div class="games-container">
-                <!-- Game 1 -->
                 <div class="game-grid panel">
-                    <div class="game-header">
-                        <button class="game-nav-arrow game-nav-prev" data-direction="-1">◀</button>
-                        <h3>Game 1</h3>
-                        <button class="game-nav-arrow game-nav-next" data-direction="1">▶</button>
-                    </div>
                     <div class="grid-wrapper">
-                        <table id="game1Table" class="rotation-table"></table>
-                    </div>
-                </div>
-
-                <!-- Game 2 -->
-                <div class="game-grid panel">
-                    <div class="game-header">
-                        <button class="game-nav-arrow game-nav-prev" data-direction="-1">◀</button>
-                        <h3>Game 2</h3>
-                        <button class="game-nav-arrow game-nav-next" data-direction="1">▶</button>
-                    </div>
-                    <div class="grid-wrapper">
-                        <table id="game2Table" class="rotation-table"></table>
+                        <table id="gameTable" class="rotation-table"></table>
                     </div>
                 </div>
             </div>
