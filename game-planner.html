@@ -88,19 +88,24 @@
                 <h2>Create New Game</h2>
                 
                 <div class="form-group">
-                    <label for="gameName">Game Name *</label>
-                    <input type="text" id="gameName" placeholder="e.g., Home Game #5">
-                    <p class="help-text">Give your game a memorable name</p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="gameOpponent">Opponent</label>
+                    <label for="gameOpponent">Opponent *</label>
                     <input type="text" id="gameOpponent" placeholder="e.g., Lakers">
+                    <p class="help-text">Name of the team you're playing against</p>
                 </div>
                 
                 <div class="form-group">
                     <label for="gameDate">Game Date</label>
                     <input type="date" id="gameDate">
+                </div>
+                
+                <div class="form-group">
+                    <label for="gameTime">Game Time</label>
+                    <input type="time" id="gameTime">
+                </div>
+                
+                <div class="form-group">
+                    <label for="gameNotes">Notes</label>
+                    <textarea id="gameNotes" rows="3" placeholder="Add any notes about this game (lineup changes, special instructions, etc.)"></textarea>
                 </div>
                 
                 <div class="form-group">
@@ -169,6 +174,42 @@
                             <!-- Options populated by JS -->
                         </select>
                     </div>
+                </div>
+            </div>
+
+            <!-- Period Timer -->
+            <div id="periodTimerPanel" class="panel period-timer-panel hidden">
+                <div class="period-timer-container">
+                    
+                    <!-- Home Team Scoreboard -->
+                    <div class="scoreboard">
+                        <div id="homeScoreLabel" class="scoreboard-label">Home</div>
+                        <div class="scoreboard-controls">
+                            <button id="homeScoreMinus" class="score-btn score-btn-minus">−</button>
+                            <div id="homeScoreDisplay" class="score-display">0</div>
+                            <button id="homeScorePlus" class="score-btn score-btn-plus">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Timer (center) -->
+                    <div class="timer-section">
+                        <div class="timer-display" id="timerDisplay">5:00</div>
+                        <div class="timer-controls">
+                            <button id="timerStartPause" class="timer-btn timer-btn-play" title="Start Timer">▶</button>
+                            <button id="timerReset" class="timer-btn timer-btn-reset" title="Reset Timer">↻</button>
+                        </div>
+                    </div>
+
+                    <!-- Away Team Scoreboard -->
+                    <div class="scoreboard">
+                        <div id="awayScoreLabel" class="scoreboard-label">Away</div>
+                        <div class="scoreboard-controls">
+                            <button id="awayScoreMinus" class="score-btn score-btn-minus">−</button>
+                            <div id="awayScoreDisplay" class="score-display">0</div>
+                            <button id="awayScorePlus" class="score-btn score-btn-plus">+</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 

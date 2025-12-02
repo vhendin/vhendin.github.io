@@ -22,6 +22,9 @@
         maxHistorySize: 30
     };
 
+    // Timer interval (not saved to state)
+    let timerInterval = null;
+
     // DOM elements
     const dom = {
         landingView: document.getElementById('landingView'),
@@ -73,9 +76,10 @@
         gamesList: document.getElementById('gamesList'),
         // Game creation
         gameCreationView: document.getElementById('gameCreationView'),
-        gameName: document.getElementById('gameName'),
         gameOpponent: document.getElementById('gameOpponent'),
         gameDate: document.getElementById('gameDate'),
+        gameTime: document.getElementById('gameTime'),
+        gameNotes: document.getElementById('gameNotes'),
         gamePlayerSelection: document.getElementById('gamePlayerSelection'),
         gameCreationValidation: document.getElementById('gameCreationValidation'),
         backFromGameCreation: document.getElementById('backFromGameCreation'),
@@ -84,7 +88,21 @@
         gameHeader: document.getElementById('gameHeader'),
         currentGameTitle: document.getElementById('currentGameTitle'),
         gameMetadata: document.getElementById('gameMetadata'),
-        gameSelector: document.getElementById('gameSelector')
+        gameSelector: document.getElementById('gameSelector'),
+        // Timer
+        periodTimerPanel: document.getElementById('periodTimerPanel'),
+        timerDisplay: document.getElementById('timerDisplay'),
+        timerStartPause: document.getElementById('timerStartPause'),
+        timerReset: document.getElementById('timerReset'),
+        // Scoreboards
+        homeScoreLabel: document.getElementById('homeScoreLabel'),
+        homeScoreDisplay: document.getElementById('homeScoreDisplay'),
+        homeScoreMinus: document.getElementById('homeScoreMinus'),
+        homeScorePlus: document.getElementById('homeScorePlus'),
+        awayScoreLabel: document.getElementById('awayScoreLabel'),
+        awayScoreDisplay: document.getElementById('awayScoreDisplay'),
+        awayScoreMinus: document.getElementById('awayScoreMinus'),
+        awayScorePlus: document.getElementById('awayScorePlus')
     };
 
     // Theme Management
@@ -149,6 +167,10 @@
         dom.addPlayer.addEventListener('click', addPlayer);
         dom.startGame.addEventListener('click', startGame);
 
+        // Game Creation view
+        dom.backFromGameCreation.addEventListener('click', backFromGameCreation);
+        dom.createGameButton.addEventListener('click', createNewGame);
+
         // Game view
         dom.backToSetup.addEventListener('click', backToSetup);
         dom.clearData.addEventListener('click', clearAllData);
@@ -188,6 +210,10 @@
         dom.addPlayerToRoster.addEventListener('click', addPlayerToRoster);
         dom.backFromTeamManagement.addEventListener('click', backFromTeamManagement);
 
+        // Settings
+        dom.goToSettings.addEventListener('click', showSettingsView);
+        dom.backFromSettings.addEventListener('click', backFromSettings);
+
         // Close burger menu when clicking outside
         document.addEventListener('click', (e) => {
             if (window.innerWidth <= 768) {
@@ -221,6 +247,41 @@
             // Update FAB visibility on resize
             updateFabVisibility();
         });
+
+        // Timer controls
+        if (dom.timerStartPause) {
+            dom.timerStartPause.addEventListener('click', toggleTimer);
+        }
+        if (dom.timerReset) {
+            dom.timerReset.addEventListener('click', resetTimer);
+        }
+
+        // Scoreboard controls
+        if (dom.homeScorePlus) {
+            dom.homeScorePlus.addEventListener('click', incrementHomeScore);
+        }
+        if (dom.homeScoreMinus) {
+            dom.homeScoreMinus.addEventListener('click', decrementHomeScore);
+        }
+        if (dom.awayScorePlus) {
+            dom.awayScorePlus.addEventListener('click', incrementAwayScore);
+        }
+        if (dom.awayScoreMinus) {
+            dom.awayScoreMinus.addEventListener('click', decrementAwayScore);
+        }
+
+        // Game selector (switch between games)
+        if (dom.gameSelector) {
+            dom.gameSelector.addEventListener('change', (e) => {
+                const selectedGameId = parseInt(e.target.value);
+                if (selectedGameId && selectedGameId !== state.currentGameId) {
+                    stopTimer(); // Stop current game's timer
+                    state.currentGameId = selectedGameId;
+                    saveToLocalStorage();
+                    renderGame(); // Re-render everything for the new game
+                }
+            });
+        }
 
         // Swipe gesture support for period navigation on mobile
         setupSwipeGestures();
@@ -378,6 +439,7 @@
         dom.settingsView.classList.add('hidden');
         dom.gameCreationView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
+        hideTimerPanel();
         updateTeamNameDisplay();
         renderLandingButtons();
     }
@@ -404,20 +466,22 @@
             card.className = 'game-card';
             card.dataset.gameId = game.id;
             
-            // Format date if exists
-            const dateStr = game.date ? new Date(game.date).toLocaleDateString() : 'No date set';
+            // Build date/time string
+            const dateTimeInfo = [];
+            if (game.date) dateTimeInfo.push(game.date);
+            if (game.time) dateTimeInfo.push(game.time);
+            const dateTimeStr = dateTimeInfo.length > 0 ? dateTimeInfo.join(' ') : 'No date set';
             
             // Determine status
             const statusText = game.currentPeriod > 8 ? 'Finished' : `Period ${game.currentPeriod}/8`;
             
             card.innerHTML = `
                 <div class="game-card-header">
-                    <div class="game-card-title">${game.name || 'Untitled Game'}</div>
+                    <div class="game-card-title">${game.opponent || 'Untitled Game'}</div>
                     <div class="game-card-status">${statusText}</div>
                 </div>
                 <div class="game-card-info">
-                    ${game.opponent ? `<div>vs ${game.opponent}</div>` : ''}
-                    <div>${dateStr}</div>
+                    <div>${dateTimeStr}</div>
                 </div>
                 <div class="game-card-actions">
                     <button class="btn-primary resume-game-btn" data-game-id="${game.id}">Resume</button>
@@ -1209,6 +1273,7 @@
         dom.gameCreationView.classList.add('hidden');
         dom.gameView.classList.add('hidden');
         dom.teamManagementView.classList.remove('hidden');
+        hideTimerPanel();
         
         // Close burger menu if open
         dom.controlButtons.classList.remove('open');
@@ -1238,6 +1303,7 @@
         dom.teamManagementView.classList.add('hidden');
         dom.gameCreationView.classList.add('hidden');
         dom.settingsView.classList.remove('hidden');
+        hideTimerPanel();
         
         // Close burger menu if open
         dom.controlButtons.classList.remove('open');
@@ -1266,11 +1332,13 @@
         dom.teamManagementView.classList.add('hidden');
         dom.settingsView.classList.add('hidden');
         dom.gameCreationView.classList.remove('hidden');
+        hideTimerPanel();
         
         // Clear form
-        dom.gameName.value = '';
         dom.gameOpponent.value = '';
         dom.gameDate.value = '';
+        dom.gameTime.value = '';
+        dom.gameNotes.value = '';
         
         // Render player selection
         renderGamePlayerSelection();
@@ -1344,10 +1412,10 @@
             return;
         }
         
-        const gameName = dom.gameName.value.trim();
-        if (!gameName) {
-            alert('Please enter a game name');
-            dom.gameName.focus();
+        const opponent = dom.gameOpponent.value.trim();
+        if (!opponent) {
+            alert('Please enter an opponent name');
+            dom.gameOpponent.focus();
             return;
         }
         
@@ -1364,15 +1432,20 @@
         // Create new game object
         const newGame = {
             id: state.nextGameId++,
-            name: gameName,
-            opponent: dom.gameOpponent.value.trim(),
+            opponent: opponent,
             date: dom.gameDate.value,
+            time: dom.gameTime.value,
+            notes: dom.gameNotes.value.trim(),
             rotation: rotation,
             currentPeriod: 1,
             timerState: {
                 isRunning: false,
                 remainingSeconds: state.settings.periodLength * 60,
                 totalSeconds: state.settings.periodLength * 60
+            },
+            scores: {
+                home: 0,
+                away: 0
             },
             playerIds: selectedPlayerIds
         };
@@ -1765,16 +1838,17 @@
 
         // Set title
         if (dom.currentGameTitle) {
-            dom.currentGameTitle.textContent = currentGame.name || 'Untitled Game';
+            dom.currentGameTitle.textContent = currentGame.opponent || 'Untitled Game';
         }
 
-        // Set metadata (opponent, date)
+        // Set metadata (date, time, period)
         if (dom.gameMetadata) {
             const metadata = [];
-            if (currentGame.opponent) metadata.push(`vs ${currentGame.opponent}`);
             if (currentGame.date) {
-                const dateStr = new Date(currentGame.date).toLocaleDateString();
-                metadata.push(dateStr);
+                metadata.push(currentGame.date);
+            }
+            if (currentGame.time) {
+                metadata.push(currentGame.time);
             }
             metadata.push(`Period ${currentGame.currentPeriod}/8`);
             
@@ -1787,7 +1861,7 @@
             state.games.forEach(game => {
                 const option = document.createElement('option');
                 option.value = game.id;
-                option.textContent = game.name || `Game ${game.id}`;
+                option.textContent = game.opponent || `Game ${game.id}`;
                 option.selected = game.id === state.currentGameId;
                 dom.gameSelector.appendChild(option);
             });
@@ -1801,6 +1875,218 @@
         }
     }
 
+    // ============================================
+    // PERIOD TIMER FUNCTIONS
+    // ============================================
+
+    function formatTimerDisplay(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimerDisplay() {
+        const currentGame = getCurrentGame();
+        if (!currentGame || !dom.timerDisplay) return;
+
+        const seconds = currentGame.timerState.remainingSeconds;
+        dom.timerDisplay.textContent = formatTimerDisplay(seconds);
+
+        // Apply visual warnings
+        dom.timerDisplay.classList.remove('warning', 'critical');
+        if (seconds <= 10 && seconds > 0) {
+            dom.timerDisplay.classList.add('critical');
+        } else if (seconds <= 30 && seconds > 10) {
+            dom.timerDisplay.classList.add('warning');
+        }
+
+        // Update button state
+        if (currentGame.timerState.isRunning) {
+            dom.timerStartPause.textContent = '⏸';
+            dom.timerStartPause.className = 'timer-btn timer-btn-pause';
+            dom.timerStartPause.title = 'Pause Timer';
+        } else {
+            dom.timerStartPause.textContent = '▶';
+            dom.timerStartPause.className = 'timer-btn timer-btn-play';
+            dom.timerStartPause.title = 'Start Timer';
+        }
+    }
+
+    function startTimer() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+
+        currentGame.timerState.isRunning = true;
+        updateTimerDisplay();
+        saveToLocalStorage();
+
+        timerInterval = setInterval(() => {
+            const game = getCurrentGame();
+            if (!game || !game.timerState.isRunning) {
+                stopTimer();
+                return;
+            }
+
+            game.timerState.remainingSeconds--;
+
+            if (game.timerState.remainingSeconds <= 0) {
+                game.timerState.remainingSeconds = 0;
+                stopTimer();
+                
+                // Play sound if enabled
+                if (state.settings.timerSound) {
+                    playTimerSound();
+                }
+                
+                // Visual alert
+                alert('Period time is up!');
+            }
+
+            updateTimerDisplay();
+            saveToLocalStorage();
+        }, 1000);
+    }
+
+    function stopTimer() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        currentGame.timerState.isRunning = false;
+        updateTimerDisplay();
+        saveToLocalStorage();
+    }
+
+    function resetTimer() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        stopTimer();
+        currentGame.timerState.remainingSeconds = currentGame.timerState.totalSeconds;
+        updateTimerDisplay();
+        saveToLocalStorage();
+    }
+
+    function toggleTimer() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        if (currentGame.timerState.isRunning) {
+            stopTimer();
+        } else {
+            startTimer();
+        }
+    }
+
+    function playTimerSound() {
+        // Simple beep using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+    }
+
+    function showTimerPanel() {
+        if (dom.periodTimerPanel) {
+            dom.periodTimerPanel.classList.remove('hidden');
+        }
+    }
+
+    function hideTimerPanel() {
+        if (dom.periodTimerPanel) {
+            dom.periodTimerPanel.classList.add('hidden');
+        }
+        stopTimer();
+    }
+
+    // ============================================
+    // END TIMER FUNCTIONS
+    // ============================================
+
+    // ============================================
+    // SCOREBOARD FUNCTIONS
+    // ============================================
+
+    function updateScoreDisplay() {
+        const currentGame = getCurrentGame();
+        if (!currentGame || !dom.homeScoreDisplay || !dom.awayScoreDisplay) return;
+
+        // Update scores
+        dom.homeScoreDisplay.textContent = currentGame.scores.home;
+        dom.awayScoreDisplay.textContent = currentGame.scores.away;
+
+        // Update labels dynamically
+        if (dom.homeScoreLabel) {
+            dom.homeScoreLabel.textContent = state.teamName || 'Home';
+        }
+        if (dom.awayScoreLabel) {
+            dom.awayScoreLabel.textContent = currentGame.opponent || 'Away';
+        }
+    }
+
+    function incrementHomeScore() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        currentGame.scores.home++;
+        updateScoreDisplay();
+        saveToLocalStorage();
+    }
+
+    function decrementHomeScore() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        if (currentGame.scores.home > 0) {
+            currentGame.scores.home--;
+            updateScoreDisplay();
+            saveToLocalStorage();
+        }
+    }
+
+    function incrementAwayScore() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        currentGame.scores.away++;
+        updateScoreDisplay();
+        saveToLocalStorage();
+    }
+
+    function decrementAwayScore() {
+        const currentGame = getCurrentGame();
+        if (!currentGame) return;
+
+        if (currentGame.scores.away > 0) {
+            currentGame.scores.away--;
+            updateScoreDisplay();
+            saveToLocalStorage();
+        }
+    }
+
+    // ============================================
+    // END SCOREBOARD FUNCTIONS
+    // ============================================
+
     function renderGame() {
         const currentGame = getCurrentGame();
         if (!currentGame) {
@@ -1809,6 +2095,9 @@
         }
 
         renderGameHeader();
+        showTimerPanel();
+        updateTimerDisplay();
+        updateScoreDisplay();
         renderPlayerStatus();
         renderRotationTable();
         renderPairingAnalytics();
@@ -2374,6 +2663,15 @@
             }
             if (!loaded.history) loaded.history = [];
             if (loaded.historyIndex === undefined) loaded.historyIndex = -1;
+            
+            // Ensure scores exist for all games (backward compatibility)
+            if (loaded.games) {
+                loaded.games.forEach(game => {
+                    if (!game.scores) {
+                        game.scores = { home: 0, away: 0 };
+                    }
+                });
+            }
             
             Object.assign(state, loaded);
         }
