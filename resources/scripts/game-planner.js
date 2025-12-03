@@ -1737,6 +1737,7 @@
         if (analyticsHeader && analyticsContent) {
             analyticsHeader.classList.toggle('collapsed');
             analyticsContent.classList.toggle('collapsed');
+            analyticsContent.classList.toggle('open');
             
             // Save state to localStorage
             const isCollapsed = analyticsContent.classList.contains('collapsed');
@@ -1775,9 +1776,11 @@
             if (analyticsIsCollapsed) {
                 analyticsHeader.classList.add('collapsed');
                 analyticsContent.classList.add('collapsed');
+                analyticsContent.classList.remove('open');
             } else {
                 analyticsHeader.classList.remove('collapsed');
                 analyticsContent.classList.remove('collapsed');
+                analyticsContent.classList.add('open');
             }
         }
     }
@@ -2128,9 +2131,15 @@
         
         for (let p = 0; p < 8; p++) {
             const lineup = [];
-            currentGame.rotation.forEach((playerRotation, i) => {
-                if (playerRotation && playerRotation[p] === 1) {
-                    lineup.push(i);
+            
+            // Only check rotation entries for existing players
+            gamePlayers.forEach((player, playerIndex) => {
+                // Find this player's position in the original rotation
+                const rotationIndex = currentGame.playerIds.indexOf(player.id);
+                if (rotationIndex >= 0 && 
+                    currentGame.rotation[rotationIndex] && 
+                    currentGame.rotation[rotationIndex][p] === 1) {
+                    lineup.push(playerIndex);  // Use playerIndex, not rotationIndex
                 }
             });
             
