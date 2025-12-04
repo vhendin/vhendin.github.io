@@ -1,0 +1,26 @@
+{
+  "name": "Basketball Game Planner",
+  "short_name": "Game Planner",
+  "description": "Manage your team rotation and plan fair playing time for basketball games",
+  "start_url": "/game-planner.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
