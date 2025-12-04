@@ -11,9 +11,6 @@
         <header>
             <h1>Basketball Game Planner</h1>
             <div id="teamNameDisplay" class="team-name-display hidden"></div>
-            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
-                <span class="theme-icon"></span>
-            </button>
         </header>
 
         <!-- Landing View -->
@@ -74,6 +71,25 @@
                         <input type="checkbox" id="timerSound">
                         Play sound when period ends
                     </label>
+                </div>
+                
+                <div class="form-group">
+                    <label>Theme</label>
+                    <div class="theme-options">
+                        <label class="radio-option">
+                            <input type="radio" name="theme" value="light" id="themeLight">
+                            <span>☀️ Light</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="theme" value="dark" id="themeDark">
+                            <span>🌙 Dark</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="theme" value="system" id="themeSystem">
+                            <span>💻 System</span>
+                        </label>
+                    </div>
+                    <p class="help-text">System matches your device's theme preference</p>
                 </div>
                 
                 <div class="actions">
@@ -154,8 +170,6 @@
                     <button id="goToTeamManagement" class="btn-secondary">Team Management</button>
                     <button id="goToSettings" class="btn-secondary">Settings</button>
                     <button id="reshuffleRotation" class="btn-warning">Reshuffle Rotation</button>
-                    <button id="undoButton" class="btn-secondary" disabled>↶ Undo</button>
-                    <button id="redoButton" class="btn-secondary" disabled>↷ Redo</button>
                     <button id="exportSchedule" class="btn-primary">Export/Print</button>
                     <button id="backToSetup" class="btn-secondary">Back to Landing</button>
                     <button id="clearData" class="btn-danger">Clear All</button>
@@ -256,16 +270,7 @@
         </div>
     </div>
 
-    <!-- Floating Action Buttons for Undo/Redo (Mobile) -->
-    <div id="undoRedoFab" class="undo-redo-fab hidden">
-        <button id="undoFab" class="fab-button" aria-label="Undo">
-            <span>↶</span>
-            <span class="fab-badge">0</span>
-        </button>
-        <button id="redoFab" class="fab-button" aria-label="Redo">
-            <span>↷</span>
-        </button>
-    </div>
+
 
     <script src="resources/scripts/draggable.bundle.js"></script>
     <script src="resources/scripts/game-planner.js"></script>

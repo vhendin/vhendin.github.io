@@ -15,11 +15,7 @@
         settings: {
             periodLength: 5,  // minutes
             timerSound: false
-        },
-        // Undo/Redo system
-        history: [],
-        historyIndex: -1,
-        maxHistorySize: 30
+        }
     };
 
     // Timer interval (not saved to state)
@@ -64,7 +60,10 @@
             confirm: document.getElementById('modalConfirm'),
             cancel: document.getElementById('modalCancel')
         },
-        themeToggle: document.getElementById('themeToggle'),
+        // Theme radio buttons
+        themeLight: document.getElementById('themeLight'),
+        themeDark: document.getElementById('themeDark'),
+        themeSystem: document.getElementById('themeSystem'),
         // Settings
         goToSettings: document.getElementById('goToSettings'),
         goToSettingsFromLanding: document.getElementById('goToSettingsFromLanding'),
@@ -106,16 +105,45 @@
     };
 
     // Theme Management
-    function initTheme() {
-        const savedTheme = localStorage.getItem('basketballPlannerTheme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
+    let systemThemeListener = null;
+
+    function applyTheme(theme) {
+        // theme can be 'light', 'dark', or 'system'
+        if (theme === 'system') {
+            // Detect system preference
+            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        } else {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
     }
 
-    function toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', newTheme);
+    function listenToSystemTheme() {
+        // Remove existing listener if any
+        if (systemThemeListener) {
+            window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', systemThemeListener);
+        }
+
+        // Only listen if system theme is selected
+        const savedTheme = localStorage.getItem('basketballPlannerTheme') || 'system';
+        if (savedTheme === 'system') {
+            systemThemeListener = (e) => {
+                document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+            };
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', systemThemeListener);
+        }
+    }
+
+    function initTheme() {
+        const savedTheme = localStorage.getItem('basketballPlannerTheme') || 'system';
+        applyTheme(savedTheme);
+        listenToSystemTheme();
+    }
+
+    function changeTheme(newTheme) {
         localStorage.setItem('basketballPlannerTheme', newTheme);
+        applyTheme(newTheme);
+        listenToSystemTheme();
     }
 
     // Initialize
@@ -123,10 +151,6 @@
         loadFromLocalStorage();
         initTheme();
         setupEventListeners();
-        
-        // Initialize undo/redo button states
-        updateUndoRedoButtons();
-        updateFabVisibility();
         
         // Determine which view to show
         // Check for games in new format
@@ -176,17 +200,6 @@
         dom.clearData.addEventListener('click', clearAllData);
         dom.reshuffleRotation.addEventListener('click', handleReshuffleClick);
         dom.exportSchedule.addEventListener('click', exportSchedule);
-        
-        // Undo/Redo buttons
-        const undoBtn = document.getElementById('undoButton');
-        const redoBtn = document.getElementById('redoButton');
-        const undoFab = document.getElementById('undoFab');
-        const redoFab = document.getElementById('redoFab');
-        
-        if (undoBtn) undoBtn.addEventListener('click', undo);
-        if (redoBtn) redoBtn.addEventListener('click', redo);
-        if (undoFab) undoFab.addEventListener('click', undo);
-        if (redoFab) redoFab.addEventListener('click', redo);
 
         // Burger menu toggle
         dom.burgerMenu.addEventListener('click', toggleBurgerMenu);
@@ -200,9 +213,15 @@
             analyticsAccordion.addEventListener('click', toggleAnalyticsAccordion);
         }
 
-        // Theme toggle
-        if (dom.themeToggle) {
-            dom.themeToggle.addEventListener('click', toggleTheme);
+        // Theme radio buttons
+        if (dom.themeLight) {
+            dom.themeLight.addEventListener('change', () => changeTheme('light'));
+        }
+        if (dom.themeDark) {
+            dom.themeDark.addEventListener('change', () => changeTheme('dark'));
+        }
+        if (dom.themeSystem) {
+            dom.themeSystem.addEventListener('change', () => changeTheme('system'));
         }
 
         // Team Management
@@ -243,9 +262,6 @@
                     dom.playerStatus.classList.add('open');
                 }
             }
-            
-            // Update FAB visibility on resize
-            updateFabVisibility();
         });
 
         // Timer controls
@@ -420,9 +436,6 @@
                 });
                 currentGame.playerIds = newPlayerIds;
 
-                // Save snapshot for undo
-                saveSnapshot("Reordered players");
-                
                 saveToLocalStorage();
                 renderGame();
             }
@@ -834,9 +847,6 @@
         state.rotation.game1 = state.players.map(() => Array(8).fill(0));
         state.rotation.game2 = state.players.map(() => Array(8).fill(0));
 
-        // Save initial snapshot of empty game state
-        saveSnapshot("Started new game");
-
         saveToLocalStorage();
         showGameView();
     }
@@ -1230,9 +1240,6 @@
             }
         }
 
-        // Save snapshot for undo
-        saveSnapshot(`Reshuffled from period ${currentGame.currentPeriod}`);
-        
         renderGame();
         saveToLocalStorage();
     }
@@ -1311,6 +1318,12 @@
         // Populate settings from state
         dom.settingsPeriodLength.value = state.settings.periodLength;
         dom.settingsTimerSound.checked = state.settings.timerSound;
+        
+        // Populate theme selection
+        const currentTheme = localStorage.getItem('basketballPlannerTheme') || 'system';
+        if (dom.themeLight) dom.themeLight.checked = (currentTheme === 'light');
+        if (dom.themeDark) dom.themeDark.checked = (currentTheme === 'dark');
+        if (dom.themeSystem) dom.themeSystem.checked = (currentTheme === 'system');
     }
 
     // Back from settings
@@ -2263,139 +2276,7 @@
 
 
     // ===== UNDO/REDO SYSTEM =====
-    
-    // Create a snapshot of current state
-    function createSnapshot(description) {
-        return {
-            timestamp: Date.now(),
-            description: description,
-            games: JSON.parse(JSON.stringify(state.games)),
-            players: JSON.parse(JSON.stringify(state.players))
-        };
-    }
 
-    // Save a snapshot to history
-    function saveSnapshot(description) {
-        // Remove any history after current index (for redo branching)
-        state.history = state.history.slice(0, state.historyIndex + 1);
-        
-        // Add new snapshot
-        state.history.push(createSnapshot(description));
-        
-        // Trim if exceeds max size
-        if (state.history.length > state.maxHistorySize) {
-            state.history.shift();
-        } else {
-            state.historyIndex++;
-        }
-        
-        updateUndoRedoButtons();
-        updateFabVisibility();
-        saveToLocalStorage();
-    }
-
-    // Check if undo is available
-    function canUndo() {
-        return state.historyIndex >= 0;
-    }
-
-    // Check if redo is available
-    function canRedo() {
-        return state.historyIndex < state.history.length - 1;
-    }
-
-    // Undo last action
-    function undo() {
-        if (!canUndo()) return;
-        
-        // Move back in history
-        state.historyIndex--;
-        
-        // Restore state (or go to initial if at index -1)
-        if (state.historyIndex >= 0) {
-            const snapshot = state.history[state.historyIndex];
-            state.games = JSON.parse(JSON.stringify(snapshot.games));
-            state.players = JSON.parse(JSON.stringify(snapshot.players));
-        }
-        
-        saveToLocalStorage();
-        renderGame();
-        updateUndoRedoButtons();
-        updateFabVisibility();
-        showUndoToast("Undo: " + (state.history[state.historyIndex + 1]?.description || ""));
-    }
-
-    // Redo next action
-    function redo() {
-        if (!canRedo()) return;
-        
-        state.historyIndex++;
-        
-        const snapshot = state.history[state.historyIndex];
-        state.games = JSON.parse(JSON.stringify(snapshot.games));
-        state.players = JSON.parse(JSON.stringify(snapshot.players));
-        
-        saveToLocalStorage();
-        renderGame();
-        updateUndoRedoButtons();
-        updateFabVisibility();
-        showUndoToast("Redo: " + snapshot.description);
-    }
-
-    // Update undo/redo button states
-    function updateUndoRedoButtons() {
-        const undoBtn = document.getElementById('undoButton');
-        const redoBtn = document.getElementById('redoButton');
-        const undoFab = document.getElementById('undoFab');
-        const redoFab = document.getElementById('redoFab');
-        
-        if (undoBtn) undoBtn.disabled = !canUndo();
-        if (redoBtn) redoBtn.disabled = !canRedo();
-        if (undoFab) undoFab.disabled = !canUndo();
-        if (redoFab) redoFab.disabled = !canRedo();
-        
-        // Update badge count on mobile
-        const badge = document.querySelector('.fab-badge');
-        if (badge && state.historyIndex >= 0) {
-            badge.textContent = state.historyIndex + 1;
-        }
-    }
-
-    // Show/hide FAB on mobile based on history
-    function updateFabVisibility() {
-        const fab = document.getElementById('undoRedoFab');
-        if (!fab) return;
-        
-        if (window.innerWidth <= 768) {
-            // Mobile: show FAB if there's history
-            if (state.history.length > 0) {
-                fab.classList.remove('hidden');
-            } else {
-                fab.classList.add('hidden');
-            }
-        } else {
-            // Desktop: always hide FAB (use buttons in control bar instead)
-            fab.classList.add('hidden');
-        }
-    }
-
-    // Show toast notification
-    function showUndoToast(message) {
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = 'undo-toast';
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        
-        // Animate in
-        setTimeout(() => toast.classList.add('show'), 10);
-        
-        // Remove after 2 seconds
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 2000);
-    }
 
     function renderPlayerStatus() {
         dom.playerStatus.innerHTML = '';
@@ -2462,17 +2343,10 @@
             });
         }
         
-        // Save snapshot for undo
-        const action = player.inGame ? "In" : "Out";
-        saveSnapshot(`Changed ${player.name} to ${action}`);
-        
         saveToLocalStorage();
         renderPlayerStatus();
         renderGame();  // Re-render rotation tables and update button states
     }
-
-    // Debounce timer for manual edits
-    let manualEditTimeout;
 
     // Toggle player in/out of a specific period
     function togglePlayerInPeriod(playerIndex, period) {
@@ -2486,12 +2360,6 @@
             currentGame.rotation[playerIndex][period] = 0;
             saveToLocalStorage();
             renderGame();
-            
-            // Debounce snapshot for manual edits
-            clearTimeout(manualEditTimeout);
-            manualEditTimeout = setTimeout(() => {
-                saveSnapshot("Edited rotation manually");
-            }, 1000);
             
             return;
         }
@@ -2511,12 +2379,6 @@
         currentGame.rotation[playerIndex][period] = 1;
         saveToLocalStorage();
         renderGame();
-        
-        // Debounce snapshot for manual edits
-        clearTimeout(manualEditTimeout);
-        manualEditTimeout = setTimeout(() => {
-            saveSnapshot("Edited rotation manually");
-        }, 1000);
     }
 
     function renderRotationTable() {
