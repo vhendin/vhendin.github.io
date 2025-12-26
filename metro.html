@@ -9,6 +9,13 @@
     </head>
     <body>
         <div id="main-wrapper">
+            <div id="date-controls">
+                <button id="previous-day" class="ghost" type="button">Previous</button>
+                <div id="selected-date">----</div>
+                <button id="today" type="button">Today</button>
+                <button id="next-day" class="ghost" type="button">Next</button>
+            </div>
+            <div id="date-status" aria-live="polite"></div>
             <div id="graph-wrapper">
                 <canvas id="myChart"></canvas>
             </div>

@@ -6,6 +6,49 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
+  gap: 16px;
+}
+
+#date-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#date-controls button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #888;
+  background: #f2f2f2;
+  cursor: pointer;
+}
+
+#date-controls button.ghost {
+  background: transparent;
+}
+
+#date-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#previous-day,
+#next-day {
+  display: none;
+}
+
+#selected-date {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+#date-status {
+  min-height: 1em;
+  font-size: 0.9rem;
+  color: #555;
 }
 
 #graph-wrapper {

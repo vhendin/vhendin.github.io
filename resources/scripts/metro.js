@@ -1,14 +1,19 @@
 const ctx = document.getElementById("myChart");
 const expensiveInput = document.getElementById("expensive-input");
 const cheapInput = document.getElementById("cheap-input");
+const previousButton = document.getElementById("previous-day");
+const todayButton = document.getElementById("today");
+const nextButton = document.getElementById("next-day");
+const selectedDateLabel = document.getElementById("selected-date");
+const dateStatus = document.getElementById("date-status");
 
-let prices = [];
+let pricesWithIndex = [];
 
-let pricesWithIndex = prices.map((value, index) => ({
-    value,
-    index,
-    color: "grey"
-}));
+const AREA = "SE3";
+const dateCache = {};
+const todayKey = formatDateKey(new Date());
+let selectedDateKey = todayKey;
+let isSwitching = false;
 
 // Generate 15-minute interval labels
 function generateFifteenMinuteLabels() {
@@ -44,31 +49,79 @@ function processFifteenMinutePrices(minutePrices) {
     });
 }
 
-async function fetchPrices() {
-    const today = new Date();
-    const date = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const year = today.getFullYear();
-    const area = 'SE3';
+function formatDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
 
-    const url = `https://www.elprisetjustnu.se/api/v1/prices/${year}/${month}-${date}_${area}.json`;
+function buildUrl(dateKey) {
+    const [year, month, day] = dateKey.split("-");
+    return `https://www.elprisetjustnu.se/api/v1/prices/${year}/${month}-${day}_${AREA}.json`;
+}
 
+async function fetchDate(dateKey) {
+    if (dateCache[dateKey]) {
+        return dateCache[dateKey];
+    }
+
+    const url = buildUrl(dateKey);
     try {
         const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error("Network response was not ok");
+        }
         const data = await response.json();
-
-        // Process 15-minute data as individual intervals
-        pricesWithIndex = processFifteenMinutePrices(data);
-
-        // Update the chart with new data
-        updateChart();
-        updateValues();
+        const processed = processFifteenMinutePrices(data);
+        dateCache[dateKey] = processed;
+        return processed;
     } catch (error) {
-        console.error('Error fetching prices:', error);
+        console.error(`Error fetching prices for ${dateKey}:`, error);
+        throw error;
     }
 }
 
-fetchPrices();
+function offsetDateKey(baseKey, offsetDays) {
+    const [year, month, day] = baseKey.split("-").map(Number);
+    const baseDate = new Date(year, month - 1, day);
+    baseDate.setDate(baseDate.getDate() + offsetDays);
+    return formatDateKey(baseDate);
+}
+
+async function prefetchDay(dateKey) {
+    try {
+        await fetchDate(dateKey);
+    } catch (error) {
+        // Intentionally swallow errors for optional days
+    }
+}
+
+async function initialize() {
+    setDateStatus("Loading today's prices...");
+    try {
+        const data = await fetchDate(todayKey);
+        applySelectedDate(todayKey, data);
+        await Promise.allSettled([
+            prefetchDay(offsetDateKey(todayKey, -1)),
+            prefetchDay(offsetDateKey(todayKey, 1))
+        ]);
+        updateNavigationAvailability();
+        setDateStatus("");
+    } catch (error) {
+        setDateStatus("Unable to load today's prices.");
+    }
+}
+
+initialize();
+
+function applySelectedDate(dateKey, data) {
+    selectedDateKey = dateKey;
+    pricesWithIndex = data.slice();
+    selectedDateLabel.textContent = dateKey;
+    updateValues();
+    todayButton.disabled = selectedDateKey === todayKey;
+}
 
 function updateChart() {
     chart.data.datasets[0].data = pricesWithIndex
@@ -78,6 +131,20 @@ function updateChart() {
         .sort((a, b) => a.index - b.index)
         .map((item) => item.color);
     chart.update();
+}
+
+function setDateStatus(message) {
+    dateStatus.textContent = message;
+}
+
+function updateNavigationAvailability() {
+    const previousKey = offsetDateKey(todayKey, -1);
+    const nextKey = offsetDateKey(todayKey, 1);
+    const hasPrevious = Boolean(dateCache[previousKey]);
+    const hasNext = Boolean(dateCache[nextKey]);
+
+    previousButton.style.display = hasPrevious ? "inline-flex" : "none";
+    nextButton.style.display = hasNext ? "inline-flex" : "none";
 }
 
 function updateValues() {
@@ -125,6 +192,10 @@ function updateValues() {
 expensiveInput.addEventListener("input", updateValues);
 cheapInput.addEventListener("input", updateValues);
 
+todayButton.addEventListener("click", () => switchToDate(todayKey));
+previousButton.addEventListener("click", () => switchToDate(offsetDateKey(selectedDateKey, -1)));
+nextButton.addEventListener("click", () => switchToDate(offsetDateKey(selectedDateKey, 1)));
+
 const chart = new Chart(ctx, {
     type: "bar",
     data: {
@@ -160,5 +231,41 @@ const chart = new Chart(ctx, {
         }
     }
 });
+
+function setDateStatus(message) {
+    dateStatus.textContent = message;
+}
+
+function updateNavigationAvailability() {
+    const previousKey = offsetDateKey(todayKey, -1);
+    const nextKey = offsetDateKey(todayKey, 1);
+    const hasPrevious = Boolean(dateCache[previousKey]);
+    const hasNext = Boolean(dateCache[nextKey]);
+
+    previousButton.style.display = hasPrevious ? "inline-flex" : "none";
+    nextButton.style.display = hasNext ? "inline-flex" : "none";
+}
+
+async function switchToDate(dateKey) {
+    if (isSwitching || !dateKey) {
+        return;
+    }
+
+    if (dateKey === selectedDateKey && dateCache[dateKey]) {
+        return;
+    }
+
+    isSwitching = true;
+    setDateStatus("Loading prices...");
+    try {
+        const data = await fetchDate(dateKey);
+        applySelectedDate(dateKey, data);
+        setDateStatus("");
+    } catch (error) {
+        setDateStatus(`Pricing unavailable for ${dateKey}.`);
+    } finally {
+        isSwitching = false;
+    }
+}
 
 updateValues();
