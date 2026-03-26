@@ -784,14 +784,27 @@ function updateScaleIndicator() {
 // ==========================================
 
 function handleWheel(e) {
-  // Disabled wheel zoom as requested
-  // if (!currentPlan || DOM.editorView.classList.contains("hidden")) return;
-  // e.preventDefault();
-  // const zoomFactor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-  // const rect = DOM.canvas.getBoundingClientRect();
-  // const mouseX = e.clientX - rect.left;
-  // const mouseY = e.clientY - rect.top;
-  // zoomViewAroundPoint(zoomFactor, mouseX, mouseY);
+  if (!currentPlan || DOM.editorView.classList.contains("hidden")) return;
+  e.preventDefault();
+
+  const isPinch = e.ctrlKey;
+
+  if (isPinch) {
+    // Zooming (pinch)
+    // Mac trackpad pinch-to-zoom fires wheel events with ctrlKey=true
+    // deltaY represents the zoom scale directly
+    const zoomFactor = 1 - e.deltaY * 0.01;
+    const rect = DOM.canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    zoomViewAroundPoint(zoomFactor, mouseX, mouseY);
+  } else {
+    // Panning (two-finger swipe)
+    // Trackpads emit fine-grained wheel events for panning
+    currentPlan.viewport.panX -= e.deltaX;
+    currentPlan.viewport.panY -= e.deltaY;
+    draw();
+  }
 }
 
 function zoomView(factor) {
