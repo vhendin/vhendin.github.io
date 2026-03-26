@@ -109,6 +109,9 @@ let draggedBin = null;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
+let selectedDoorId = null;
+let draggedDoor = null;
+
 // ==========================================
 // DOM ELEMENTS
 // ==========================================
@@ -139,7 +142,10 @@ const DOM = {
 
   // Sidebar Controls
   selectionPanel: document.getElementById("selection-panel"),
+  panelBinSettings: document.getElementById("panel-bin-settings"),
+  panelDoorSettings: document.getElementById("panel-door-settings"),
   wasteTypeGrid: document.getElementById("waste-type-grid"),
+  inputDoorWidth: document.getElementById("input-door-width"),
   binPalette: document.getElementById("bin-palette"),
   selectSurfaceTexture: document.getElementById("select-surface-texture"),
   selectOutsideTexture: document.getElementById("select-outside-texture"),
@@ -225,6 +231,21 @@ function setupEventListeners() {
   });
 
   // Sidebar Controls
+  if (DOM.inputDoorWidth) {
+    DOM.inputDoorWidth.addEventListener("change", (e) => {
+      if (!currentPlan || !selectedDoorId) return;
+      const door = currentPlan.doors.find((d) => d.id === selectedDoorId);
+      if (door) {
+        let w = parseFloat(e.target.value) || 1.2;
+        if (w < 1.2) w = 1.2;
+        door.widthM = w;
+        e.target.value = w;
+        saveCurrentPlan();
+        draw();
+      }
+    });
+  }
+
   if (DOM.selectSurfaceTexture) {
     DOM.selectSurfaceTexture.addEventListener("change", (e) => {
       if (!currentPlan) return;
@@ -290,22 +311,30 @@ function setupEventListeners() {
       if (e.key === "Escape") {
         setActiveTool("select");
         selectedBinId = null;
+        selectedDoorId = null;
         updateSelectionPanel();
         draw();
       } else if (e.code === "Space") {
         isSpacePressed = true;
         DOM.canvas.classList.add("panning");
-      } else if (
-        (e.key === "Delete" || e.key === "Backspace") &&
-        selectedBinId
-      ) {
-        currentPlan.bins = currentPlan.bins.filter(
-          (b) => b.id !== selectedBinId,
-        );
-        selectedBinId = null;
-        saveCurrentPlan();
-        updateSelectionPanel();
-        draw();
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedBinId) {
+          currentPlan.bins = currentPlan.bins.filter(
+            (b) => b.id !== selectedBinId,
+          );
+          selectedBinId = null;
+          saveCurrentPlan();
+          updateSelectionPanel();
+          draw();
+        } else if (selectedDoorId) {
+          currentPlan.doors = currentPlan.doors.filter(
+            (d) => d.id !== selectedDoorId,
+          );
+          selectedDoorId = null;
+          saveCurrentPlan();
+          updateSelectionPanel();
+          draw();
+        }
       } else if ((e.key === "r" || e.key === "R") && selectedBinId) {
         const bin = currentPlan.bins.find((b) => b.id === selectedBinId);
         if (bin) {
@@ -378,6 +407,7 @@ function setActiveTool(tool) {
 
   if (tool !== "select") {
     selectedBinId = null;
+    selectedDoorId = null;
     if (typeof updateSelectionPanel === "function") updateSelectionPanel();
   }
 
@@ -550,20 +580,34 @@ function renderPlanList() {
 }
 
 function updateSelectionPanel() {
-  if (!DOM.selectionPanel || !DOM.wasteTypeGrid) return;
+  if (!DOM.selectionPanel) return;
 
   if (selectedBinId && activeTool === "select") {
     DOM.selectionPanel.classList.remove("hidden");
+    if (DOM.panelBinSettings) DOM.panelBinSettings.classList.remove("hidden");
+    if (DOM.panelDoorSettings) DOM.panelDoorSettings.classList.add("hidden");
+
     const selectedBin = currentPlan.bins.find((b) => b.id === selectedBinId);
 
     // Update active state in grid
-    document.querySelectorAll(".waste-icon").forEach((el) => {
-      if (el.dataset.type === selectedBin.wasteType) {
-        el.classList.add("active");
-      } else {
-        el.classList.remove("active");
-      }
-    });
+    if (DOM.wasteTypeGrid) {
+      document.querySelectorAll(".waste-icon").forEach((el) => {
+        if (el.dataset.type === selectedBin.wasteType) {
+          el.classList.add("active");
+        } else {
+          el.classList.remove("active");
+        }
+      });
+    }
+  } else if (selectedDoorId && activeTool === "select") {
+    DOM.selectionPanel.classList.remove("hidden");
+    if (DOM.panelBinSettings) DOM.panelBinSettings.classList.add("hidden");
+    if (DOM.panelDoorSettings) DOM.panelDoorSettings.classList.remove("hidden");
+
+    const selectedDoor = currentPlan.doors.find((d) => d.id === selectedDoorId);
+    if (DOM.inputDoorWidth && selectedDoor) {
+      DOM.inputDoorWidth.value = selectedDoor.widthM;
+    }
   } else {
     DOM.selectionPanel.classList.add("hidden");
   }
@@ -813,9 +857,95 @@ function placeBin(x, y) {
 
   currentPlan.bins.push(newBin);
   selectedBinId = newBin.id;
+  selectedDoorId = null;
   setActiveTool("select");
   updateSelectionPanel();
   saveCurrentPlan();
+}
+
+function getClosestEdge(x, y) {
+  const s = currentPlan.surface;
+  const minX = s.xM;
+  const maxX = s.xM + s.widthM;
+  const minY = s.yM;
+  const maxY = s.yM + s.depthM;
+
+  const dN = Math.abs(y - minY);
+  const dS = Math.abs(y - maxY);
+  const dW = Math.abs(x - minX);
+  const dE = Math.abs(x - maxX);
+
+  const min = Math.min(dN, dS, dW, dE);
+  if (min === dN) return { edge: "n", offset: x - minX };
+  if (min === dS) return { edge: "s", offset: x - minX };
+  if (min === dW) return { edge: "w", offset: y - minY };
+  return { edge: "e", offset: y - minY };
+}
+
+function placeDoor(x, y) {
+  const s = currentPlan.surface;
+  const { edge, offset } = getClosestEdge(x, y);
+
+  let offsetM = offset - 1.2 / 2;
+  if (offsetM < 0) offsetM = 0;
+
+  const maxOffset = (edge === "n" || edge === "s" ? s.widthM : s.depthM) - 1.2;
+  if (offsetM > maxOffset) offsetM = maxOffset;
+
+  const newDoor = {
+    id: "door_" + Date.now() + Math.floor(Math.random() * 1000),
+    edge: edge,
+    offsetM: offsetM,
+    widthM: 1.2,
+  };
+  currentPlan.doors.push(newDoor);
+  selectedDoorId = newDoor.id;
+  selectedBinId = null;
+  setActiveTool("select");
+  updateSelectionPanel();
+  saveCurrentPlan();
+}
+
+function hitTestDoors(x, y) {
+  const s = currentPlan.surface;
+  const t = s.wallThicknessM;
+
+  for (let i = currentPlan.doors.length - 1; i >= 0; i--) {
+    const d = currentPlan.doors[i];
+    let dx, dy, dw, dh;
+    if (d.edge === "n") {
+      dx = s.xM + d.offsetM;
+      dy = s.yM - t;
+      dw = d.widthM;
+      dh = t;
+    } else if (d.edge === "s") {
+      dx = s.xM + d.offsetM;
+      dy = s.yM + s.depthM;
+      dw = d.widthM;
+      dh = t;
+    } else if (d.edge === "w") {
+      dx = s.xM - t;
+      dy = s.yM + d.offsetM;
+      dw = t;
+      dh = d.widthM;
+    } else if (d.edge === "e") {
+      dx = s.xM + s.widthM;
+      dy = s.yM + d.offsetM;
+      dw = t;
+      dh = d.widthM;
+    }
+
+    const pad = 0.2;
+    if (
+      x >= dx - pad &&
+      x <= dx + dw + pad &&
+      y >= dy - pad &&
+      y <= dy + dh + pad
+    ) {
+      return d;
+    }
+  }
+  return null;
 }
 
 function handleMouseDown(e) {
@@ -834,15 +964,30 @@ function handleMouseDown(e) {
     const pos = getMouseWorldPos(e);
     if (activeTool === "bin") {
       placeBin(pos.x, pos.y);
+    } else if (activeTool === "door") {
+      placeDoor(pos.x, pos.y);
     } else if (activeTool === "select") {
       const hitBin = hitTestBins(pos.x, pos.y);
+      const hitDoor = hitTestDoors(pos.x, pos.y);
+
       if (hitBin) {
         selectedBinId = hitBin.id;
+        selectedDoorId = null;
         draggedBin = hitBin;
         dragOffsetX = pos.x - hitBin.xM;
         dragOffsetY = pos.y - hitBin.yM;
+      } else if (hitDoor) {
+        selectedDoorId = hitDoor.id;
+        selectedBinId = null;
+        draggedDoor = hitDoor;
+        if (hitDoor.edge === "n" || hitDoor.edge === "s") {
+          dragOffsetX = pos.x - hitDoor.offsetM;
+        } else {
+          dragOffsetX = pos.y - hitDoor.offsetM;
+        }
       } else {
         selectedBinId = null;
+        selectedDoorId = null;
       }
       updateSelectionPanel();
       draw();
@@ -868,6 +1013,27 @@ function handleMouseMove(e) {
     draggedBin.xM = newX;
     draggedBin.yM = newY;
     draw();
+  } else if (draggedDoor && activeTool === "select") {
+    const s = currentPlan.surface;
+    const pos = getMouseWorldPos(e);
+    let newOffset =
+      draggedDoor.edge === "n" || draggedDoor.edge === "s"
+        ? pos.x - dragOffsetX
+        : pos.y - dragOffsetX;
+
+    if (DOM.toggleGrid && DOM.toggleGrid.checked) {
+      newOffset = Math.round(newOffset * 10) / 10;
+    }
+
+    const maxOffset =
+      (draggedDoor.edge === "n" || draggedDoor.edge === "s"
+        ? s.widthM
+        : s.depthM) - draggedDoor.widthM;
+    if (newOffset < 0) newOffset = 0;
+    if (newOffset > maxOffset) newOffset = maxOffset;
+
+    draggedDoor.offsetM = newOffset;
+    draw();
   }
 }
 
@@ -880,6 +1046,10 @@ function handleMouseUp(e) {
   }
   if (draggedBin) {
     draggedBin = null;
+    saveCurrentPlan();
+  }
+  if (draggedDoor) {
+    draggedDoor = null;
     saveCurrentPlan();
   }
 }
@@ -907,7 +1077,10 @@ function draw() {
   // 2. Surface & Walls
   drawSurface();
 
-  // 3. TODO: Doors
+  // 3. Doors
+  drawDoors();
+
+  // 4. Bins
   drawBins();
   // 5. TODO: Trees & Bushes
   // 6. TODO: Overlays (grid, handles, measure line)
@@ -998,6 +1171,67 @@ function drawBins() {
     }
 
     ctx.restore();
+  });
+}
+
+function drawDoors() {
+  if (!currentPlan) return;
+  const s = currentPlan.surface;
+  const t = s.wallThicknessM;
+
+  currentPlan.doors.forEach((d) => {
+    let dx, dy, dw, dh;
+    if (d.edge === "n") {
+      dx = s.xM + d.offsetM;
+      dy = s.yM - t;
+      dw = d.widthM;
+      dh = t;
+    } else if (d.edge === "s") {
+      dx = s.xM + d.offsetM;
+      dy = s.yM + s.depthM;
+      dw = d.widthM;
+      dh = t;
+    } else if (d.edge === "w") {
+      dx = s.xM - t;
+      dy = s.yM + d.offsetM;
+      dw = t;
+      dh = d.widthM;
+    } else if (d.edge === "e") {
+      dx = s.xM + s.widthM;
+      dy = s.yM + d.offsetM;
+      dw = t;
+      dh = d.widthM;
+    }
+
+    ctx.fillStyle =
+      currentPlan.surface.texture === "concrete"
+        ? "#EEEEEE"
+        : currentPlan.surface.texture === "asphalt"
+          ? "#757575"
+          : currentPlan.surface.texture === "tiles"
+            ? "#E0E0E0"
+            : "#EEEEEE";
+    ctx.fillRect(dx, dy, dw, dh);
+
+    ctx.strokeStyle = "#A5D6A7";
+    ctx.setLineDash([0.1, 0.1]);
+    ctx.lineWidth = 0.02;
+    ctx.beginPath();
+    if (d.edge === "n" || d.edge === "s") {
+      ctx.moveTo(dx, dy + dh / 2);
+      ctx.lineTo(dx + dw, dy + dh / 2);
+    } else {
+      ctx.moveTo(dx + dw / 2, dy);
+      ctx.lineTo(dx + dw / 2, dy + dh);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (d.id === selectedDoorId) {
+      ctx.strokeStyle = "#1A73E8";
+      ctx.lineWidth = 0.04;
+      ctx.strokeRect(dx - 0.02, dy - 0.02, dw + 0.04, dh + 0.04);
+    }
   });
 }
 
