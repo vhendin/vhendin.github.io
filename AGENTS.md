@@ -16,8 +16,7 @@ Since there is no build step or package manager, development is straightforward:
 
 - **Local Preview:** You can open the `.html` files directly in a web browser.
 - **Local Server:** If a file uses `fetch()` or modules that require a server environment, start a simple local web server from the repository root:
-  - Python: `python3 -m http.server 8000`
-  - Node.js: `npx serve` or `npx http-server`
+  - Node.js: `npx http-serve -p 3002`
 
 ## Branching Model and Deployment
 
@@ -90,3 +89,10 @@ Deployments to production (vhendin.github.io) happen automatically when commits 
 - Append the following signature to every comment and description:
 
   `— 🤖 AI Assistant`
+
+## Workflow
+
+- **Note down all major features into a planning file** It should be markdown formatted.
+- It should contain a todo list of well scoped tasks.
+- When making progress, always check things of from the todo list.
+- Always create a documentation file for a new project, and keep it up to date as the project progresses.
