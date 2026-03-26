@@ -1384,6 +1384,10 @@ function drawBins() {
     ctx.lineWidth = 0.02;
     ctx.stroke();
 
+    ctx.save();
+    ctx.translate(type.widthM / 2, type.depthM / 2);
+    ctx.rotate((-bin.rotation * Math.PI) / 180);
+
     ctx.fillStyle = "#000";
     ctx.font = "0.18px sans-serif";
     ctx.textAlign = "center";
@@ -1394,18 +1398,20 @@ function drawBins() {
       iconImages[bin.wasteType] &&
       iconImages[bin.wasteType].complete
     ) {
-      ctx.fillText(type.label, type.widthM / 2, type.depthM * 0.35);
+      ctx.fillText(type.label, 0, type.depthM * -0.15);
       const size = 0.25;
       ctx.drawImage(
         iconImages[bin.wasteType],
-        type.widthM / 2 - size / 2,
-        type.depthM * 0.65 - size / 2,
+        -size / 2,
+        type.depthM * 0.15 - size / 2,
         size,
         size,
       );
     } else {
-      ctx.fillText(type.label, type.widthM / 2, type.depthM / 2);
+      ctx.fillText(type.label, 0, 0);
     }
+
+    ctx.restore();
 
     ctx.restore();
 
