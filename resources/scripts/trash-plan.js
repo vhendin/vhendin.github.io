@@ -112,6 +112,10 @@ let dragOffsetY = 0;
 let selectedDoorId = null;
 let draggedDoor = null;
 
+let measurePointA = null;
+let measurePointB = null;
+let currentMousePos = null;
+
 // ==========================================
 // DOM ELEMENTS
 // ==========================================
@@ -409,6 +413,11 @@ function setActiveTool(tool) {
     selectedBinId = null;
     selectedDoorId = null;
     if (typeof updateSelectionPanel === "function") updateSelectionPanel();
+  }
+
+  if (tool !== "measure") {
+    measurePointA = null;
+    measurePointB = null;
   }
 
   // Re-render
@@ -966,6 +975,17 @@ function handleMouseDown(e) {
       placeBin(pos.x, pos.y);
     } else if (activeTool === "door") {
       placeDoor(pos.x, pos.y);
+    } else if (activeTool === "measure") {
+      if (!measurePointA) {
+        measurePointA = { x: pos.x, y: pos.y };
+        measurePointB = null;
+      } else if (!measurePointB) {
+        measurePointB = { x: pos.x, y: pos.y };
+      } else {
+        measurePointA = null;
+        measurePointB = null;
+      }
+      draw();
     } else if (activeTool === "select") {
       const hitBin = hitTestBins(pos.x, pos.y);
       const hitDoor = hitTestDoors(pos.x, pos.y);
@@ -996,7 +1016,10 @@ function handleMouseDown(e) {
 }
 
 function handleMouseMove(e) {
-  if (isPanning && currentPlan) {
+  if (!currentPlan) return;
+  currentMousePos = getMouseWorldPos(e);
+
+  if (isPanning) {
     currentPlan.viewport.panX = e.clientX - panStartX;
     currentPlan.viewport.panY = e.clientY - panStartY;
     draw();
@@ -1033,6 +1056,8 @@ function handleMouseMove(e) {
     if (newOffset > maxOffset) newOffset = maxOffset;
 
     draggedDoor.offsetM = newOffset;
+    draw();
+  } else if (activeTool === "measure" && measurePointA && !measurePointB) {
     draw();
   }
 }
@@ -1086,6 +1111,7 @@ function draw() {
   // 6. TODO: Overlays (grid, handles, measure line)
   drawGrid();
   drawDimensions();
+  drawMeasurement();
 
   ctx.restore();
 }
@@ -1346,6 +1372,61 @@ function drawDimensions() {
   ctx.rotate(Math.PI / 2);
   ctx.fillText(dStr, 0, 0);
   ctx.restore();
+
+  ctx.restore();
+}
+
+function drawMeasurement() {
+  if (activeTool !== "measure") return;
+  if (!measurePointA) return;
+
+  const ptB = measurePointB || currentMousePos;
+  if (!ptB) return;
+
+  ctx.save();
+  ctx.strokeStyle = "#1A73E8";
+
+  // Use scale-relative values so line doesn't get thick when zoomed out
+  const scale = currentPlan.viewport.scale;
+  ctx.lineWidth = 2 / scale;
+  ctx.setLineDash([5 / scale, 5 / scale]);
+
+  ctx.beginPath();
+  ctx.moveTo(measurePointA.x, measurePointA.y);
+  ctx.lineTo(ptB.x, ptB.y);
+  ctx.stroke();
+
+  // Draw endpoints
+  ctx.fillStyle = "#1A73E8";
+  ctx.beginPath();
+  ctx.arc(measurePointA.x, measurePointA.y, 4 / scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(ptB.x, ptB.y, 4 / scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw distance text
+  const dx = ptB.x - measurePointA.x;
+  const dy = ptB.y - measurePointA.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  const midX = measurePointA.x + dx / 2;
+  const midY = measurePointA.y + dy / 2;
+
+  const fontSize = 14 / scale;
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.setLineDash([]); // reset dash for strokeText
+
+  // Outline for text readability
+  ctx.lineWidth = 3 / scale;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+  ctx.strokeText(`${dist.toFixed(2)} m`, midX, midY - 5 / scale);
+
+  ctx.fillStyle = "#1A73E8";
+  ctx.fillText(`${dist.toFixed(2)} m`, midX, midY - 5 / scale);
 
   ctx.restore();
 }
