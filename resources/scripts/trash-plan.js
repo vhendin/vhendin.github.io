@@ -76,6 +76,7 @@ const WASTE_TYPES = {
 const iconImages = {};
 Object.entries(WASTE_TYPES).forEach(([key, type]) => {
   const img = new Image();
+  img.crossOrigin = "anonymous";
   img.src = `https://unpkg.com/@phosphor-icons/core@2.0.1/assets/regular/${type.icon}.svg`;
   img.onload = () => {
     if (typeof draw === "function") draw();
@@ -123,6 +124,7 @@ let measurePointB = null;
 let currentMousePos = null;
 
 let isSidebarOpen = true;
+let isExporting = false;
 
 // ==========================================
 // DOM ELEMENTS
@@ -245,6 +247,26 @@ function setupEventListeners() {
   });
 
   DOM.btnSave.addEventListener("click", saveCurrentPlan);
+
+  if (DOM.btnExportPng) {
+    DOM.btnExportPng.addEventListener("click", () => {
+      if (!currentPlan) return;
+      isExporting = true;
+      draw();
+
+      const dataUrl = DOM.canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      const fileName =
+        currentPlan.name.replace(/[^a-z0-9]/gi, "_").toLowerCase() ||
+        "trash_plan";
+      a.download = `${fileName}.png`;
+      a.click();
+
+      isExporting = false;
+      draw();
+    });
+  }
 
   // Tools
   DOM.toolBtns.forEach((btn) => {
@@ -1004,49 +1026,6 @@ function placeBin(x, y) {
   saveCurrentPlan();
 }
 
-function getClosestEdge(x, y) {
-  const s = currentPlan.surface;
-  const minX = s.xM;
-  const maxX = s.xM + s.widthM;
-  const minY = s.yM;
-  const maxY = s.yM + s.depthM;
-
-  const dN = Math.abs(y - minY);
-  const dS = Math.abs(y - maxY);
-  const dW = Math.abs(x - minX);
-  const dE = Math.abs(x - maxX);
-
-  const min = Math.min(dN, dS, dW, dE);
-  if (min === dN) return { edge: "n", offset: x - minX };
-  if (min === dS) return { edge: "s", offset: x - minX };
-  if (min === dW) return { edge: "w", offset: y - minY };
-  return { edge: "e", offset: y - minY };
-}
-
-function placeDoor(x, y) {
-  const s = currentPlan.surface;
-  const { edge, offset } = getClosestEdge(x, y);
-
-  let offsetM = offset - 1.2 / 2;
-  if (offsetM < 0) offsetM = 0;
-
-  const maxOffset = (edge === "n" || edge === "s" ? s.widthM : s.depthM) - 1.2;
-  if (offsetM > maxOffset) offsetM = maxOffset;
-
-  const newDoor = {
-    id: "door_" + Date.now() + Math.floor(Math.random() * 1000),
-    edge: edge,
-    offsetM: offsetM,
-    widthM: 1.2,
-  };
-  currentPlan.doors.push(newDoor);
-  selectedDoorId = newDoor.id;
-  selectedBinId = null;
-  setActiveTool("select");
-  updateSelectionPanel();
-  saveCurrentPlan();
-}
-
 function getSurfaceHandles(s) {
   return [
     { id: "nw", x: s.xM, y: s.yM },
@@ -1149,6 +1128,49 @@ function hitTestDoors(x, y) {
     }
   }
   return null;
+}
+
+function getClosestEdge(x, y) {
+  const s = currentPlan.surface;
+  const minX = s.xM;
+  const maxX = s.xM + s.widthM;
+  const minY = s.yM;
+  const maxY = s.yM + s.depthM;
+
+  const dN = Math.abs(y - minY);
+  const dS = Math.abs(y - maxY);
+  const dW = Math.abs(x - minX);
+  const dE = Math.abs(x - maxX);
+
+  const min = Math.min(dN, dS, dW, dE);
+  if (min === dN) return { edge: "n", offset: x - minX };
+  if (min === dS) return { edge: "s", offset: x - minX };
+  if (min === dW) return { edge: "w", offset: y - minY };
+  return { edge: "e", offset: y - minY };
+}
+
+function placeDoor(x, y) {
+  const s = currentPlan.surface;
+  const { edge, offset } = getClosestEdge(x, y);
+
+  let offsetM = offset - 1.2 / 2;
+  if (offsetM < 0) offsetM = 0;
+
+  const maxOffset = (edge === "n" || edge === "s" ? s.widthM : s.depthM) - 1.2;
+  if (offsetM > maxOffset) offsetM = maxOffset;
+
+  const newDoor = {
+    id: "door_" + Date.now() + Math.floor(Math.random() * 1000),
+    edge: edge,
+    offsetM: offsetM,
+    widthM: 1.2,
+  };
+  currentPlan.doors.push(newDoor);
+  selectedDoorId = newDoor.id;
+  selectedBinId = null;
+  setActiveTool("select");
+  updateSelectionPanel();
+  saveCurrentPlan();
 }
 
 function handlePointerDown(e) {
@@ -1409,8 +1431,10 @@ function draw() {
   // 6. TODO: Overlays (grid, handles, measure line)
   drawGrid();
   drawDimensions();
-  drawHandles();
-  drawMeasurement();
+  if (!isExporting) {
+    drawHandles();
+    drawMeasurement();
+  }
 
   ctx.restore();
 }
@@ -1495,7 +1519,7 @@ function drawBins() {
 
     ctx.restore();
 
-    if (bin.id === selectedBinId) {
+    if (bin.id === selectedBinId && !isExporting) {
       ctx.strokeStyle = "#1A73E8";
       ctx.lineWidth = 0.04;
       ctx.strokeRect(-0.02, -0.02, w + 0.04, h + 0.04);
@@ -1548,7 +1572,7 @@ function drawFoliage() {
     ctx.lineWidth = 0.05;
     ctx.stroke();
 
-    if (f.id === selectedFoliageId) {
+    if (f.id === selectedFoliageId && !isExporting) {
       ctx.strokeStyle = "#1A73E8";
       ctx.lineWidth = 0.04;
       ctx.beginPath();
@@ -1613,7 +1637,7 @@ function drawDoors() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    if (d.id === selectedDoorId) {
+    if (d.id === selectedDoorId && !isExporting) {
       ctx.strokeStyle = "#1A73E8";
       ctx.lineWidth = 0.04;
       ctx.strokeRect(dx - 0.02, dy - 0.02, dw + 0.04, dh + 0.04);
@@ -1630,37 +1654,6 @@ function drawBackground() {
   ctx.fillStyle =
     currentPlan.outside.texture === "grass" ? "#C8E6C9" : "#C8E6C9";
   ctx.fillRect(0, 0, DOM.canvas.width, DOM.canvas.height);
-
-  ctx.restore();
-}
-
-function drawHandles() {
-  if (activeTool !== "surface" || !currentPlan) return;
-
-  const s = currentPlan.surface;
-  const handles = getSurfaceHandles(s);
-
-  ctx.save();
-  ctx.fillStyle = "#FFFFFF";
-  ctx.strokeStyle = "#1A73E8";
-  const scale = currentPlan.viewport.scale;
-  ctx.lineWidth = 2 / scale;
-
-  // Make handles fixed size regardless of zoom
-  const size = 10 / scale;
-
-  for (const h of handles) {
-    ctx.beginPath();
-    ctx.rect(h.x - size / 2, h.y - size / 2, size, size);
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  // Draw an outer boundary highlight
-  ctx.strokeStyle = "#1A73E8";
-  ctx.lineWidth = 2 / scale;
-  ctx.setLineDash([5 / scale, 5 / scale]);
-  ctx.strokeRect(s.xM, s.yM, s.widthM, s.depthM);
 
   ctx.restore();
 }
@@ -1697,6 +1690,37 @@ function drawSurface() {
   ctx.strokeRect(s.xM, s.yM, s.widthM, s.depthM);
 
   // TODO: if tiles, draw grid pattern inside interior
+}
+
+function drawHandles() {
+  if (activeTool !== "surface" || !currentPlan) return;
+
+  const s = currentPlan.surface;
+  const handles = getSurfaceHandles(s);
+
+  ctx.save();
+  ctx.fillStyle = "#FFFFFF";
+  ctx.strokeStyle = "#1A73E8";
+  const scale = currentPlan.viewport.scale;
+  ctx.lineWidth = 2 / scale;
+
+  // Make handles fixed size regardless of zoom
+  const size = 10 / scale;
+
+  for (const h of handles) {
+    ctx.beginPath();
+    ctx.rect(h.x - size / 2, h.y - size / 2, size, size);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Draw an outer boundary highlight
+  ctx.strokeStyle = "#1A73E8";
+  ctx.lineWidth = 2 / scale;
+  ctx.setLineDash([5 / scale, 5 / scale]);
+  ctx.strokeRect(s.xM, s.yM, s.widthM, s.depthM);
+
+  ctx.restore();
 }
 
 function drawGrid() {
