@@ -19,29 +19,24 @@ const BIN_TYPES = {
     widthM: 1.255,
     depthM: 0.773,
     volumeL: 660,
-    suitableFor: ["plastic", "paper", "cardboard"],
   },
   "370L": {
     label: "370 L",
     widthM: 0.77,
     depthM: 0.811,
     volumeL: 370,
-    suitableFor: ["metal", "newspaper"],
   },
   "240L": {
     label: "240 L",
     widthM: 0.58,
     depthM: 0.724,
     volumeL: 240,
-    suitableFor: ["general"],
   },
   "190L": {
     label: "190 L",
     widthM: 0.559,
     depthM: 0.69,
     volumeL: 190,
-    suitableFor: ["glass"],
-    note: "Standard choice for glass — weight management",
   },
 };
 
