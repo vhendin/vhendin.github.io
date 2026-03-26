@@ -18,8 +18,6 @@ const BIN_TYPES = {
     label: "660 L",
     widthM: 1.255,
     depthM: 0.773,
-    color: "#FFCC80",
-    strokeColor: "#E65100",
     volumeL: 660,
     suitableFor: ["plastic", "paper", "cardboard"],
   },
@@ -27,27 +25,13 @@ const BIN_TYPES = {
     label: "370 L",
     widthM: 0.77,
     depthM: 0.811,
-    color: "#CE93D8",
-    strokeColor: "#6A1B9A",
     volumeL: 370,
     suitableFor: ["metal", "newspaper"],
-  },
-  "370L-glass": {
-    label: "370 L Glass",
-    widthM: 0.77,
-    depthM: 0.811,
-    color: "#80DEEA",
-    strokeColor: "#00695C",
-    volumeL: 370,
-    suitableFor: ["glass"],
-    note: "Requires 3 wheels and flat ground",
   },
   "240L": {
     label: "240 L",
     widthM: 0.58,
     depthM: 0.724,
-    color: "#A5D6A7",
-    strokeColor: "#2E7D32",
     volumeL: 240,
     suitableFor: ["general"],
   },
@@ -55,8 +39,6 @@ const BIN_TYPES = {
     label: "190 L",
     widthM: 0.559,
     depthM: 0.69,
-    color: "#90CAF9",
-    strokeColor: "#1565C0",
     volumeL: 190,
     suitableFor: ["glass"],
     note: "Standard choice for glass — weight management",
@@ -64,13 +46,48 @@ const BIN_TYPES = {
 };
 
 const WASTE_TYPES = {
-  plastic: { label: "Plastic", icon: "recycle" },
-  paper: { label: "Paper", icon: "file" },
-  cardboard: { label: "Cardboard", icon: "package" },
-  metal: { label: "Metal", icon: "nut" },
-  newspaper: { label: "Newspaper", icon: "newspaper" },
-  glass: { label: "Glass", icon: "wine" },
-  general: { label: "General", icon: "trash" },
+  plastic: {
+    label: "Plastic",
+    icon: "recycle",
+    color: "#FFCC80",
+    strokeColor: "#E65100",
+  },
+  paper: {
+    label: "Paper",
+    icon: "file",
+    color: "#FFF59D",
+    strokeColor: "#F57F17",
+  },
+  cardboard: {
+    label: "Cardboard",
+    icon: "package",
+    color: "#FFE082",
+    strokeColor: "#EF6C00",
+  },
+  metal: {
+    label: "Metal",
+    icon: "nut",
+    color: "#B0BEC5",
+    strokeColor: "#455A64",
+  },
+  newspaper: {
+    label: "Newspaper",
+    icon: "newspaper",
+    color: "#CE93D8",
+    strokeColor: "#6A1B9A",
+  },
+  glass: {
+    label: "Glass",
+    icon: "wine",
+    color: "#90CAF9",
+    strokeColor: "#1565C0",
+  },
+  general: {
+    label: "General",
+    icon: "trash",
+    color: "#A5D6A7",
+    strokeColor: "#2E7D32",
+  },
 };
 
 const iconImages = {};
@@ -738,8 +755,15 @@ function updateSelectionPanel() {
       document.querySelectorAll(".waste-icon").forEach((el) => {
         if (el.dataset.type === selectedBin.wasteType) {
           el.classList.add("active");
+          const wType = WASTE_TYPES[el.dataset.type];
+          el.style.backgroundColor = wType.color;
+          el.style.borderColor = wType.strokeColor;
+          el.style.color = "#000";
         } else {
           el.classList.remove("active");
+          el.style.backgroundColor = "";
+          el.style.borderColor = "";
+          el.style.color = "";
         }
       });
     }
@@ -801,7 +825,7 @@ function renderBinPalette() {
     if (key === currentBinType) el.classList.add("active");
     el.dataset.type = key;
     el.innerHTML = `
-      <div class="palette-swatch" style="background-color: ${bin.color}; border-color: ${bin.strokeColor};"></div>
+      <div class="palette-swatch" style="background-color: #E0E0E0; border-color: #9E9E9E;"></div>
       <div class="palette-label">${bin.label}</div>
       <div class="palette-dims">${bin.widthM}m × ${bin.depthM}m</div>
     `;
@@ -1494,11 +1518,13 @@ function drawBins() {
     ctx.save();
     ctx.translate(bin.xM, bin.yM);
 
-    ctx.fillStyle = type.color;
+    const wasteDef = bin.wasteType ? WASTE_TYPES[bin.wasteType] : null;
+    ctx.fillStyle = wasteDef ? wasteDef.color : "#E0E0E0";
     ctx.fillRect(0, 0, w, h);
 
     ctx.lineWidth = 0.02;
-    ctx.strokeStyle = isOOB ? "#D93025" : type.strokeColor;
+    const strokeC = wasteDef ? wasteDef.strokeColor : "#9E9E9E";
+    ctx.strokeStyle = isOOB ? "#D93025" : strokeC;
     if (isOOB) {
       ctx.lineWidth = 0.05;
     }
@@ -1512,7 +1538,7 @@ function drawBins() {
     ctx.beginPath();
     ctx.moveTo(0, type.depthM * 0.15);
     ctx.lineTo(type.widthM, type.depthM * 0.15);
-    ctx.strokeStyle = type.strokeColor;
+    ctx.strokeStyle = strokeC;
     ctx.lineWidth = 0.02;
     ctx.stroke();
 
