@@ -112,6 +112,9 @@ let dragOffsetY = 0;
 let selectedDoorId = null;
 let draggedDoor = null;
 
+let selectedFoliageId = null;
+let draggedFoliage = null;
+
 let draggedHandle = null;
 let surfaceStartBounds = null;
 
@@ -342,6 +345,7 @@ function setupEventListeners() {
         setActiveTool("select");
         selectedBinId = null;
         selectedDoorId = null;
+        selectedFoliageId = null;
         updateSelectionPanel();
         draw();
       } else if (e.code === "Space") {
@@ -361,6 +365,14 @@ function setupEventListeners() {
             (d) => d.id !== selectedDoorId,
           );
           selectedDoorId = null;
+          saveCurrentPlan();
+          updateSelectionPanel();
+          draw();
+        } else if (selectedFoliageId) {
+          currentPlan.foliage = currentPlan.foliage.filter(
+            (f) => f.id !== selectedFoliageId,
+          );
+          selectedFoliageId = null;
           saveCurrentPlan();
           updateSelectionPanel();
           draw();
@@ -438,6 +450,7 @@ function setActiveTool(tool) {
   if (tool !== "select") {
     selectedBinId = null;
     selectedDoorId = null;
+    selectedFoliageId = null;
     if (typeof updateSelectionPanel === "function") updateSelectionPanel();
   }
 
@@ -981,6 +994,41 @@ function hitTestHandles(x, y) {
   return null;
 }
 
+function hitTestFoliage(x, y) {
+  for (let i = currentPlan.foliage.length - 1; i >= 0; i--) {
+    const f = currentPlan.foliage[i];
+    const r = f.type === "tree" ? 0.8 : 0.4;
+    const dx = x - f.xM;
+    const dy = y - f.yM;
+    if (Math.sqrt(dx * dx + dy * dy) <= r) {
+      return f;
+    }
+  }
+  return null;
+}
+
+function placeFoliage(x, y, type) {
+  let px = x;
+  let py = y;
+  if (DOM.toggleGrid && DOM.toggleGrid.checked) {
+    px = Math.round(px * 10) / 10;
+    py = Math.round(py * 10) / 10;
+  }
+  const newFoliage = {
+    id: "foliage_" + Date.now() + Math.floor(Math.random() * 1000),
+    type: type,
+    xM: px,
+    yM: py,
+  };
+  currentPlan.foliage.push(newFoliage);
+  selectedFoliageId = newFoliage.id;
+  selectedBinId = null;
+  selectedDoorId = null;
+  setActiveTool("select");
+  updateSelectionPanel();
+  saveCurrentPlan();
+}
+
 function hitTestDoors(x, y) {
   const s = currentPlan.surface;
   const t = s.wallThicknessM;
@@ -1061,6 +1109,8 @@ function handlePointerDown(e) {
       placeBin(pos.x, pos.y);
     } else if (activeTool === "door") {
       placeDoor(pos.x, pos.y);
+    } else if (activeTool === "tree" || activeTool === "bush") {
+      placeFoliage(pos.x, pos.y, activeTool);
     } else if (activeTool === "measure") {
       if (!measurePointA) {
         measurePointA = { x: pos.x, y: pos.y };
@@ -1075,25 +1125,36 @@ function handlePointerDown(e) {
     } else if (activeTool === "select") {
       const hitBin = hitTestBins(pos.x, pos.y);
       const hitDoor = hitTestDoors(pos.x, pos.y);
+      const hitFoliage = hitTestFoliage(pos.x, pos.y);
 
       if (hitBin) {
         selectedBinId = hitBin.id;
         selectedDoorId = null;
+        selectedFoliageId = null;
         draggedBin = hitBin;
         dragOffsetX = pos.x - hitBin.xM;
         dragOffsetY = pos.y - hitBin.yM;
       } else if (hitDoor) {
         selectedDoorId = hitDoor.id;
         selectedBinId = null;
+        selectedFoliageId = null;
         draggedDoor = hitDoor;
         if (hitDoor.edge === "n" || hitDoor.edge === "s") {
           dragOffsetX = pos.x - hitDoor.offsetM;
         } else {
           dragOffsetX = pos.y - hitDoor.offsetM;
         }
+      } else if (hitFoliage) {
+        selectedFoliageId = hitFoliage.id;
+        selectedBinId = null;
+        selectedDoorId = null;
+        draggedFoliage = hitFoliage;
+        dragOffsetX = pos.x - hitFoliage.xM;
+        dragOffsetY = pos.y - hitFoliage.yM;
       } else {
         selectedBinId = null;
         selectedDoorId = null;
+        selectedFoliageId = null;
 
         // If touch, fallback to panning if nothing selected
         if (e.pointerType === "touch") {
@@ -1150,6 +1211,19 @@ function handlePointerMove(e) {
     if (newOffset > maxOffset) newOffset = maxOffset;
 
     draggedDoor.offsetM = newOffset;
+    draw();
+  } else if (draggedFoliage && activeTool === "select") {
+    const pos = getPointerWorldPos(e);
+    let newX = pos.x - dragOffsetX;
+    let newY = pos.y - dragOffsetY;
+
+    if (DOM.toggleGrid && DOM.toggleGrid.checked) {
+      newX = Math.round(newX * 10) / 10;
+      newY = Math.round(newY * 10) / 10;
+    }
+
+    draggedFoliage.xM = newX;
+    draggedFoliage.yM = newY;
     draw();
   } else if (activeTool === "surface" && draggedHandle) {
     const pos = getPointerWorldPos(e);
@@ -1212,6 +1286,10 @@ function handlePointerUp(e) {
     draggedDoor = null;
     saveCurrentPlan();
   }
+  if (draggedFoliage) {
+    draggedFoliage = null;
+    saveCurrentPlan();
+  }
   if (draggedHandle) {
     draggedHandle = null;
     saveCurrentPlan();
@@ -1246,7 +1324,8 @@ function draw() {
 
   // 4. Bins
   drawBins();
-  // 5. TODO: Trees & Bushes
+  // 5. Trees & Bushes
+  drawFoliage();
   // 6. TODO: Overlays (grid, handles, measure line)
   drawGrid();
   drawDimensions();
@@ -1351,6 +1430,44 @@ function drawBins() {
       ctx.textBaseline = "middle";
       ctx.fillText("!", 0, 0.02);
       ctx.restore();
+    }
+
+    ctx.restore();
+  });
+}
+
+function drawFoliage() {
+  if (!currentPlan) return;
+  currentPlan.foliage.forEach((f) => {
+    const isTree = f.type === "tree";
+    const r = isTree ? 0.8 : 0.4;
+
+    ctx.save();
+    ctx.translate(f.xM, f.yM);
+
+    // Drop shadow
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.beginPath();
+    ctx.arc(0.1, 0.1, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Fill
+    ctx.fillStyle = isTree ? "#388E3C" : "#66BB6A";
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Stroke
+    ctx.strokeStyle = isTree ? "#1B5E20" : "#2E7D32";
+    ctx.lineWidth = 0.05;
+    ctx.stroke();
+
+    if (f.id === selectedFoliageId) {
+      ctx.strokeStyle = "#1A73E8";
+      ctx.lineWidth = 0.04;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 0.1, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     ctx.restore();
