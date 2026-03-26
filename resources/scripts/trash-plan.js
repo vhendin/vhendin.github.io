@@ -116,6 +116,8 @@ let measurePointA = null;
 let measurePointB = null;
 let currentMousePos = null;
 
+let isSidebarOpen = true;
+
 // ==========================================
 // DOM ELEMENTS
 // ==========================================
@@ -131,6 +133,7 @@ const DOM = {
   planListEmpty: document.getElementById("plan-list-empty"),
 
   // Editor Toolbar
+  btnToggleSidebar: document.getElementById("btn-toggle-sidebar"),
   btnBackToPlans: document.getElementById("btn-back-to-plans"),
   inputPlanName: document.getElementById("input-plan-name"),
   toolBtns: document.querySelectorAll(".tool-btn"),
@@ -145,6 +148,7 @@ const DOM = {
   scaleIndicator: document.getElementById("scale-indicator"),
 
   // Sidebar Controls
+  sidebar: document.getElementById("editor-sidebar"),
   selectionPanel: document.getElementById("selection-panel"),
   panelBinSettings: document.getElementById("panel-bin-settings"),
   panelDoorSettings: document.getElementById("panel-door-settings"),
@@ -202,6 +206,22 @@ function setupEventListeners() {
   DOM.btnNewPlan.addEventListener("click", createNewPlan);
 
   // Toolbar
+  if (DOM.btnToggleSidebar) {
+    DOM.btnToggleSidebar.addEventListener("click", () => {
+      isSidebarOpen = !isSidebarOpen;
+      if (isSidebarOpen) {
+        DOM.sidebar.classList.remove("hidden");
+      } else {
+        DOM.sidebar.classList.add("hidden");
+      }
+      // Give DOM time to update flex layout before resizing canvas
+      setTimeout(() => {
+        resizeCanvas();
+        draw();
+      }, 10);
+    });
+  }
+
   DOM.btnBackToPlans.addEventListener("click", () => {
     saveCurrentPlan();
     showView("landing");
@@ -305,9 +325,12 @@ function setupEventListeners() {
 
   // Canvas Panning and Zooming
   DOM.canvas.addEventListener("wheel", handleWheel, { passive: false });
-  DOM.canvas.addEventListener("mousedown", handleMouseDown);
-  window.addEventListener("mousemove", handleMouseMove);
-  window.addEventListener("mouseup", handleMouseUp);
+
+  // Use pointer events to handle both mouse and touch unified
+  DOM.canvas.addEventListener("pointerdown", handlePointerDown);
+  window.addEventListener("pointermove", handlePointerMove);
+  window.addEventListener("pointerup", handlePointerUp);
+  window.addEventListener("pointercancel", handlePointerUp);
 
   // Keyboard shortcuts
   document.addEventListener("keydown", (e) => {
@@ -829,13 +852,13 @@ function zoomViewAroundPoint(factor, x, y) {
   draw();
 }
 
-function getMouseWorldPos(e) {
+function getPointerWorldPos(e) {
   const rect = DOM.canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
+  const pointerX = e.clientX - rect.left;
+  const pointerY = e.clientY - rect.top;
   const vp = currentPlan.viewport;
-  const worldX = (mouseX - vp.panX) / vp.scale;
-  const worldY = (mouseY - vp.panY) / vp.scale;
+  const worldX = (pointerX - vp.panX) / vp.scale;
+  const worldY = (pointerY - vp.panY) / vp.scale;
   return { x: worldX, y: worldY };
 }
 
@@ -970,20 +993,27 @@ function hitTestDoors(x, y) {
   return null;
 }
 
-function handleMouseDown(e) {
+function handlePointerDown(e) {
   if (!currentPlan || DOM.editorView.classList.contains("hidden")) return;
 
+  // Middle click (1) or left click + space (0) or touch panning logic
+  // e.pointerType === "touch" makes single-finger touch behave as pan when not dragging objects
   if (e.button === 1 || (e.button === 0 && isSpacePressed)) {
     isPanning = true;
     panStartX = e.clientX - currentPlan.viewport.panX;
     panStartY = e.clientY - currentPlan.viewport.panY;
     DOM.canvas.classList.add("panning");
     e.preventDefault();
+    // Capture pointer so panning works outside canvas
+    DOM.canvas.setPointerCapture(e.pointerId);
     return;
   }
 
+  // Left click (0) or touch (0)
   if (e.button === 0) {
-    const pos = getMouseWorldPos(e);
+    DOM.canvas.setPointerCapture(e.pointerId);
+    const pos = getPointerWorldPos(e);
+
     if (activeTool === "bin") {
       placeBin(pos.x, pos.y);
     } else if (activeTool === "door") {
@@ -1021,6 +1051,14 @@ function handleMouseDown(e) {
       } else {
         selectedBinId = null;
         selectedDoorId = null;
+
+        // If touch, fallback to panning if nothing selected
+        if (e.pointerType === "touch") {
+          isPanning = true;
+          panStartX = e.clientX - currentPlan.viewport.panX;
+          panStartY = e.clientY - currentPlan.viewport.panY;
+          DOM.canvas.classList.add("panning");
+        }
       }
       updateSelectionPanel();
       draw();
@@ -1028,16 +1066,16 @@ function handleMouseDown(e) {
   }
 }
 
-function handleMouseMove(e) {
+function handlePointerMove(e) {
   if (!currentPlan) return;
-  currentMousePos = getMouseWorldPos(e);
+  currentMousePos = getPointerWorldPos(e);
 
   if (isPanning) {
     currentPlan.viewport.panX = e.clientX - panStartX;
     currentPlan.viewport.panY = e.clientY - panStartY;
     draw();
   } else if (draggedBin && activeTool === "select") {
-    const pos = getMouseWorldPos(e);
+    const pos = getPointerWorldPos(e);
     let newX = pos.x - dragOffsetX;
     let newY = pos.y - dragOffsetY;
 
@@ -1051,7 +1089,7 @@ function handleMouseMove(e) {
     draw();
   } else if (draggedDoor && activeTool === "select") {
     const s = currentPlan.surface;
-    const pos = getMouseWorldPos(e);
+    const pos = getPointerWorldPos(e);
     let newOffset =
       draggedDoor.edge === "n" || draggedDoor.edge === "s"
         ? pos.x - dragOffsetX
@@ -1075,7 +1113,9 @@ function handleMouseMove(e) {
   }
 }
 
-function handleMouseUp(e) {
+function handlePointerUp(e) {
+  DOM.canvas.releasePointerCapture(e.pointerId);
+
   if (isPanning) {
     isPanning = false;
     if (!isSpacePressed) {
