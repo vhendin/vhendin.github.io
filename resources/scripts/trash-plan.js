@@ -1196,6 +1196,23 @@ function drawBins() {
       ctx.strokeRect(-0.02, -0.02, w + 0.04, h + 0.04);
     }
 
+    if (isOOB) {
+      ctx.save();
+      ctx.translate(w, 0);
+      ctx.fillStyle = "#D93025";
+      ctx.beginPath();
+      ctx.moveTo(0, -0.15);
+      ctx.lineTo(0.13, 0.1);
+      ctx.lineTo(-0.13, 0.1);
+      ctx.fill();
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 0.18px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("!", 0, 0.02);
+      ctx.restore();
+    }
+
     ctx.restore();
   });
 }
