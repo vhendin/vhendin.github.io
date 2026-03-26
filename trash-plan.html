@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trash Plan</title>
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="resources/styles/trash-plan.css">
+</head>
+<body>
+
+    <!-- ==========================================
+         LANDING VIEW
+         ========================================== -->
+    <div id="landing-view" class="view">
+        <div class="landing-content">
+            <header class="landing-header">
+                <i class="ph ph-trash landing-logo"></i>
+                <h1>Trash Plan</h1>
+                <p>Bin Placement & Enclosure Planning Tool</p>
+            </header>
+
+            <div class="landing-actions">
+                <button id="btn-new-plan" class="btn-primary">
+                    <i class="ph ph-plus"></i> New Plan
+                </button>
+            </div>
+
+            <div class="saved-plans-section">
+                <h2>Saved Plans</h2>
+                <div id="plan-list-empty" class="empty-state hidden">
+                    No saved plans found. Create a new one above.
+                </div>
+                <ul id="plan-list" class="plan-list">
+                    <!-- Populated by JS -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         EDITOR VIEW
+         ========================================== -->
+    <div id="editor-view" class="view hidden">
+
+        <!-- Top Toolbar -->
+        <header class="toolbar">
+            <div class="toolbar-left">
+                <button id="btn-back-to-plans" class="icon-btn" title="Back to Plans">
+                    <i class="ph ph-list"></i>
+                </button>
+                <div class="separator"></div>
+                <div class="plan-name-wrapper">
+                    <input type="text" id="input-plan-name" value="Untitled Plan" title="Click to rename">
+                    <i class="ph ph-pencil-simple edit-icon"></i>
+                </div>
+            </div>
+
+            <div class="toolbar-center tools-group">
+                <button class="tool-btn active" data-tool="select" title="Select / Move / Edit (Esc)">
+                    <i class="ph ph-cursor"></i>
+                </button>
+                <button class="tool-btn" data-tool="bin" title="Place Bin">
+                    <i class="ph ph-trash"></i>
+                </button>
+                <button class="tool-btn" data-tool="door" title="Place Door / Opening">
+                    <i class="ph ph-door-open"></i>
+                </button>
+                <button class="tool-btn" data-tool="tree" title="Place Tree">
+                    <i class="ph ph-tree"></i>
+                </button>
+                <button class="tool-btn" data-tool="bush" title="Place Bush">
+                    <i class="ph ph-plant"></i>
+                </button>
+                <button class="tool-btn" data-tool="measure" title="Measure Distance">
+                    <i class="ph ph-ruler"></i>
+                </button>
+                <button class="tool-btn" data-tool="surface" title="Edit Surface Boundary">
+                    <i class="ph ph-bounding-box"></i>
+                </button>
+            </div>
+
+            <div class="toolbar-right">
+                <span id="save-status" class="save-status">Saved</span>
+                <button id="btn-save" class="btn-secondary" title="Save Plan">Save</button>
+                <button id="btn-save-as" class="btn-secondary" title="Save As Copy">Save As</button>
+                <div class="separator"></div>
+                <button id="btn-export-png" class="btn-primary" title="Export as PNG">
+                    <i class="ph ph-download-simple"></i> Export
+                </button>
+            </div>
+        </header>
+
+        <!-- Editor Main Area -->
+        <div class="editor-layout">
+
+            <!-- Left Sidebar -->
+            <aside class="sidebar">
+
+                <!-- Dynamic Selection Panel (Shows when a bin is selected) -->
+                <div id="selection-panel" class="sidebar-section hidden">
+                    <h3>Selected Bin</h3>
+                    <p class="help-text">Assign waste type:</p>
+                    <div id="waste-type-grid" class="waste-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Bins Palette -->
+                <div class="sidebar-section">
+                    <h3>Bins</h3>
+                    <div id="bin-palette" class="palette-grid">
+                        <!-- Populated by JS from BIN_TYPES -->
+                    </div>
+                </div>
+
+                <!-- Textures / Environment -->
+                <div class="sidebar-section">
+                    <h3>Textures</h3>
+                    <div class="form-group">
+                        <label>Surface (Inside)</label>
+                        <select id="select-surface-texture">
+                            <option value="concrete">Concrete</option>
+                            <option value="tiles">Tiles</option>
+                            <option value="asphalt">Asphalt</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Environment (Outside)</label>
+                        <select id="select-outside-texture">
+                            <option value="grass">Grass</option>
+                        </select>
+                    </div>
+                    <button id="btn-surface-settings" class="btn-outline">Surface Settings</button>
+                </div>
+
+                <!-- View Options -->
+                <div class="sidebar-section">
+                    <h3>ViewOptions</h3>
+                    <div class="toggle-group">
+                        <label class="toggle">
+                            <input type="checkbox" id="toggle-grid" checked>
+                            <span>Snap to Grid (0.1m)</span>
+                        </label>
+                        <label class="toggle">
+                            <input type="checkbox" id="toggle-dimensions">
+                            <span>Show Surface Dimensions</span>
+                        </label>
+                    </div>
+                    <div class="zoom-controls">
+                        <button id="btn-zoom-out" class="icon-btn"><i class="ph ph-minus"></i></button>
+                        <span id="zoom-level-display">100%</span>
+                        <button id="btn-zoom-in" class="icon-btn"><i class="ph ph-plus"></i></button>
+                        <button id="btn-zoom-reset" class="icon-btn" title="Reset View"><i class="ph ph-corners-out"></i></button>
+                    </div>
+                </div>
+
+                <div class="sidebar-footer">
+                    <p class="hint">Middle-click or Space+Drag to pan.</p>
+                </div>
+            </aside>
+
+            <!-- Canvas Area -->
+            <main class="canvas-container" id="canvas-wrapper">
+                <canvas id="editor-canvas"></canvas>
+                <div id="scale-indicator" class="scale-indicator">1 m = 60 px</div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODALS
+         ========================================== -->
+
+    <!-- Surface Settings Modal -->
+    <div id="modal-surface-settings" class="modal hidden">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h2>Surface Settings</h2>
+                <button class="close-btn" data-close="modal-surface-settings"><i class="ph ph-x"></i></button>
+            </header>
+            <div class="modal-body">
+                <p class="help-text">Dimensions represent the <strong>interior usable space</strong>.</p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="input-surface-width">Interior Width (m)</label>
+                        <input type="number" id="input-surface-width" min="1" step="0.1" value="10.0">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-surface-depth">Interior Depth (m)</label>
+                        <input type="number" id="input-surface-depth" min="1" step="0.1" value="8.0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="input-wall-thickness">Wall Thickness (m)</label>
+                    <input type="number" id="input-wall-thickness" min="0.05" step="0.01" value="0.10">
+                </div>
+                <div class="form-info-box">
+                    <strong>Total Exterior Footprint:</strong>
+                    <div id="surface-exterior-readout">10.20 m × 8.20 m</div>
+                </div>
+            </div>
+            <footer class="modal-footer">
+                <button class="btn-secondary" data-close="modal-surface-settings">Cancel</button>
+                <button id="btn-apply-surface" class="btn-primary">Apply</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Save As Modal -->
+    <div id="modal-save-as" class="modal hidden">
+        <div class="modal-content modal-sm">
+            <header class="modal-header">
+                <h2>Save As Copy</h2>
+                <button class="close-btn" data-close="modal-save-as"><i class="ph ph-x"></i></button>
+            </header>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="input-save-as-name">New Plan Name</label>
+                    <input type="text" id="input-save-as-name" placeholder="E.g., Backyard Option B">
+                </div>
+            </div>
+            <footer class="modal-footer">
+                <button class="btn-secondary" data-close="modal-save-as">Cancel</button>
+                <button id="btn-confirm-save-as" class="btn-primary">Save</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="modal-confirm-delete" class="modal hidden">
+        <div class="modal-content modal-sm">
+            <header class="modal-header">
+                <h2>Delete Plan</h2>
+                <button class="close-btn" data-close="modal-confirm-delete"><i class="ph ph-x"></i></button>
+            </header>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="delete-plan-name"></strong>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <footer class="modal-footer">
+                <button class="btn-secondary" data-close="modal-confirm-delete">Cancel</button>
+                <button id="btn-confirm-delete" class="btn-danger">Delete</button>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="resources/scripts/trash-plan.js"></script>
+</body>
+</html>
