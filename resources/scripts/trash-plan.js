@@ -932,16 +932,13 @@ function updateScaleIndicator() {
   const displayValue =
     meters < 1 ? `${Math.round(meters * 100)} cm` : `${meters} m`;
 
-  DOM.scaleIndicator.innerHTML = `
-    <div style="display: flex; flex-direction: column; align-items: center;">
-      <span style="font-size: 11px; font-weight: bold; color: var(--color-text-main); text-shadow: 1px 1px 0 rgba(255,255,255,0.9), -1px -1px 0 rgba(255,255,255,0.9), 1px -1px 0 rgba(255,255,255,0.9), -1px 1px 0 rgba(255,255,255,0.9);">${displayValue}</span>
-      <div style="height: 6px; border: 2px solid var(--color-text-main); border-top: none; width: ${barWidth}px; box-sizing: border-box; box-shadow: 0 1px 2px rgba(255,255,255,0.5);"></div>
-    </div>
-  `;
-  DOM.scaleIndicator.style.background = "transparent";
-  DOM.scaleIndicator.style.border = "none";
-  DOM.scaleIndicator.style.boxShadow = "none";
-  DOM.scaleIndicator.style.padding = "0";
+  const textEl = document.getElementById("scale-indicator-text");
+  const barEl = document.getElementById("scale-indicator-bar");
+
+  if (textEl && barEl) {
+    textEl.textContent = displayValue;
+    barEl.style.width = `${barWidth}px`;
+  }
 
   if (DOM.zoomLevelDisplay) {
     const zoomPct = Math.round(
