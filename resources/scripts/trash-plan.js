@@ -112,6 +112,9 @@ let dragOffsetY = 0;
 let selectedDoorId = null;
 let draggedDoor = null;
 
+let draggedHandle = null;
+let surfaceStartBounds = null;
+
 let measurePointA = null;
 let measurePointB = null;
 let currentMousePos = null;
@@ -951,6 +954,33 @@ function placeDoor(x, y) {
   saveCurrentPlan();
 }
 
+function getSurfaceHandles(s) {
+  return [
+    { id: "nw", x: s.xM, y: s.yM },
+    { id: "n", x: s.xM + s.widthM / 2, y: s.yM },
+    { id: "ne", x: s.xM + s.widthM, y: s.yM },
+    { id: "e", x: s.xM + s.widthM, y: s.yM + s.depthM / 2 },
+    { id: "se", x: s.xM + s.widthM, y: s.yM + s.depthM },
+    { id: "s", x: s.xM + s.widthM / 2, y: s.yM + s.depthM },
+    { id: "sw", x: s.xM, y: s.yM + s.depthM },
+    { id: "w", x: s.xM, y: s.yM + s.depthM / 2 },
+  ];
+}
+
+function hitTestHandles(x, y) {
+  const s = currentPlan.surface;
+  const handles = getSurfaceHandles(s);
+  const hitRadius = 0.3; // generous hit area
+  for (const h of handles) {
+    const dx = x - h.x;
+    const dy = y - h.y;
+    if (Math.sqrt(dx * dx + dy * dy) <= hitRadius) {
+      return h.id;
+    }
+  }
+  return null;
+}
+
 function hitTestDoors(x, y) {
   const s = currentPlan.surface;
   const t = s.wallThicknessM;
@@ -1014,7 +1044,20 @@ function handlePointerDown(e) {
     DOM.canvas.setPointerCapture(e.pointerId);
     const pos = getPointerWorldPos(e);
 
-    if (activeTool === "bin") {
+    if (activeTool === "surface") {
+      const handle = hitTestHandles(pos.x, pos.y);
+      if (handle) {
+        draggedHandle = handle;
+        surfaceStartBounds = {
+          x: currentPlan.surface.xM,
+          y: currentPlan.surface.yM,
+          w: currentPlan.surface.widthM,
+          h: currentPlan.surface.depthM,
+          startX: pos.x,
+          startY: pos.y,
+        };
+      }
+    } else if (activeTool === "bin") {
       placeBin(pos.x, pos.y);
     } else if (activeTool === "door") {
       placeDoor(pos.x, pos.y);
@@ -1108,6 +1151,45 @@ function handlePointerMove(e) {
 
     draggedDoor.offsetM = newOffset;
     draw();
+  } else if (activeTool === "surface" && draggedHandle) {
+    const pos = getPointerWorldPos(e);
+    let dx = pos.x - surfaceStartBounds.startX;
+    let dy = pos.y - surfaceStartBounds.startY;
+
+    if (DOM.toggleGrid && DOM.toggleGrid.checked) {
+      dx = Math.round(dx * 10) / 10;
+      dy = Math.round(dy * 10) / 10;
+    }
+
+    const s = currentPlan.surface;
+    const sb = surfaceStartBounds;
+
+    if (draggedHandle.includes("n")) {
+      s.yM = sb.y + dy;
+      s.depthM = sb.h - dy;
+    }
+    if (draggedHandle.includes("s")) {
+      s.depthM = sb.h + dy;
+    }
+    if (draggedHandle.includes("w")) {
+      s.xM = sb.x + dx;
+      s.widthM = sb.w - dx;
+    }
+    if (draggedHandle.includes("e")) {
+      s.widthM = sb.w + dx;
+    }
+
+    // Minimum constraints
+    if (s.widthM < 1) {
+      if (draggedHandle.includes("w")) s.xM = sb.x + sb.w - 1;
+      s.widthM = 1;
+    }
+    if (s.depthM < 1) {
+      if (draggedHandle.includes("n")) s.yM = sb.y + sb.h - 1;
+      s.depthM = 1;
+    }
+
+    draw();
   } else if (activeTool === "measure" && measurePointA && !measurePointB) {
     draw();
   }
@@ -1128,6 +1210,10 @@ function handlePointerUp(e) {
   }
   if (draggedDoor) {
     draggedDoor = null;
+    saveCurrentPlan();
+  }
+  if (draggedHandle) {
+    draggedHandle = null;
     saveCurrentPlan();
   }
 }
@@ -1164,6 +1250,7 @@ function draw() {
   // 6. TODO: Overlays (grid, handles, measure line)
   drawGrid();
   drawDimensions();
+  drawHandles();
   drawMeasurement();
 
   ctx.restore();
@@ -1340,6 +1427,37 @@ function drawBackground() {
   ctx.fillStyle =
     currentPlan.outside.texture === "grass" ? "#C8E6C9" : "#C8E6C9";
   ctx.fillRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+
+  ctx.restore();
+}
+
+function drawHandles() {
+  if (activeTool !== "surface" || !currentPlan) return;
+
+  const s = currentPlan.surface;
+  const handles = getSurfaceHandles(s);
+
+  ctx.save();
+  ctx.fillStyle = "#FFFFFF";
+  ctx.strokeStyle = "#1A73E8";
+  const scale = currentPlan.viewport.scale;
+  ctx.lineWidth = 2 / scale;
+
+  // Make handles fixed size regardless of zoom
+  const size = 10 / scale;
+
+  for (const h of handles) {
+    ctx.beginPath();
+    ctx.rect(h.x - size / 2, h.y - size / 2, size, size);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Draw an outer boundary highlight
+  ctx.strokeStyle = "#1A73E8";
+  ctx.lineWidth = 2 / scale;
+  ctx.setLineDash([5 / scale, 5 / scale]);
+  ctx.strokeRect(s.xM, s.yM, s.widthM, s.depthM);
 
   ctx.restore();
 }
