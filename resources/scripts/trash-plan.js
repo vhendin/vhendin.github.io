@@ -910,7 +910,38 @@ function centerViewport() {
 
 function updateScaleIndicator() {
   if (!currentPlan) return;
-  DOM.scaleIndicator.textContent = `1 m = ${Math.round(currentPlan.viewport.scale)} px`;
+
+  const scale = currentPlan.viewport.scale; // px per meter
+
+  // Determine appropriate distance for a reasonable bar width (target ~80px)
+  let meters = 80 / scale;
+
+  // Snap to nice numbers: 0.1, 0.2, 0.5, 1, 2, 5, 10...
+  const magnitude = Math.pow(10, Math.floor(Math.log10(meters)));
+  const normalized = meters / magnitude;
+
+  let snappedNormalized;
+  if (normalized < 1.5) snappedNormalized = 1;
+  else if (normalized < 3.5) snappedNormalized = 2;
+  else if (normalized < 7.5) snappedNormalized = 5;
+  else snappedNormalized = 10;
+
+  meters = snappedNormalized * magnitude;
+  const barWidth = Math.round(meters * scale);
+
+  const displayValue =
+    meters < 1 ? `${Math.round(meters * 100)} cm` : `${meters} m`;
+
+  DOM.scaleIndicator.innerHTML = `
+    <div style="display: flex; flex-direction: column; align-items: center;">
+      <span style="font-size: 11px; font-weight: bold; color: var(--color-text-main); text-shadow: 1px 1px 0 rgba(255,255,255,0.9), -1px -1px 0 rgba(255,255,255,0.9), 1px -1px 0 rgba(255,255,255,0.9), -1px 1px 0 rgba(255,255,255,0.9);">${displayValue}</span>
+      <div style="height: 6px; border: 2px solid var(--color-text-main); border-top: none; width: ${barWidth}px; box-sizing: border-box; box-shadow: 0 1px 2px rgba(255,255,255,0.5);"></div>
+    </div>
+  `;
+  DOM.scaleIndicator.style.background = "transparent";
+  DOM.scaleIndicator.style.border = "none";
+  DOM.scaleIndicator.style.boxShadow = "none";
+  DOM.scaleIndicator.style.padding = "0";
 
   if (DOM.zoomLevelDisplay) {
     const zoomPct = Math.round(
