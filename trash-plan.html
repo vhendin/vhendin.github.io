@@ -155,7 +155,28 @@
                 <aside class="sidebar" id="editor-sidebar">
                     <!-- Dynamic Selection Panel (Shows when a bin or door is selected) -->
                     <div id="selection-panel" class="sidebar-section hidden">
-                        <div id="panel-bin-settings" class="hidden">
+                        <div class="selection-actions">
+                            <button
+                                id="btn-action-rotate"
+                                class="btn-outline hidden"
+                                title="Rotate (R)"
+                            >
+                                <i class="ph ph-arrows-clockwise"></i> Rotate
+                            </button>
+                            <button
+                                id="btn-action-delete"
+                                class="btn-outline text-danger"
+                                title="Delete (Del)"
+                            >
+                                <i class="ph ph-trash"></i> Delete
+                            </button>
+                        </div>
+
+                        <div
+                            id="panel-bin-settings"
+                            class="hidden"
+                            style="margin-top: 16px"
+                        >
                             <h3>Selected Bin</h3>
                             <p class="help-text">Assign waste type:</p>
                             <div id="waste-type-grid" class="waste-grid">

@@ -155,6 +155,8 @@ const DOM = {
 
   // Sidebar Controls
   sidebar: document.getElementById("editor-sidebar"),
+  btnActionRotate: document.getElementById("btn-action-rotate"),
+  btnActionDelete: document.getElementById("btn-action-delete"),
   selectionPanel: document.getElementById("selection-panel"),
   panelBinSettings: document.getElementById("panel-bin-settings"),
   panelDoorSettings: document.getElementById("panel-door-settings"),
@@ -261,6 +263,43 @@ function setupEventListeners() {
   });
 
   // Sidebar Controls
+  if (DOM.btnActionRotate) {
+    DOM.btnActionRotate.addEventListener("click", () => {
+      if (selectedBinId) {
+        const bin = currentPlan.bins.find((b) => b.id === selectedBinId);
+        if (bin) {
+          bin.rotation = (bin.rotation + 90) % 360;
+          saveCurrentPlan();
+          draw();
+        }
+      }
+    });
+  }
+
+  if (DOM.btnActionDelete) {
+    DOM.btnActionDelete.addEventListener("click", () => {
+      if (selectedBinId) {
+        currentPlan.bins = currentPlan.bins.filter(
+          (b) => b.id !== selectedBinId,
+        );
+        selectedBinId = null;
+      } else if (selectedDoorId) {
+        currentPlan.doors = currentPlan.doors.filter(
+          (d) => d.id !== selectedDoorId,
+        );
+        selectedDoorId = null;
+      } else if (selectedFoliageId) {
+        currentPlan.foliage = currentPlan.foliage.filter(
+          (f) => f.id !== selectedFoliageId,
+        );
+        selectedFoliageId = null;
+      }
+      saveCurrentPlan();
+      updateSelectionPanel();
+      draw();
+    });
+  }
+
   if (DOM.inputDoorWidth) {
     DOM.inputDoorWidth.addEventListener("change", (e) => {
       if (!currentPlan || !selectedDoorId) return;
@@ -381,6 +420,40 @@ function setupEventListeners() {
         const bin = currentPlan.bins.find((b) => b.id === selectedBinId);
         if (bin) {
           bin.rotation = (bin.rotation + 90) % 360;
+          saveCurrentPlan();
+          draw();
+        }
+      } else if (
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
+      ) {
+        let moved = false;
+        let dx = 0;
+        let dy = 0;
+        const amount = 0.1;
+
+        if (e.key === "ArrowUp") dy = -amount;
+        if (e.key === "ArrowDown") dy = amount;
+        if (e.key === "ArrowLeft") dx = -amount;
+        if (e.key === "ArrowRight") dx = amount;
+
+        if (selectedBinId) {
+          const bin = currentPlan.bins.find((b) => b.id === selectedBinId);
+          if (bin) {
+            bin.xM = Math.round((bin.xM + dx) * 100) / 100;
+            bin.yM = Math.round((bin.yM + dy) * 100) / 100;
+            moved = true;
+          }
+        } else if (selectedFoliageId) {
+          const f = currentPlan.foliage.find((b) => b.id === selectedFoliageId);
+          if (f) {
+            f.xM = Math.round((f.xM + dx) * 100) / 100;
+            f.yM = Math.round((f.yM + dy) * 100) / 100;
+            moved = true;
+          }
+        }
+
+        if (moved) {
+          e.preventDefault();
           saveCurrentPlan();
           draw();
         }
@@ -634,6 +707,7 @@ function updateSelectionPanel() {
     DOM.selectionPanel.classList.remove("hidden");
     if (DOM.panelBinSettings) DOM.panelBinSettings.classList.remove("hidden");
     if (DOM.panelDoorSettings) DOM.panelDoorSettings.classList.add("hidden");
+    if (DOM.btnActionRotate) DOM.btnActionRotate.classList.remove("hidden");
 
     const selectedBin = currentPlan.bins.find((b) => b.id === selectedBinId);
 
@@ -651,11 +725,17 @@ function updateSelectionPanel() {
     DOM.selectionPanel.classList.remove("hidden");
     if (DOM.panelBinSettings) DOM.panelBinSettings.classList.add("hidden");
     if (DOM.panelDoorSettings) DOM.panelDoorSettings.classList.remove("hidden");
+    if (DOM.btnActionRotate) DOM.btnActionRotate.classList.add("hidden");
 
     const selectedDoor = currentPlan.doors.find((d) => d.id === selectedDoorId);
     if (DOM.inputDoorWidth && selectedDoor) {
       DOM.inputDoorWidth.value = selectedDoor.widthM;
     }
+  } else if (selectedFoliageId && activeTool === "select") {
+    DOM.selectionPanel.classList.remove("hidden");
+    if (DOM.panelBinSettings) DOM.panelBinSettings.classList.add("hidden");
+    if (DOM.panelDoorSettings) DOM.panelDoorSettings.classList.add("hidden");
+    if (DOM.btnActionRotate) DOM.btnActionRotate.classList.add("hidden");
   } else {
     DOM.selectionPanel.classList.add("hidden");
   }
