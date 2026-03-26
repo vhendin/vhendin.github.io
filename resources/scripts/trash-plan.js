@@ -183,6 +183,7 @@ const DOM = {
   btnSurfaceSettings: document.getElementById("btn-surface-settings"),
   toggleGrid: document.getElementById("toggle-grid"),
   toggleDimensions: document.getElementById("toggle-dimensions"),
+  toggleDoorDimensions: document.getElementById("toggle-door-dimensions"),
 
   // Zoom Controls
   btnZoomOut: document.getElementById("btn-zoom-out"),
@@ -388,6 +389,10 @@ function setupEventListeners() {
 
   if (DOM.toggleDimensions) {
     DOM.toggleDimensions.addEventListener("change", draw);
+  }
+
+  if (DOM.toggleDoorDimensions) {
+    DOM.toggleDoorDimensions.addEventListener("change", draw);
   }
 
   // Zoom Controls
@@ -1857,71 +1862,26 @@ function drawDimensions() {
 function drawDoorDistances() {
   if (!currentPlan) return;
 
-  let activeDoor = null;
-  
-  if (selectedDoorId) {
-    activeDoor = currentPlan.doors.find((d) => d.id === selectedDoorId);
-  } else if (activeTool === "door" && currentPointerPos) {
-    // Generate a temporary door object to preview placement
-    const { edge, offset } = getClosestEdge(currentPointerPos.x, currentPointerPos.y);
-    let offsetM = offset - 1.2 / 2;
-    if (offsetM < 0) offsetM = 0;
-    const s = currentPlan.surface;
-    const edgeLength = (edge === "n" || edge === "s") ? s.widthM : s.depthM;
-    if (offsetM > edgeLength - 1.2) offsetM = edgeLength - 1.2;
-    activeDoor = { id: "preview", edge, offsetM, widthM: 1.2 };
-  }
-
-  if (!activeDoor) return;
-
   const s = currentPlan.surface;
-  const edgeLength = (activeDoor.edge === "n" || activeDoor.edge === "s") ? s.widthM : s.depthM;
   const t = s.wallThicknessM;
-  
-  // Find neighboring doors on the same edge
-  const siblings = currentPlan.doors
-    .filter(d => d.edge === activeDoor.edge && d.id !== activeDoor.id)
-    .sort((a, b) => a.offsetM - b.offsetM);
-    
-  let leftDist = activeDoor.offsetM;
-  let leftObjEnd = 0;
-  let rightDist = edgeLength - (activeDoor.offsetM + activeDoor.widthM);
-  let rightObjStart = edgeLength;
-  
-  // Find closest door to the left
-  for (let i = siblings.length - 1; i >= 0; i--) {
-    if (siblings[i].offsetM + siblings[i].widthM <= activeDoor.offsetM + 0.001) {
-      leftObjEnd = siblings[i].offsetM + siblings[i].widthM;
-      leftDist = activeDoor.offsetM - leftObjEnd;
-      break;
-    }
-  }
-  
-  // Find closest door to the right
-  for (let i = 0; i < siblings.length; i++) {
-    if (siblings[i].offsetM >= activeDoor.offsetM + activeDoor.widthM - 0.001) {
-      rightObjStart = siblings[i].offsetM;
-      rightDist = rightObjStart - (activeDoor.offsetM + activeDoor.widthM);
-      break;
-    }
-  }
-  
-  // Helper to draw a dimension line
-  const drawDimLine = (startX, startY, endX, endY, distance) => {
+  const scale = currentPlan.viewport.scale;
+
+  // Helper to draw a single dimension line
+  const drawDimLine = (startX, startY, endX, endY, distance, isHighlight = false) => {
     if (distance <= 0) return;
-    
+
     ctx.save();
-    ctx.strokeStyle = "#1A73E8";
-    ctx.fillStyle = "#1A73E8";
-    const scale = currentPlan.viewport.scale;
+    const color = isHighlight ? "#1A73E8" : "#5F6368";
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = 2 / scale;
-    
+
     // Draw line
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.lineTo(endX, endY);
     ctx.stroke();
-    
+
     // Draw tick marks
     const tickSize = 10 / scale;
     if (startY === endY) { // Horizontal
@@ -1931,14 +1891,14 @@ function drawDoorDistances() {
       ctx.beginPath(); ctx.moveTo(startX - tickSize/2, startY); ctx.lineTo(startX + tickSize/2, startY); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(endX - tickSize/2, endY); ctx.lineTo(endX + tickSize/2, endY); ctx.stroke();
     }
-    
+
     // Draw text
     const midX = (startX + endX) / 2;
     const midY = (startY + endY) / 2;
     ctx.font = `${14 / scale}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    
+
     // Background for text
     const text = `${distance.toFixed(2)} m`;
     const metrics = ctx.measureText(text);
@@ -1946,41 +1906,122 @@ function drawDoorDistances() {
     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     if (startY === endY) {
       ctx.fillRect(midX - metrics.width/2 - padding, midY - 14/scale, metrics.width + padding*2, 20/scale);
-      ctx.fillStyle = "#1A73E8";
+      ctx.fillStyle = color;
       ctx.fillText(text, midX, midY - 4/scale);
     } else {
       ctx.save();
       ctx.translate(midX, midY);
       ctx.rotate(-Math.PI / 2);
       ctx.fillRect(-metrics.width/2 - padding, -14/scale, metrics.width + padding*2, 20/scale);
-      ctx.fillStyle = "#1A73E8";
+      ctx.fillStyle = color;
       ctx.fillText(text, 0, -4/scale);
       ctx.restore();
     }
-    
     ctx.restore();
   };
 
-  // Determine positions for dimension lines
-  // We offset the dimension line slightly outside or inside the wall.
-  // Let's place it aligned with the door itself or slightly outside.
-  let dimOffset = 0; 
-  if (activeDoor.edge === 'n') dimOffset = s.yM - t/2;
-  else if (activeDoor.edge === 's') dimOffset = s.yM + s.depthM + t/2;
-  else if (activeDoor.edge === 'w') dimOffset = s.xM - t/2;
-  else if (activeDoor.edge === 'e') dimOffset = s.xM + s.widthM + t/2;
+  const showAll = DOM.toggleDoorDimensions && DOM.toggleDoorDimensions.checked;
+  let activeDoor = null;
 
-  if (activeDoor.edge === 'n' || activeDoor.edge === 's') {
-    // Horizontal lines
-    drawDimLine(s.xM + leftObjEnd, dimOffset, s.xM + activeDoor.offsetM, dimOffset, leftDist);
-    drawDimLine(s.xM + activeDoor.offsetM + activeDoor.widthM, dimOffset, s.xM + rightObjStart, dimOffset, rightDist);
-  } else {
-    // Vertical lines
-    drawDimLine(dimOffset, s.yM + leftObjEnd, dimOffset, s.yM + activeDoor.offsetM, leftDist);
-    drawDimLine(dimOffset, s.yM + activeDoor.offsetM + activeDoor.widthM, dimOffset, s.yM + rightObjStart, rightDist);
+  if (selectedDoorId) {
+    activeDoor = currentPlan.doors.find((d) => d.id === selectedDoorId);
+  } else if (activeTool === "door" && currentPointerPos) {
+    const { edge, offset } = getClosestEdge(currentPointerPos.x, currentPointerPos.y);
+    let offsetM = offset - 1.2 / 2;
+    if (offsetM < 0) offsetM = 0;
+    const edgeLength = (edge === "n" || edge === "s") ? s.widthM : s.depthM;
+    if (offsetM > edgeLength - 1.2) offsetM = edgeLength - 1.2;
+    activeDoor = { id: "preview", edge, offsetM, widthM: 1.2 };
+  }
+
+  // Get all doors to consider (including preview if any)
+  const allDoors = [...currentPlan.doors];
+  if (activeDoor && activeDoor.id === "preview") {
+    allDoors.push(activeDoor);
+  }
+
+  // If showAll is on, we do it for all edges
+  if (showAll) {
+    const edges = ["n", "s", "e", "w"];
+    edges.forEach(edge => {
+      const edgeDoors = allDoors.filter(d => d.edge === edge).sort((a, b) => a.offsetM - b.offsetM);
+      if (edgeDoors.length === 0) return;
+
+      const edgeLength = (edge === "n" || edge === "s") ? s.widthM : s.depthM;
+      let dimOffset = 0;
+      if (edge === 'n') dimOffset = s.yM - t/2;
+      else if (edge === 's') dimOffset = s.yM + s.depthM + t/2;
+      else if (edge === 'w') dimOffset = s.xM - t/2;
+      else if (edge === 'e') dimOffset = s.xM + s.widthM + t/2;
+
+      let currentPos = 0;
+      for (let i = 0; i < edgeDoors.length; i++) {
+        const d = edgeDoors[i];
+        const dist = d.offsetM - currentPos;
+        const isHighlight = activeDoor && activeDoor.id === d.id;
+        
+        if (dist > 0.01) {
+          if (edge === 'n' || edge === 's') {
+            drawDimLine(s.xM + currentPos, dimOffset, s.xM + d.offsetM, dimOffset, dist, isHighlight);
+          } else {
+            drawDimLine(dimOffset, s.yM + currentPos, dimOffset, s.yM + d.offsetM, dist, isHighlight);
+          }
+        }
+        currentPos = d.offsetM + d.widthM;
+      }
+      // Last gap to end of wall
+      const lastDist = edgeLength - currentPos;
+      if (lastDist > 0.01) {
+        if (edge === 'n' || edge === 's') {
+          drawDimLine(s.xM + currentPos, dimOffset, s.xM + edgeLength, dimOffset, lastDist);
+        } else {
+          drawDimLine(dimOffset, s.yM + currentPos, dimOffset, s.yM + edgeLength, lastDist);
+        }
+      }
+    });
+  } else if (activeDoor) {
+    // Only show for active door
+    const edgeLength = (activeDoor.edge === "n" || activeDoor.edge === "s") ? s.widthM : s.depthM;
+    const siblings = allDoors
+      .filter(d => d.edge === activeDoor.edge && d.id !== activeDoor.id)
+      .sort((a, b) => a.offsetM - b.offsetM);
+
+    let leftDist = activeDoor.offsetM;
+    let leftObjEnd = 0;
+    let rightDist = edgeLength - (activeDoor.offsetM + activeDoor.widthM);
+    let rightObjStart = edgeLength;
+
+    for (let i = siblings.length - 1; i >= 0; i--) {
+      if (siblings[i].offsetM + siblings[i].widthM <= activeDoor.offsetM + 0.001) {
+        leftObjEnd = siblings[i].offsetM + siblings[i].widthM;
+        leftDist = activeDoor.offsetM - leftObjEnd;
+        break;
+      }
+    }
+
+    for (let i = 0; i < siblings.length; i++) {
+      if (siblings[i].offsetM >= activeDoor.offsetM + activeDoor.widthM - 0.001) {
+        rightObjStart = siblings[i].offsetM;
+        rightDist = rightObjStart - (activeDoor.offsetM + activeDoor.widthM);
+        break;
+      }
+    }
+
+    let dimOffset = 0;
+    if (activeDoor.edge === 'n') dimOffset = s.yM - t/2;
+    else if (activeDoor.edge === 's') dimOffset = s.yM + s.depthM + t/2;
+    else if (activeDoor.edge === 'w') dimOffset = s.xM - t/2;
+    else if (activeDoor.edge === 'e') dimOffset = s.xM + s.widthM + t/2;
+
+    if (activeDoor.edge === 'n' || activeDoor.edge === 's') {
+      drawDimLine(s.xM + leftObjEnd, dimOffset, s.xM + activeDoor.offsetM, dimOffset, leftDist, true);
+      drawDimLine(s.xM + activeDoor.offsetM + activeDoor.widthM, dimOffset, s.xM + rightObjStart, dimOffset, rightDist, true);
+    } else {
+      drawDimLine(dimOffset, s.yM + leftObjEnd, dimOffset, s.yM + activeDoor.offsetM, leftDist, true);
+      drawDimLine(dimOffset, s.yM + activeDoor.offsetM + activeDoor.widthM, dimOffset, s.yM + rightObjStart, rightDist, true);
+    }
   }
 }
-
 
 function drawMeasurement() {
   if (activeTool !== "measure") return;
