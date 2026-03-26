@@ -258,10 +258,15 @@ On each pointer event, test layers in reverse draw order (topmost first):
 
 ### Pan & Zoom
 
-- **Pan**: middle-mouse drag, or Space + left-drag
-- **Zoom**: scroll wheel (centered on cursor position)
+- **Pan**: two-finger trackpad swipe, or single-finger touch drag (when no object selected), or Space + left-drag, or middle-mouse drag
+- **Zoom**: trackpad pinch-to-zoom (via `ctrlKey` wheel event), or sidebar UI buttons (+ / - / reset). Note: standard scroll-wheel zoom is disabled to prevent accidental scrolling.
 - Zoom range: 10 px/m – 200 px/m
 - Scale indicator updates live (e.g. "1 m = 60 px")
+
+### Pointer & Touch Support
+
+- The canvas exclusively uses `pointerdown`, `pointermove`, `pointerup` for unified mouse, touch, and stylus support.
+- The canvas CSS uses `touch-action: none` to prevent native browser scrolling/pull-to-refresh on mobile devices.
 
 ---
 
@@ -437,29 +442,29 @@ Each bin is rendered as a rectangle (widthM × depthM at current scale) with:
 
 ---
 
-## Implementation Order
+## Implementation Order (Progress)
 
-1. **Scaffolding** — `trash-plan.html`, `trash-plan.css`, `trash-plan.js`; link from `index.html`; add Phosphor Icons CDN link
-2. **Landing screen** — load plan list from localStorage, New Plan button, delete with confirm
-3. **Canvas setup** — pan, zoom, coordinate system helpers, scale indicator
-4. **Outside area rendering** — grass background fill
-5. **Surface rendering** — fill + wall border, wall gaps for doors
-6. **Surface resize** — drag handles (corners + edge midpoints) + Surface Settings modal
-7. **Surface dimension labels** — toggle in sidebar, draw labels on all four edges
-8. **Bin type config** — `BIN_TYPES` object, preload Phosphor icon SVGs as `Image` objects on init
-9. **Bin rendering** — rect + lid line + label + waste type icon (if set) + out-of-bounds highlight
-10. **Bin placement** — click-to-place in Place Bin mode
-11. **Bin move / rotate / delete** — Select mode interactions, keyboard shortcuts (R, Del, Esc)
-12. **Waste type selection** — selection panel in sidebar, icon grid, assign to selected bin, re-render
-13. **Door placement** — click on wall edge to place at minimum 1.2 m width
-14. **Door repositioning & width editing** — drag along edge, enforce 1.2 m minimum, select to edit/delete
-15. **Tree & bush placement / move / delete**
-16. **Measure tool** — two-click line with distance label, third click clears
-17. **Texture selection** — surface + outside swatches in sidebar, live re-render
-18. **Save / Save As / auto-save**
-19. **Load + delete from landing screen**
-20. **PNG export** — overlay hide/show (exclude measure line), toDataURL, filename from plan name
-21. **Polish** — snap grid toggle, responsive sidebar collapse, final keyboard shortcut pass
+- [x] 1. **Scaffolding** — `trash-plan.html`, `trash-plan.css`, `trash-plan.js`; link from `index.html`; add Phosphor Icons CDN link
+- [x] 2. **Landing screen** — load plan list from localStorage, New Plan button, delete with confirm
+- [x] 3. **Canvas setup** — pan, zoom, coordinate system helpers, scale indicator, unified pointer events, mobile touch support
+- [x] 4. **Outside area rendering** — grass background fill
+- [x] 5. **Surface rendering** — fill + wall border, wall gaps for doors
+- [ ] 6. **Surface resize** — drag handles (corners + edge midpoints) + Surface Settings modal (modal is done, handles pending)
+- [x] 7. **Surface dimension labels** — toggle in sidebar, draw labels on all four edges
+- [x] 8. **Bin type config** — `BIN_TYPES` object, preload Phosphor icon SVGs as `Image` objects on init
+- [x] 9. **Bin rendering** — rect + lid line + label + waste type icon (if set) + out-of-bounds highlight (red warning triangle)
+- [x] 10. **Bin placement** — click-to-place in Place Bin mode
+- [x] 11. **Bin move / rotate / delete** — Select mode interactions, keyboard shortcuts (R, Del, Esc)
+- [x] 12. **Waste type selection** — selection panel in sidebar, icon grid, assign to selected bin, re-render
+- [x] 13. **Door placement** — click on wall edge to place at minimum 1.2 m width
+- [x] 14. **Door repositioning & width editing** — drag along edge, enforce 1.2 m minimum, select to edit/delete
+- [ ] 15. **Tree & bush placement / move / delete**
+- [x] 16. **Measure tool** — two-click line with distance label, third click clears
+- [x] 17. **Texture selection** — surface + outside swatches in sidebar, live re-render
+- [x] 18. **Save / Save As / auto-save**
+- [x] 19. **Load + delete from landing screen**
+- [ ] 20. **PNG export** — overlay hide/show (exclude measure line), toDataURL, filename from plan name
+- [x] 21. **Polish** — snap grid toggle, responsive sidebar collapse, final keyboard shortcut pass
 
 ---
 
