@@ -266,6 +266,65 @@ function setupEventListeners() {
     DOM.btnExportPng.addEventListener("click", () => {
       if (!currentPlan) return;
       isExporting = true;
+
+      // Calculate Bounding Box
+      const s = currentPlan.surface;
+      let minX = s.xM - s.wallThicknessM;
+      let minY = s.yM - s.wallThicknessM;
+      let maxX = s.xM + s.widthM + s.wallThicknessM;
+      let maxY = s.yM + s.depthM + s.wallThicknessM;
+
+      currentPlan.bins.forEach(bin => {
+        const type = BIN_TYPES[bin.type];
+        if (!type) return;
+        const isRotated = bin.rotation === 90 || bin.rotation === 270;
+        const w = isRotated ? type.depthM : type.widthM;
+        const h = isRotated ? type.widthM : type.depthM;
+        minX = Math.min(minX, bin.xM);
+        minY = Math.min(minY, bin.yM);
+        maxX = Math.max(maxX, bin.xM + w);
+        maxY = Math.max(maxY, bin.yM + h);
+      });
+
+      currentPlan.foliage.forEach(f => {
+        const r = f.type === "tree" ? 0.8 : 0.4;
+        minX = Math.min(minX, f.xM - r);
+        minY = Math.min(minY, f.yM - r);
+        maxX = Math.max(maxX, f.xM + r);
+        maxY = Math.max(maxY, f.yM + r);
+      });
+
+      // Add padding (1 meter)
+      const pad = 1;
+      minX -= pad;
+      minY -= pad;
+      maxX += pad;
+      maxY += pad;
+
+      const worldW = maxX - minX;
+      const worldH = maxY - minY;
+
+      const exportScale = 100; // 100 pixels per meter for a clean high-res export
+      const exportCanvasWidth = worldW * exportScale;
+      const exportCanvasHeight = worldH * exportScale;
+
+      // Save original state
+      const origViewport = { ...currentPlan.viewport };
+      const origWidth = DOM.canvas.width;
+      const origHeight = DOM.canvas.height;
+      const dpr = window.devicePixelRatio || 1;
+
+      // Set temporary canvas state for export
+      DOM.canvas.width = exportCanvasWidth;
+      DOM.canvas.height = exportCanvasHeight;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      currentPlan.viewport = {
+        panX: -minX * exportScale,
+        panY: -minY * exportScale,
+        scale: exportScale
+      };
+
       draw();
 
       const dataUrl = DOM.canvas.toDataURL("image/png");
@@ -277,7 +336,13 @@ function setupEventListeners() {
       a.download = `${fileName}.png`;
       a.click();
 
+      // Restore
       isExporting = false;
+      DOM.canvas.width = origWidth;
+      DOM.canvas.height = origHeight;
+      currentPlan.viewport = origViewport;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
       draw();
     });
   }
