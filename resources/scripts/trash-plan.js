@@ -30,7 +30,7 @@ const BIN_TYPES = {
     color: "#CE93D8",
     strokeColor: "#6A1B9A",
     volumeL: 370,
-    suitableFor: ["metal", "newspaper", "catalogs"],
+    suitableFor: ["metal", "newspaper"],
   },
   "370L-glass": {
     label: "370 L Glass",
@@ -69,10 +69,19 @@ const WASTE_TYPES = {
   cardboard: { label: "Cardboard", icon: "package" },
   metal: { label: "Metal", icon: "nut" },
   newspaper: { label: "Newspaper", icon: "newspaper" },
-  catalogs: { label: "Catalogs", icon: "books" },
   glass: { label: "Glass", icon: "wine" },
   general: { label: "General", icon: "trash" },
 };
+
+const iconImages = {};
+Object.entries(WASTE_TYPES).forEach(([key, type]) => {
+  const img = new Image();
+  img.src = `https://unpkg.com/@phosphor-icons/core@2.0.1/assets/regular/${type.icon}.svg`;
+  img.onload = () => {
+    if (typeof draw === "function") draw();
+  };
+  iconImages[key] = img;
+});
 
 // ==========================================
 // STATE
@@ -129,6 +138,8 @@ const DOM = {
   scaleIndicator: document.getElementById("scale-indicator"),
 
   // Sidebar Controls
+  selectionPanel: document.getElementById("selection-panel"),
+  wasteTypeGrid: document.getElementById("waste-type-grid"),
   binPalette: document.getElementById("bin-palette"),
   selectSurfaceTexture: document.getElementById("select-surface-texture"),
   selectOutsideTexture: document.getElementById("select-outside-texture"),
@@ -164,6 +175,7 @@ function init() {
   loadPlans();
   setupEventListeners();
   renderBinPalette();
+  renderWasteTypeGrid();
   showView("landing");
 
   // Handle window resize for canvas
@@ -278,6 +290,7 @@ function setupEventListeners() {
       if (e.key === "Escape") {
         setActiveTool("select");
         selectedBinId = null;
+        updateSelectionPanel();
         draw();
       } else if (e.code === "Space") {
         isSpacePressed = true;
@@ -291,6 +304,7 @@ function setupEventListeners() {
         );
         selectedBinId = null;
         saveCurrentPlan();
+        updateSelectionPanel();
         draw();
       } else if ((e.key === "r" || e.key === "R") && selectedBinId) {
         const bin = currentPlan.bins.find((b) => b.id === selectedBinId);
@@ -337,6 +351,7 @@ function showView(viewName) {
     }
 
     setActiveTool("select");
+    updateSelectionPanel();
 
     // Initialize canvas
     resizeCanvas();
@@ -360,6 +375,11 @@ function setActiveTool(tool) {
   // Update canvas cursor
   DOM.canvas.className = "";
   DOM.canvas.classList.add(`tool-${tool}`);
+
+  if (tool !== "select") {
+    selectedBinId = null;
+    if (typeof updateSelectionPanel === "function") updateSelectionPanel();
+  }
 
   // Re-render
   draw();
@@ -527,6 +547,55 @@ function renderPlanList() {
       DOM.planList.appendChild(li);
     });
   }
+}
+
+function updateSelectionPanel() {
+  if (!DOM.selectionPanel || !DOM.wasteTypeGrid) return;
+
+  if (selectedBinId && activeTool === "select") {
+    DOM.selectionPanel.classList.remove("hidden");
+    const selectedBin = currentPlan.bins.find((b) => b.id === selectedBinId);
+
+    // Update active state in grid
+    document.querySelectorAll(".waste-icon").forEach((el) => {
+      if (el.dataset.type === selectedBin.wasteType) {
+        el.classList.add("active");
+      } else {
+        el.classList.remove("active");
+      }
+    });
+  } else {
+    DOM.selectionPanel.classList.add("hidden");
+  }
+}
+
+function renderWasteTypeGrid() {
+  if (!DOM.wasteTypeGrid) return;
+  DOM.wasteTypeGrid.innerHTML = "";
+  Object.entries(WASTE_TYPES).forEach(([key, type]) => {
+    const el = document.createElement("div");
+    el.className = "waste-icon";
+    el.dataset.type = key;
+    el.title = type.label;
+    el.innerHTML = `<i class="ph ph-${type.icon}"></i>`;
+
+    el.addEventListener("click", () => {
+      if (!selectedBinId) return;
+      const bin = currentPlan.bins.find((b) => b.id === selectedBinId);
+      if (bin) {
+        // Toggle off if clicking the same one
+        if (bin.wasteType === key) {
+          bin.wasteType = null;
+        } else {
+          bin.wasteType = key;
+        }
+        updateSelectionPanel();
+        saveCurrentPlan();
+        draw();
+      }
+    });
+    DOM.wasteTypeGrid.appendChild(el);
+  });
 }
 
 function renderBinPalette() {
@@ -745,6 +814,7 @@ function placeBin(x, y) {
   currentPlan.bins.push(newBin);
   selectedBinId = newBin.id;
   setActiveTool("select");
+  updateSelectionPanel();
   saveCurrentPlan();
 }
 
@@ -774,6 +844,7 @@ function handleMouseDown(e) {
       } else {
         selectedBinId = null;
       }
+      updateSelectionPanel();
       draw();
     }
   }
@@ -899,7 +970,24 @@ function drawBins() {
     ctx.font = "0.18px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(type.label, type.widthM / 2, type.depthM / 2);
+
+    if (
+      bin.wasteType &&
+      iconImages[bin.wasteType] &&
+      iconImages[bin.wasteType].complete
+    ) {
+      ctx.fillText(type.label, type.widthM / 2, type.depthM * 0.35);
+      const size = 0.25;
+      ctx.drawImage(
+        iconImages[bin.wasteType],
+        type.widthM / 2 - size / 2,
+        type.depthM * 0.65 - size / 2,
+        size,
+        size,
+      );
+    } else {
+      ctx.fillText(type.label, type.widthM / 2, type.depthM / 2);
+    }
 
     ctx.restore();
 
