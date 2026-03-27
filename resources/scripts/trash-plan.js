@@ -184,6 +184,8 @@ const DOM = {
   toggleGrid: document.getElementById("toggle-grid"),
   toggleDimensions: document.getElementById("toggle-dimensions"),
   toggleDoorDimensions: document.getElementById("toggle-door-dimensions"),
+  toggleSummaryCard: document.getElementById("toggle-summary-card"),
+  summaryCard: document.getElementById("summary-card"),
 
   // Zoom Controls
   btnZoomOut: document.getElementById("btn-zoom-out"),
@@ -458,6 +460,10 @@ function setupEventListeners() {
 
   if (DOM.toggleDoorDimensions) {
     DOM.toggleDoorDimensions.addEventListener("change", draw);
+  }
+
+  if (DOM.toggleSummaryCard) {
+    DOM.toggleSummaryCard.addEventListener("change", draw);
   }
 
   // Zoom Controls
@@ -1038,6 +1044,68 @@ function updateScaleIndicator() {
   }
 }
 
+
+
+function updateSummaryCard() {
+  if (!DOM.summaryCard) return;
+  
+  if (!currentPlan || isExporting || (DOM.toggleSummaryCard && !DOM.toggleSummaryCard.checked)) {
+    DOM.summaryCard.style.display = "none";
+    return;
+  }
+
+  DOM.summaryCard.style.display = "block";
+  const s = currentPlan.surface;
+  const area = (s.widthM * s.depthM).toFixed(2);
+
+  const sizeCounts = {};
+  const typeCounts = {};
+  let totalBins = 0;
+
+  currentPlan.bins.forEach((bin) => {
+    totalBins++;
+    sizeCounts[bin.type] = (sizeCounts[bin.type] || 0) + 1;
+    const wType = bin.wasteType || "unassigned";
+    typeCounts[wType] = (typeCounts[wType] || 0) + 1;
+  });
+
+  let html = `<div class="summary-section">
+    <h4>Surface</h4>
+    <ul>
+      <li><span>Width:</span> <span class="val">${s.widthM.toFixed(2)} m</span></li>
+      <li><span>Depth:</span> <span class="val">${s.depthM.toFixed(2)} m</span></li>
+      <li><span>Area:</span> <span class="val">${area} m²</span></li>
+    </ul>
+  </div>`;
+
+  if (totalBins > 0) {
+    html += `<div class="summary-section">
+      <h4>Bins by Size</h4>
+      <ul>`;
+    Object.keys(sizeCounts).forEach((k) => {
+      const label = BIN_TYPES[k] ? BIN_TYPES[k].label : k;
+      html += `<li><span>${label}:</span> <span class="val">${sizeCounts[k]}</span></li>`;
+    });
+    html += `</ul></div>`;
+
+    html += `<div class="summary-section">
+      <h4>Bins by Type</h4>
+      <ul>`;
+    Object.keys(typeCounts).forEach((k) => {
+      const label =
+        k === "unassigned"
+          ? "Unassigned"
+          : WASTE_TYPES[k]
+            ? WASTE_TYPES[k].label
+            : k;
+      html += `<li><span>${label}:</span> <span class="val">${typeCounts[k]}</span></li>`;
+    });
+    html += `</ul></div>`;
+  }
+
+  DOM.summaryCard.innerHTML = html;
+}
+
 // ==========================================
 // PAN & ZOOM
 // ==========================================
@@ -1557,6 +1625,8 @@ function draw() {
   }
 
   ctx.restore();
+  
+  updateSummaryCard();
 }
 
 function drawBins() {
@@ -1789,6 +1859,8 @@ function drawBackground() {
   ctx.fillRect(0, 0, DOM.canvas.width, DOM.canvas.height);
 
   ctx.restore();
+  
+  updateSummaryCard();
 }
 
 function drawSurface() {
@@ -1854,6 +1926,8 @@ function drawHandles() {
   ctx.strokeRect(s.xM, s.yM, s.widthM, s.depthM);
 
   ctx.restore();
+  
+  updateSummaryCard();
 }
 
 function drawGrid() {
@@ -1879,6 +1953,8 @@ function drawGrid() {
   }
   ctx.stroke();
   ctx.restore();
+  
+  updateSummaryCard();
 }
 
 function drawDimensions() {
@@ -1922,6 +1998,8 @@ function drawDimensions() {
   ctx.restore();
 
   ctx.restore();
+  
+  updateSummaryCard();
 }
 
 function drawDoorDistances() {
@@ -2141,6 +2219,8 @@ function drawMeasurement() {
   ctx.fillText(`${dist.toFixed(2)} m`, midX, midY - 5 / scale);
 
   ctx.restore();
+  
+  updateSummaryCard();
 }
 
 // Start application

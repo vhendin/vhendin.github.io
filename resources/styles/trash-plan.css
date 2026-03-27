@@ -592,6 +592,7 @@ h3 {
         -1px 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+
 .scale-indicator-bar {
     height: 6px;
     border: 2px solid var(--color-text-main);
@@ -599,6 +600,56 @@ h3 {
     box-sizing: border-box;
     box-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
 }
+
+.summary-card {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--color-text-main);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    pointer-events: none;
+    min-width: 200px;
+    backdrop-filter: blur(4px);
+    z-index: 10;
+}
+
+.summary-card h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: var(--color-text-main);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 4px;
+}
+
+.summary-card .summary-section {
+    margin-bottom: 12px;
+}
+
+.summary-card .summary-section:last-child {
+    margin-bottom: 0;
+}
+
+.summary-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.summary-card li {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.summary-card li span.val {
+    font-weight: 500;
+}
+
 
 /* ==========================================
    MODALS
