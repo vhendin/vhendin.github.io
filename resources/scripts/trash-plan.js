@@ -181,6 +181,8 @@ const DOM = {
   selectSurfaceTexture: document.getElementById("select-surface-texture"),
   selectOutsideTexture: document.getElementById("select-outside-texture"),
   btnSurfaceSettings: document.getElementById("btn-surface-settings"),
+  btnClearBins: document.getElementById("btn-clear-bins"),
+  btnClearFoliage: document.getElementById("btn-clear-foliage"),
   toggleGrid: document.getElementById("toggle-grid"),
   toggleDimensions: document.getElementById("toggle-dimensions"),
   toggleDoorDimensions: document.getElementById("toggle-door-dimensions"),
@@ -433,6 +435,37 @@ function setupEventListeners() {
       currentPlan.outside.texture = e.target.value;
       saveCurrentPlan();
       draw();
+    });
+  }
+
+  
+  if (DOM.btnClearBins) {
+    DOM.btnClearBins.addEventListener("click", () => {
+      if (!currentPlan) return;
+      if (confirm("Are you sure you want to clear all bins?")) {
+        currentPlan.bins = [];
+        if (selectedBinId) {
+          selectedBinId = null;
+          updateSelectionPanel();
+        }
+        saveCurrentPlan();
+        draw();
+      }
+    });
+  }
+
+  if (DOM.btnClearFoliage) {
+    DOM.btnClearFoliage.addEventListener("click", () => {
+      if (!currentPlan) return;
+      if (confirm("Are you sure you want to clear all trees and bushes?")) {
+        currentPlan.foliage = [];
+        if (selectedFoliageId) {
+          selectedFoliageId = null;
+          updateSelectionPanel();
+        }
+        saveCurrentPlan();
+        draw();
+      }
     });
   }
 
