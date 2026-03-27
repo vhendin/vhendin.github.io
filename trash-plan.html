@@ -23,11 +23,22 @@
                     <p>Bin Placement & Enclosure Planning Tool</p>
                 </header>
 
-                <div class="landing-actions" style="display: flex; gap: 12px; justify-content: center;">
+                <div
+                    class="landing-actions"
+                    style="display: flex; gap: 12px; justify-content: center"
+                >
                     <button id="btn-new-plan" class="btn-primary">
                         <i class="ph ph-plus"></i> Empty Plan
                     </button>
-                    <button id="btn-default-plan" class="btn-primary" style="background-color: var(--color-surface); color: var(--color-primary); border: 2px solid var(--color-primary);">
+                    <button
+                        id="btn-default-plan"
+                        class="btn-primary"
+                        style="
+                            background-color: var(--color-surface);
+                            color: var(--color-primary);
+                            border: 2px solid var(--color-primary);
+                        "
+                    >
                         <i class="ph ph-magic-wand"></i> Start from Default
                     </button>
                 </div>
@@ -124,6 +135,13 @@
 
                 <div class="toolbar-right">
                     <span id="save-status" class="save-status">Saved</span>
+                    <button
+                        id="btn-revert"
+                        class="btn-outline"
+                        title="Revert to last explicitly saved state"
+                    >
+                        <i class="ph ph-arrow-counter-clockwise"></i> Revert
+                    </button>
                     <button
                         id="btn-save"
                         class="btn-secondary"
@@ -231,11 +249,16 @@
                         </button>
                     </div>
 
-                    
                     <!-- Actions -->
                     <div class="sidebar-section">
                         <h3>Actions</h3>
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div
+                            style="
+                                display: flex;
+                                flex-direction: column;
+                                gap: 8px;
+                            "
+                        >
                             <button id="btn-clear-bins" class="btn-outline">
                                 <i class="ph ph-trash"></i> Clear All Bins
                             </button>
@@ -247,7 +270,7 @@
 
                     <!-- View Options -->
                     <div class="sidebar-section">
-                        <h3>ViewOptions</h3>
+                        <h3>View Options & Settings</h3>
                         <div class="toggle-group">
                             <label class="toggle">
                                 <input
@@ -276,6 +299,10 @@
                                     checked
                                 />
                                 <span>Show Summary Card</span>
+                            </label>
+                            <label class="toggle">
+                                <input type="checkbox" id="toggle-auto-save" />
+                                <span>Auto-save Changes</span>
                             </label>
                         </div>
                         <div class="zoom-controls">
@@ -456,6 +483,29 @@
                     </button>
                     <button id="btn-confirm-delete" class="btn-danger">
                         Delete
+                    </button>
+                </footer>
+            </div>
+        </div>
+
+        <!-- Generic Confirm Modal -->
+        <div id="modal-confirm" class="modal hidden">
+            <div class="modal-content modal-sm">
+                <header class="modal-header">
+                    <h2 id="confirm-modal-title">Confirm</h2>
+                    <button class="close-btn" data-close="modal-confirm">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </header>
+                <div class="modal-body">
+                    <p id="confirm-modal-message">Are you sure?</p>
+                </div>
+                <footer class="modal-footer">
+                    <button class="btn-secondary" data-close="modal-confirm">
+                        Cancel
+                    </button>
+                    <button id="btn-confirm-action" class="btn-primary">
+                        OK
                     </button>
                 </footer>
             </div>

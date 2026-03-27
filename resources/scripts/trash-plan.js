@@ -103,6 +103,7 @@ Object.entries(WASTE_TYPES).forEach(([key, type]) => {
 let plans = []; // Array of all saved plans
 let currentPlan = null; // Currently active plan object
 let currentPlanIndex = -1; // Index in the plans array
+let baselinePlanState = null; // Stringified state of the last explicit save
 
 // Editor UI State
 let activeTool = "select"; // select, bin, door, tree, bush, measure, surface
@@ -161,6 +162,7 @@ const DOM = {
   toolBtns: document.querySelectorAll(".tool-btn"),
   btnSave: document.getElementById("btn-save"),
   btnSaveAs: document.getElementById("btn-save-as"),
+  btnRevert: document.getElementById("btn-revert"),
   btnExportPng: document.getElementById("btn-export-png"),
   saveStatus: document.getElementById("save-status"),
 
@@ -189,6 +191,12 @@ const DOM = {
   toggleDoorDimensions: document.getElementById("toggle-door-dimensions"),
   toggleSummaryCard: document.getElementById("toggle-summary-card"),
   summaryCard: document.getElementById("summary-card"),
+  toggleAutoSave: document.getElementById("toggle-auto-save"),
+  inputSaveAsName: document.getElementById("input-save-as-name"),
+  btnConfirmSaveAs: document.getElementById("btn-confirm-save-as"),
+  confirmModalTitle: document.getElementById("confirm-modal-title"),
+  confirmModalMessage: document.getElementById("confirm-modal-message"),
+  btnConfirmAction: document.getElementById("btn-confirm-action"),
 
   // Zoom Controls
   btnZoomOut: document.getElementById("btn-zoom-out"),
@@ -231,6 +239,8 @@ function init() {
 }
 
 function setupEventListeners() {
+  setupConfirmModal();
+
   // Landing
   DOM.btnNewPlan.addEventListener("click", createNewPlan);
   if (DOM.btnDefaultPlan) DOM.btnDefaultPlan.addEventListener("click", createDefaultPlan);
@@ -270,8 +280,78 @@ function setupEventListeners() {
     if (currentPlan && currentPlan.isUnsaved) {
       delete currentPlan.isUnsaved;
     }
-    saveCurrentPlan();
+    baselinePlanState = JSON.stringify(currentPlan);
+    saveCurrentPlan(true);
+    showSaveStatus("Saved");
+    DOM.btnSave.classList.remove("needs-save");
   });
+
+
+
+  if (DOM.btnSaveAs) {
+    DOM.btnSaveAs.addEventListener("click", () => {
+      if (!currentPlan) return;
+      DOM.inputSaveAsName.value = currentPlan.name + " (Clone)";
+      openModal("modal-save-as");
+    });
+  }
+
+  if (DOM.btnConfirmSaveAs) {
+    DOM.btnConfirmSaveAs.addEventListener("click", () => {
+      if (!currentPlan) return;
+      const duplicate = JSON.parse(JSON.stringify(currentPlan));
+      duplicate.id = "plan_" + Date.now();
+      duplicate.name = DOM.inputSaveAsName.value.trim() || "Clone";
+      duplicate.created = new Date().toISOString();
+      duplicate.modified = duplicate.created;
+      delete duplicate.isUnsaved;
+      
+      plans.unshift(duplicate);
+      currentPlanIndex = 0;
+      currentPlan = duplicate;
+      baselinePlanState = JSON.stringify(currentPlan);
+      savePlans(true);
+      DOM.inputPlanName.value = currentPlan.name;
+      draw();
+      closeModal("modal-save-as");
+      showSaveStatus("Clone Saved");
+      DOM.btnSave.classList.remove("needs-save");
+    });
+  }
+
+  if (DOM.btnRevert) {
+    DOM.btnRevert.addEventListener("click", () => {
+      if (!currentPlan || !baselinePlanState) return;
+      showConfirm("Revert Changes", "Are you sure you want to revert to the last saved state? All unsaved changes will be lost.", () => {
+        currentPlan = JSON.parse(baselinePlanState);
+        selectedBinId = null;
+        selectedDoorId = null;
+        selectedFoliageId = null;
+        setActiveTool("select");
+        updateSelectionPanel();
+        if (!currentPlan.isUnsaved) {
+          saveCurrentPlan();
+        }
+        draw();
+        showSaveStatus("Reverted");
+        if (DOM.inputPlanName) DOM.inputPlanName.value = currentPlan.name;
+      });
+    });
+  }
+
+
+  // Load auto-save preference
+  if (DOM.toggleAutoSave) {
+    const pref = localStorage.getItem("trashplan_autosave");
+    DOM.toggleAutoSave.checked = pref === "true";
+    DOM.toggleAutoSave.addEventListener("change", (e) => {
+      localStorage.setItem("trashplan_autosave", e.target.checked);
+      if (e.target.checked && currentPlan && !currentPlan.isUnsaved) {
+        saveCurrentPlan(true);
+        DOM.btnSave.classList.remove("needs-save");
+      }
+    });
+  }
 
   if (DOM.btnExportPng) {
     DOM.btnExportPng.addEventListener("click", () => {
@@ -449,7 +529,7 @@ function setupEventListeners() {
   if (DOM.btnClearBins) {
     DOM.btnClearBins.addEventListener("click", () => {
       if (!currentPlan) return;
-      if (confirm("Are you sure you want to clear all bins?")) {
+      showConfirm("Clear All Bins", "Are you sure you want to clear all bins? This cannot be undone.", () => {
         currentPlan.bins = [];
         if (selectedBinId) {
           selectedBinId = null;
@@ -457,14 +537,14 @@ function setupEventListeners() {
         }
         saveCurrentPlan();
         draw();
-      }
+      });
     });
   }
 
   if (DOM.btnClearFoliage) {
     DOM.btnClearFoliage.addEventListener("click", () => {
       if (!currentPlan) return;
-      if (confirm("Are you sure you want to clear all trees and bushes?")) {
+      showConfirm("Clear All Foliage", "Are you sure you want to clear all trees and bushes? This cannot be undone.", () => {
         currentPlan.foliage = [];
         if (selectedFoliageId) {
           selectedFoliageId = null;
@@ -472,7 +552,7 @@ function setupEventListeners() {
         }
         saveCurrentPlan();
         draw();
-      }
+      });
     });
   }
 
@@ -705,19 +785,29 @@ function loadPlans() {
   }
 }
 
-function savePlans() {
+function savePlans(showStatus = false) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
-    showSaveStatus("Saved");
+    if (showStatus) {
+      showSaveStatus("Saved");
+    }
   } catch (e) {
     console.error("Failed to save plans to localStorage", e);
     showSaveStatus("Error saving");
   }
 }
 
-function saveCurrentPlan() {
+function saveCurrentPlan(isExplicit = false) {
   if (!currentPlan) return;
-  if (currentPlan.isUnsaved) return;
+  if (currentPlan.isUnsaved && !isExplicit) return;
+
+  const autoSaveEnabled = DOM.toggleAutoSave ? DOM.toggleAutoSave.checked : false;
+
+  if (!isExplicit && !autoSaveEnabled) {
+    showSaveStatus("Unsaved changes");
+    DOM.btnSave.classList.add("needs-save");
+    return;
+  }
 
   currentPlan.modified = new Date().toISOString();
 
@@ -728,7 +818,7 @@ function saveCurrentPlan() {
     currentPlanIndex = plans.length - 1;
   }
 
-  savePlans();
+  savePlans(false);
 }
 
 function showSaveStatus(message) {
@@ -808,6 +898,7 @@ function createDefaultPlan() {
   newPlan.isUnsaved = true;
   currentPlan = newPlan;
   currentPlanIndex = -1; // Not in plans array yet
+  baselinePlanState = JSON.stringify(currentPlan);
   showView("editor");
 }
 
@@ -854,6 +945,7 @@ function openPlan(index) {
   if (index >= 0 && index < plans.length) {
     currentPlan = JSON.parse(JSON.stringify(plans[index])); // Deep copy for editing
     currentPlanIndex = index;
+    baselinePlanState = JSON.stringify(currentPlan);
     showView("editor");
   }
 }
@@ -869,7 +961,7 @@ function confirmDeletePlan(index) {
 DOM.btnConfirmDelete.addEventListener("click", () => {
   if (planToDeleteIndex >= 0) {
     plans.splice(planToDeleteIndex, 1);
-    savePlans();
+    savePlans(true);
     renderPlanList();
     closeModal("modal-confirm-delete");
     planToDeleteIndex = -1;
@@ -2332,6 +2424,28 @@ function drawMeasurement() {
   ctx.restore();
   
   updateSummaryCard();
+}
+
+
+let pendingConfirmCallback = null;
+
+function showConfirm(title, message, callback) {
+  if (DOM.confirmModalTitle) DOM.confirmModalTitle.textContent = title;
+  if (DOM.confirmModalMessage) DOM.confirmModalMessage.textContent = message;
+  pendingConfirmCallback = callback;
+  openModal("modal-confirm");
+}
+
+function setupConfirmModal() {
+  if (DOM.btnConfirmAction) {
+    DOM.btnConfirmAction.addEventListener("click", () => {
+      if (pendingConfirmCallback) {
+        pendingConfirmCallback();
+        pendingConfirmCallback = null;
+      }
+      closeModal("modal-confirm");
+    });
+  }
 }
 
 // Start application
