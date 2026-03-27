@@ -266,7 +266,12 @@ function setupEventListeners() {
     }
   });
 
-  DOM.btnSave.addEventListener("click", saveCurrentPlan);
+  DOM.btnSave.addEventListener("click", () => {
+    if (currentPlan && currentPlan.isUnsaved) {
+      delete currentPlan.isUnsaved;
+    }
+    saveCurrentPlan();
+  });
 
   if (DOM.btnExportPng) {
     DOM.btnExportPng.addEventListener("click", () => {
@@ -712,6 +717,7 @@ function savePlans() {
 
 function saveCurrentPlan() {
   if (!currentPlan) return;
+  if (currentPlan.isUnsaved) return;
 
   currentPlan.modified = new Date().toISOString();
 
@@ -799,10 +805,10 @@ function createDefaultPlan() {
     },
   };
 
-  plans.unshift(newPlan);
-  currentPlanIndex = 0;
-  savePlans();
-  openPlan(0);
+  newPlan.isUnsaved = true;
+  currentPlan = newPlan;
+  currentPlanIndex = -1; // Not in plans array yet
+  showView("editor");
 }
 
 function createNewPlan() {
@@ -838,10 +844,9 @@ function createNewPlan() {
   currentPlan.surface.xM = -currentPlan.surface.widthM / 2;
   currentPlan.surface.yM = -currentPlan.surface.depthM / 2;
 
-  plans.push(currentPlan);
-  currentPlanIndex = plans.length - 1;
-  savePlans();
-
+  currentPlan.isUnsaved = true;
+  currentPlanIndex = -1; // Not in plans array yet
+  
   showView("editor");
 }
 
