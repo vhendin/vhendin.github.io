@@ -595,7 +595,10 @@ function setupEventListeners() {
     DOM.btnZoomReset.addEventListener("click", () => {
       if (!currentPlan) return;
       currentPlan.viewport.scale = DEFAULT_SCALE;
-      centerViewport();
+      // Force center
+      currentPlan.viewport.panX = canvasWidth / 2;
+      currentPlan.viewport.panY = canvasHeight / 2;
+      updateScaleIndicator();
       draw();
     });
 
@@ -1202,8 +1205,15 @@ function resizeCanvas() {
 
 function centerViewport() {
   if (!currentPlan) return;
-  currentPlan.viewport.panX = canvasWidth / 2;
-  currentPlan.viewport.panY = canvasHeight / 2;
+  
+  // If viewport already has meaningful values from a loaded plan, use those
+  // We can tell if it's "fresh" if it's strictly 0 (which createNewPlan sets it to initially)
+  // or if they just don't exist.
+  if (currentPlan.viewport.panX === 0 && currentPlan.viewport.panY === 0) {
+    currentPlan.viewport.panX = canvasWidth / 2;
+    currentPlan.viewport.panY = canvasHeight / 2;
+  }
+  
   updateScaleIndicator();
 }
 
