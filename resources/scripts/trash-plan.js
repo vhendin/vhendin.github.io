@@ -150,6 +150,7 @@ const DOM = {
 
   // Landing Page
   btnNewPlan: document.getElementById("btn-new-plan"),
+  btnDefaultPlan: document.getElementById("btn-default-plan"),
   planList: document.getElementById("plan-list"),
   planListEmpty: document.getElementById("plan-list-empty"),
 
@@ -232,6 +233,7 @@ function init() {
 function setupEventListeners() {
   // Landing
   DOM.btnNewPlan.addEventListener("click", createNewPlan);
+  if (DOM.btnDefaultPlan) DOM.btnDefaultPlan.addEventListener("click", createDefaultPlan);
 
   // Toolbar
   if (DOM.btnToggleSidebar) {
@@ -730,6 +732,77 @@ function showSaveStatus(message) {
   setTimeout(() => {
     DOM.saveStatus.style.opacity = 0.5;
   }, 2000);
+}
+
+
+function createDefaultPlan() {
+  const now = new Date();
+  
+  const s = {
+    xM: 5,
+    yM: 5,
+    widthM: 8.5,
+    depthM: 3.0,
+    wallThicknessM: 0.15,
+    texture: "concrete",
+  };
+
+  const bins = [];
+  const addBin = (type, wasteType, x, y) => {
+    bins.push({
+      id: "bin_" + Date.now() + Math.floor(Math.random() * 1000) + bins.length,
+      type: type,
+      wasteType: wasteType,
+      xM: s.xM + x,
+      yM: s.yM + y,
+      rotation: 0
+    });
+  };
+
+  // Content Type | Recommended Bin Size | Quantity
+  // Plastics | 660L | 3
+  addBin("660L", "plastic", 0.5, 0.5);
+  addBin("660L", "plastic", 2.0, 0.5);
+  addBin("660L", "plastic", 3.5, 0.5);
+
+  // Paper/Cardboard | 660L | 3
+  addBin("660L", "cardboard", 5.0, 0.5);
+  addBin("660L", "cardboard", 6.5, 0.5);
+  addBin("660L", "cardboard", 8.0, 0.5);
+
+  // Glass | 370L (w/ Glass Lid) | 2
+  addBin("370L", "glass", 0.5, 2.0);
+  addBin("370L", "glass", 1.5, 2.0);
+
+  // Metal | 370L | 1
+  addBin("370L", "metal", 2.5, 2.0);
+
+  const newPlan = {
+    id: "plan_" + Date.now(),
+    name: "Standard Enclosure",
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    surface: s,
+    outside: { texture: "grass" },
+    doors: [
+      { id: "door_main", edge: "s", offsetM: 4.3, widthM: 1.6 }
+    ],
+    bins: bins,
+    foliage: [
+      { id: "tree_1", type: "tree", xM: 3.5, yM: 3.5 },
+      { id: "bush_1", type: "bush", xM: 16.5, yM: 6.0 }
+    ],
+    viewport: {
+      panX: canvasWidth / 2 || 400,
+      panY: canvasHeight / 2 || 300,
+      scale: DEFAULT_SCALE,
+    },
+  };
+
+  plans.unshift(newPlan);
+  currentPlanIndex = 0;
+  savePlans();
+  openPlan(0);
 }
 
 function createNewPlan() {
