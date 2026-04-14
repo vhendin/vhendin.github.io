@@ -1,0 +1,284 @@
+<!doctype html>
+<!--
+  beep.html — A simple sound trigger page.
+  Press the button to play a beep sound N times, where N is controlled
+  by the chevron counter below the button. There is a 2-second delay between plays.
+-->
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Beep Beep Beep</title>
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background-color: #0f1117;
+                font-family:
+                    "Segoe UI",
+                    system-ui,
+                    -apple-system,
+                    sans-serif;
+                color: #e2e8f0;
+                gap: 2.5rem;
+            }
+
+            /* ── Main beep button ── */
+            #beep-btn {
+                padding: 1rem 2.8rem;
+                font-size: 1.4rem;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+                color: #fff;
+                background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                border: none;
+                border-radius: 14px;
+                cursor: pointer;
+                box-shadow: 0 4px 24px rgba(99, 102, 241, 0.45);
+                transition:
+                    transform 0.12s ease,
+                    box-shadow 0.12s ease,
+                    filter 0.12s ease;
+                user-select: none;
+            }
+
+            #beep-btn:hover:not(:disabled) {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 32px rgba(99, 102, 241, 0.6);
+            }
+
+            #beep-btn:active:not(:disabled) {
+                transform: translateY(1px);
+                box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
+            }
+
+            #beep-btn:disabled {
+                filter: brightness(0.55);
+                cursor: not-allowed;
+            }
+
+            /* ── Counter row ── */
+            .counter {
+                display: flex;
+                align-items: center;
+                gap: 1.2rem;
+            }
+
+            .chevron-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 2.6rem;
+                height: 2.6rem;
+                background: #1e2130;
+                border: 1px solid #2d3148;
+                border-radius: 8px;
+                cursor: pointer;
+                color: #a5b4fc;
+                font-size: 1.2rem;
+                transition:
+                    background 0.12s ease,
+                    color 0.12s ease,
+                    border-color 0.12s ease;
+                user-select: none;
+            }
+
+            .chevron-btn:hover:not(:disabled) {
+                background: #2a2f50;
+                border-color: #6366f1;
+                color: #fff;
+            }
+
+            .chevron-btn:active:not(:disabled) {
+                background: #6366f1;
+                color: #fff;
+            }
+
+            .chevron-btn:disabled {
+                opacity: 0.35;
+                cursor: not-allowed;
+            }
+
+            #count-display {
+                min-width: 3rem;
+                text-align: center;
+                font-size: 2rem;
+                font-weight: 700;
+                color: #e2e8f0;
+                font-variant-numeric: tabular-nums;
+            }
+
+            /* ── Status text ── */
+            #status {
+                font-size: 0.9rem;
+                color: #64748b;
+                letter-spacing: 0.03em;
+                min-height: 1.2em;
+                transition: color 0.2s ease;
+            }
+
+            #status.active {
+                color: #a5b4fc;
+            }
+        </style>
+    </head>
+    <body>
+        <button id="beep-btn">Beep Beep Beep</button>
+
+        <div class="counter">
+            <button
+                class="chevron-btn"
+                id="dec-btn"
+                aria-label="Decrease count"
+            >
+                &#8249;
+            </button>
+            <span id="count-display">1</span>
+            <button
+                class="chevron-btn"
+                id="inc-btn"
+                aria-label="Increase count"
+            >
+                &#8250;
+            </button>
+        </div>
+
+        <p id="status"></p>
+
+        <script>
+            const MIN_COUNT = 1;
+            const MAX_COUNT = 20;
+            const DELAY_MS = 0;
+
+            const beepBtn = document.getElementById("beep-btn");
+            const decBtn = document.getElementById("dec-btn");
+            const incBtn = document.getElementById("inc-btn");
+            const countDisplay = document.getElementById("count-display");
+            const statusEl = document.getElementById("status");
+
+            let count = 1;
+            let playing = false;
+
+            function updateUI() {
+                countDisplay.textContent = count;
+                decBtn.disabled = playing || count <= MIN_COUNT;
+                incBtn.disabled = playing || count >= MAX_COUNT;
+                beepBtn.disabled = playing;
+            }
+
+            decBtn.addEventListener("click", () => {
+                if (count > MIN_COUNT) {
+                    count--;
+                    updateUI();
+                }
+            });
+
+            incBtn.addEventListener("click", () => {
+                if (count < MAX_COUNT) {
+                    count++;
+                    updateUI();
+                }
+            });
+
+            beepBtn.addEventListener("click", () => {
+                if (playing) return;
+                playBeeps(count);
+            });
+
+            /**
+             * Plays the beep sound `times` times, with DELAY_MS between each play.
+             * Uses the Web Audio API to decode the MP3 and schedule playback precisely.
+             * Falls back to HTMLAudioElement if AudioContext is unavailable.
+             */
+            async function playBeeps(times) {
+                playing = true;
+                updateUI();
+
+                try {
+                    // Fetch and decode the audio once
+                    const ctx = new (
+                        window.AudioContext || window.webkitAudioContext
+                    )();
+                    const response = await fetch("resources/audio/beep.mp3");
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+                    for (let i = 0; i < times; i++) {
+                        statusEl.textContent = `Beep ${i + 1} of ${times}…`;
+                        statusEl.classList.add("active");
+
+                        // Play a fresh buffer source each time (sources are single-use)
+                        await playBuffer(ctx, audioBuffer);
+
+                        if (i < times - 1) {
+                            await sleep(DELAY_MS);
+                        }
+                    }
+
+                    await ctx.close();
+                } catch (err) {
+                    // Fallback: HTMLAudioElement chain
+                    console.warn(
+                        "AudioContext unavailable, using Audio fallback:",
+                        err,
+                    );
+                    for (let i = 0; i < times; i++) {
+                        statusEl.textContent = `Beep ${i + 1} of ${times}…`;
+                        statusEl.classList.add("active");
+
+                        await playAudioElement("resources/audio/beep.mp3");
+
+                        if (i < times - 1) {
+                            await sleep(DELAY_MS);
+                        }
+                    }
+                }
+
+                statusEl.textContent = "";
+                statusEl.classList.remove("active");
+                playing = false;
+                updateUI();
+            }
+
+            /** Plays an AudioBuffer once and resolves when it ends. */
+            function playBuffer(ctx, buffer) {
+                return new Promise((resolve) => {
+                    const source = ctx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(ctx.destination);
+                    source.onended = resolve;
+                    source.start();
+                });
+            }
+
+            /** Plays a URL via HTMLAudioElement and resolves when it ends. */
+            function playAudioElement(src) {
+                return new Promise((resolve) => {
+                    const audio = new Audio(src);
+                    audio.onended = resolve;
+                    audio.onerror = resolve; // don't block the loop on error
+                    audio.play().catch(resolve);
+                });
+            }
+
+            /** Simple promise-based sleep. */
+            function sleep(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+
+            // Initialise UI state
+            updateUI();
+        </script>
+    </body>
+</html>
