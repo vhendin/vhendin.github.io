@@ -1,0 +1,99 @@
+<!doctype html>
+<!--
+  doc-to-img.html — Browser-based PDF to image converter.
+  Converts PDF pages to PNG/JPEG images, one per page,
+  entirely client-side. No server required.
+-->
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Doc to Image</title>
+        <link rel="stylesheet" href="resources/styles/doc-to-img.css" />
+        <!-- PDF rendering -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    </head>
+    <body>
+        <div class="app">
+            <header class="app-header">
+                <h1>PDF → Image</h1>
+                <p>Convert PDF pages to images — entirely in your browser</p>
+            </header>
+
+            <main class="app-main">
+                <!-- ── Drop zone ── -->
+                <div id="drop-zone" class="drop-zone">
+                    <div class="drop-content">
+                        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14.25 2.25H6a2.25 2.25 0 00-2.25 2.25v15A2.25 2.25 0 006 21.75h12a2.25 2.25 0 002.25-2.25V9.75L14.25 2.25z"/>
+                            <path d="M14.25 2.25v7.5h7.5"/>
+                        </svg>
+                        <p class="drop-title">Drop a PDF file here</p>
+                        <p class="drop-hint">or</p>
+                        <label for="file-input" class="btn-choose">Choose File</label>
+                        <input type="file" id="file-input" accept=".pdf" />
+                        <p class="drop-formats">Supports PDF</p>
+                    </div>
+                </div>
+
+                <!-- ── File info bar ── -->
+                <div id="file-info" class="file-info hidden">
+                    <span class="file-icon">📄</span>
+                    <span id="file-name" class="file-name"></span>
+                    <span id="file-size" class="file-size"></span>
+                    <button id="clear-file" class="btn-icon" title="Remove file">✕</button>
+                </div>
+
+                <!-- ── Options ── -->
+                <section class="options-section">
+                    <div class="option-row">
+                        <label class="option-label">Format</label>
+                        <div class="btn-group">
+                            <button class="toggle-btn active" data-format="image/png">PNG</button>
+                            <button class="toggle-btn" data-format="image/jpeg">JPEG</button>
+                        </div>
+                    </div>
+
+                    <div class="option-row" id="quality-row" style="display: none;">
+                        <label class="option-label">Quality</label>
+                        <input type="range" id="quality-slider" min="10" max="100" value="92" />
+                        <span id="quality-value" class="option-value">92%</span>
+                    </div>
+
+                    <div class="option-row">
+                        <label class="option-label">Scale</label>
+                        <div class="btn-group">
+                            <button class="toggle-btn" data-scale="1">1×</button>
+                            <button class="toggle-btn active" data-scale="2">2×</button>
+                            <button class="toggle-btn" data-scale="3">3×</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ── Convert ── -->
+                <button id="convert-btn" class="btn-convert" disabled>Convert to Images</button>
+
+                <!-- ── Progress ── -->
+                <div id="progress-section" class="progress-section hidden">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <p id="progress-text" class="progress-text">Processing…</p>
+                </div>
+
+                <!-- ── Results ── -->
+                <section id="results-section" class="results-section hidden">
+                    <div class="results-header">
+                        <h2 class="results-title">
+                            Pages <span id="page-count" class="results-count"></span>
+                        </h2>
+                        <button id="download-all-btn" class="btn-download-all">↓ Download All</button>
+                    </div>
+                    <div id="results-grid" class="results-grid"></div>
+                </section>
+            </main>
+        </div>
+
+        <script src="resources/scripts/doc-to-img.js"></script>
+    </body>
+</html>
