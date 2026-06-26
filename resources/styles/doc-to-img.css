@@ -385,10 +385,9 @@ body {
 
 .result-preview {
     width: 100%;
-    aspect-ratio: 3 / 4;
-    object-fit: contain;
-    background: #fff;
+    height: auto;
     display: block;
+    background: #fff;
 }
 
 .result-footer {
