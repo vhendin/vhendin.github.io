@@ -409,10 +409,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function exportImage() {
-        const link = document.createElement('a');
-        link.download = 'instagram-post.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                console.error('Failed to create image blob from canvas.');
+                return;
+            }
+
+            const filename = 'instagram-post.png';
+            const file = new File([blob], filename, { type: 'image/png' });
+
+            // Prefer the Web Share API on mobile so users can save/share directly,
+            // since toDataURL + <a download> is unreliable on iOS Safari / Android Chrome.
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: filename
+                    });
+                    return;
+                } catch (err) {
+                    // AbortError means the user cancelled the share sheet; don't fall back in that case.
+                    if (err && err.name === 'AbortError') return;
+                    console.error('navigator.share failed, falling back to download.', err);
+                }
+            }
+
+            // Desktop / unsupported browsers: download via a Blob Object URL.
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 'image/png');
     }
 
     // Drag and Drop Logic
